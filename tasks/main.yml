@@ -1,0 +1,88 @@
+---
+# Version: 1.1.0
+# Author: Bernd Schreistetter
+# Description: Main orchestration for Solr installation with pre-deployment auth
+# Changelog v1.1:
+#   - CRITICAL: Auth tasks moved BEFORE container deployment
+#   - Added pre-hash authentication (security.json before first start)
+#   - Added Docker Compose generation with init-container pattern
+#   - Added Rundeck integration support
+#   - Eliminated all Python dependencies (htpasswd bcrypt only)
+
+- name: install-solr - Preflight checks
+  include_tasks: preflight_checks.yml
+  tags:
+    - always
+    - install-solr-preflight
+
+- name: install-solr - System preparation
+  include_tasks: system_preparation.yml
+  tags:
+    - install-solr-preparation
+
+- name: install-solr - Docker installation
+  include_tasks: docker_installation.yml
+  tags:
+    - install-solr-docker
+
+- name: install-solr - Auth pre-hash passwords
+  include_tasks: auth_prehash.yml
+  when: solr_auth_enabled | default(true)
+  tags:
+    - install-solr-auth
+
+- name: install-solr - Auth create security json
+  include_tasks: auth_securityjson.yml
+  when: solr_auth_enabled | default(true)
+  tags:
+    - install-solr-auth
+
+- name: install-solr - Generate Docker Compose configuration
+  include_tasks: compose_generation.yml
+  tags:
+    - install-solr-compose
+
+- name: install-solr - Deploy container with init pattern
+  include_tasks: container_deployment.yml
+  tags:
+    - install-solr-deployment
+
+- name: install-solr - Auth validation tests
+  include_tasks: auth_validation.yml
+  when: solr_auth_enabled | default(true)
+  tags:
+    - install-solr-auth
+
+- name: install-solr - Auth persist credentials
+  include_tasks: auth_persistence.yml
+  when: solr_auth_enabled | default(true)
+  tags:
+    - install-solr-auth
+
+- name: install-solr - Create Solr core
+  include_tasks: core_creation.yml
+  tags:
+    - install-solr-core
+
+- name: install-solr - Configure webserver proxy
+  include_tasks: proxy_configuration.yml
+  when: solr_proxy_enabled | default(true)
+  tags:
+    - install-solr-proxy
+
+- name: install-solr - Integration tests
+  include_tasks: integration_tests.yml
+  tags:
+    - install-solr-test
+
+- name: install-solr - Finalization
+  include_tasks: finalization.yml
+  tags:
+    - install-solr-finalize
+
+
+- name: install-solr - Rundeck integration
+  include_tasks: rundeck_integration.yml
+  when: rundeck_integration_enabled | default(false)
+  tags:
+    - install-solr-rundeck

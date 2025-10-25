@@ -1,0 +1,25 @@
+- id: solr-restart-{{ customer_name | default('default') }}
+  project: {{ rundeck_project_name }}
+  loglevel: INFO
+  sequence:
+    keepgoing: false
+    strategy: node-first
+    commands:
+      - exec: docker compose -f {{ solr_compose_dir }}/docker-compose.yml restart
+      - exec: sleep 15
+      - exec: /usr/local/bin/solr_health_check
+  description: Restart Solr container for {{ customer_name | default('default') }}
+  name: Solr Restart - {{ customer_name | default('default') }}
+  group: solr/maintenance
+  nodefilters:
+    filter: name:{{ inventory_hostname }}
+  scheduleEnabled: false
+  notification:
+    onfailure:
+      email:
+        recipients: {{ admin_email | default('') }}
+        subject: Solr Restart Failed - {{ customer_name | default('default') }}
+    onsuccess:
+      email:
+        recipients: {{ admin_email | default('') }}
+        subject: Solr Restart Completed - {{ customer_name | default('default') }}

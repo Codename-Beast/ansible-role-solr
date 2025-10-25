@@ -1,0 +1,127 @@
+---
+# Version: 1.1.0
+# Description: Pre-hash passwords for Solr authentication (Python-free)
+# Changelog v1.1:
+#   - NEW: Python-free bcrypt hashing using htpasswd (Danke Daniel Schwarzburg & Karsten Keck)
+#   - Generates all password hashes BEFORE container deployment
+#   - Idempotency check for existing security.json
+#   - Password resolution from host_vars or generation
+#   - Rundeck-compatible JSON output
+
+- name: install-solr - Check for existing security.json
+  stat:
+    path: "{{ solr_config_dir }}/security.json"
+  register: existing_security_json
+
+- name: install-solr - Skip if auth already configured
+  block:
+    - name: install-solr - Display skip message
+      debug:
+        msg:
+          - "AUTH ALREADY CONFIGURED"
+          - "File: {{ solr_config_dir }}/security.json exists"
+          - "To reconfigure: set solr_force_reconfigure_auth: true"
+    
+    - name: install-solr - End play for this host
+      meta: end_host
+  when:
+    - existing_security_json.stat.exists
+    - not solr_force_reconfigure_auth | default(false)
+
+- name: install-solr - Resolve or generate admin password
+  set_fact:
+    admin_password: "{{ solr_admin_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=20')) }}"
+  no_log: true
+
+- name: install-solr - Resolve or generate support password
+  set_fact:
+    support_password: "{{ solr_support_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=16')) }}"
+  no_log: true
+
+- name: install-solr - Resolve or generate customer password
+  set_fact:
+    customer_password: "{{ solr_customer_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=16')) }}"
+  no_log: true
+
+- name: install-solr - Ensure apache2-utils installed (provides htpasswd)
+  apt:
+    name: apache2-utils
+    state: present
+    update_cache: false
+  become: true
+
+- name: install-solr - Generate bcrypt hash for admin
+  shell: htpasswd -nbBC {{ solr_bcrypt_rounds | default(10) }} admin "{{ admin_password }}" | cut -d: -f2
+  register: admin_hash
+  changed_when: false
+  no_log: true
+
+- name: install-solr - Generate bcrypt hash for support
+  shell: htpasswd -nbBC {{ solr_bcrypt_rounds | default(10) }} support "{{ support_password }}" | cut -d: -f2
+  register: support_hash
+  changed_when: false
+  no_log: true
+
+- name: install-solr - Generate bcrypt hash for customer
+  shell: htpasswd -nbBC {{ solr_bcrypt_rounds | default(10) }} customer "{{ customer_password }}" | cut -d: -f2
+  register: customer_hash
+  changed_when: false
+  no_log: true
+
+- name: install-solr - Set hash facts
+  set_fact:
+    admin_password_hash: "{{ admin_hash.stdout }}"
+    support_password_hash: "{{ support_hash.stdout }}"
+    customer_password_hash: "{{ customer_hash.stdout }}"
+  no_log: true
+
+- name: install-solr - Validate bcrypt hash format
+  assert:
+    that:
+      - admin_password_hash is match('^\$2[aby]\$\d{2}\$.{53}$')
+      - support_password_hash is match('^\$2[aby]\$\d{2}\$.{53}$')
+      - customer_password_hash is match('^\$2[aby]\$\d{2}\$.{53}$')
+    fail_msg: "Bcrypt hash validation failed - incorrect format"
+    success_msg: "All bcrypt hashes validated successfully"
+
+- name: install-solr - Verify hash matching (prevent rehashing problem)
+  shell: |
+    echo "{{ admin_password }}" | htpasswd -ivBC {{ solr_bcrypt_rounds | default(10) }} /dev/stdin admin "{{ admin_password_hash }}"
+    echo "{{ support_password }}" | htpasswd -ivBC {{ solr_bcrypt_rounds | default(10) }} /dev/stdin support "{{ support_password_hash }}"
+    echo "{{ customer_password }}" | htpasswd -ivBC {{ solr_bcrypt_rounds | default(10) }} /dev/stdin customer "{{ customer_password_hash }}"
+  register: hash_verification
+  changed_when: false
+  failed_when: hash_verification.rc != 0
+  no_log: true
+
+- name: install-solr - Create Rundeck-compatible output
+  set_fact:
+    auth_prehash_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Password hashing completed"
+      details:
+        method: "bcrypt"
+        rounds: "{{ solr_bcrypt_rounds | default(10) }}"
+        tool: "htpasswd"
+        users:
+          - "{{ solr_admin_user }}"
+          - "{{ solr_support_user }}"
+          - "{{ solr_customer_user }}"
+
+- name: install-solr - Display prehash summary
+  debug:
+    msg: "{{ auth_prehash_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "BCRYPT PASSWORD HASHING COMPLETED"
+      - "Method: htpasswd with bcrypt algorithm"
+      - "Rounds: {{ solr_bcrypt_rounds | default(10) }}"
+      - "Admin hash length: {{ admin_password_hash | length }}"
+      - "Support hash length: {{ support_password_hash | length }}"
+      - "Customer hash length: {{ customer_password_hash | length }}"
+      - "Hash verification: PASSED"
+  when: not rundeck_integration_enabled | default(false)

@@ -1,0 +1,38 @@
+{
+  "authentication": {
+    "blockUnknown": true,
+    "class": "solr.BasicAuthPlugin",
+    "credentials": {
+      "{{ solr_admin_user | default('admin') }}": "{{ admin_password_hash }}",
+      "{{ solr_support_user | default('support') }}": "{{ support_password_hash }}",
+      "{{ solr_customer_user | default('customer') }}": "{{ customer_password_hash }}"
+    }
+  },
+  "authorization": {
+    "class": "solr.RuleBasedAuthorizationPlugin",
+    "permissions": [
+      {
+        "name": "security-edit",
+        "role": "admin"
+      },
+      {
+        "name": "all",
+        "role": "admin"
+      },
+      {
+        "name": "read",
+        "role": ["admin", "support", "customer"]
+      },
+      {
+        "name": "update",
+        "collection": "*",
+        "role": ["admin", "customer"]
+      }
+    ],
+    "user-role": {
+      "{{ solr_admin_user | default('admin') }}": "admin",
+      "{{ solr_support_user | default('support') }}": "support",
+      "{{ solr_customer_user | default('customer') }}": "customer"
+    }
+  }
+}

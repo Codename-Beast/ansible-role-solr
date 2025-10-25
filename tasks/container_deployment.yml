@@ -1,0 +1,111 @@
+---
+# Version: 1.1.0
+# Description: Deploy Solr container using Docker Compose with init-container
+# Changelog v1.1:
+#   - NEW: Init-container pattern deployment
+#   - Uses Docker Compose for orchestration
+#   - Ensures security.json deployed before Solr starts
+#   - Validates deployment success
+
+- name: solr-deployment - Check if services are already running
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml ps --services --filter status=running
+  register: running_services
+  changed_when: false
+  failed_when: false
+
+- name: solr-deployment - Stop existing services if force recreate
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
+  when:
+    - running_services.stdout_lines | length > 0
+    - solr_force_recreate | default(false)
+  become: true
+
+- name: solr-deployment - Pull Solr images
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml pull
+  when: solr_force_pull | default(false)
+  become: true
+
+- name: solr-deployment - Start init-container and Solr stack
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml up -d
+  become: true
+  register: compose_up
+
+- name: solr-deployment - Wait for init-container to complete
+  command: docker wait {{ solr_container_name }}_init
+  register: init_container_wait
+  failed_when: init_container_wait.stdout != '0'
+  timeout: "{{ solr_init_container_timeout | default(60) }}"
+
+- name: solr-deployment - Check init-container logs
+  command: docker logs {{ solr_container_name }}_init
+  register: init_logs
+  changed_when: false
+
+- name: solr-deployment - Verify security.json deployed by init-container
+  command: docker exec {{ solr_container_name }} test -f /var/solr/data/security.json
+  register: security_json_in_container
+  retries: 5
+  delay: 3
+  until: security_json_in_container.rc == 0
+  failed_when: security_json_in_container.rc != 0
+
+- name: solr-deployment - Wait for Solr container to be healthy
+  command: docker inspect {{ solr_container_name }} --format '{% raw %}{{.State.Health.Status}}{% endraw %}'
+  register: container_health
+  retries: "{{ (solr_startup_wait_time | default(60) / 5) | int }}"
+  delay: 5
+  until: container_health.stdout == "healthy"
+  changed_when: false
+
+- name: solr-deployment - Wait for Solr HTTP endpoint
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    status_code:
+      - 200
+      - 401
+  register: solr_http_check
+  retries: 20
+  delay: 3
+  until: solr_http_check.status in [200, 401]
+
+- name: solr-deployment - Verify authentication is active
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    status_code: 401
+  register: auth_active_check
+  failed_when: auth_active_check.status != 401
+
+- name: solr-deployment - Create Rundeck-compatible output
+  set_fact:
+    container_deployment_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Solr container deployed with authentication"
+      details:
+        container_name: "{{ solr_container_name }}"
+        init_container: "{{ solr_container_name }}_init"
+        health_status: "{{ container_health.stdout }}"
+        http_status: "{{ solr_http_check.status }}"
+        auth_status: "{{ 'active' if auth_active_check.status == 401 else 'inactive' }}"
+        security_json_deployed: true
+        port: "{{ solr_port }}"
+
+- name: solr-deployment - Display Rundeck output
+  debug:
+    msg: "{{ container_deployment_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: solr-deployment - Display standard summary
+  debug:
+    msg:
+      - "SOLR CONTAINER DEPLOYED SUCCESSFULLY"
+      - "Container: {{ solr_container_name }}"
+      - "Init-Container: {{ solr_container_name }}_init (completed)"
+      - "Health Status: {{ container_health.stdout }}"
+      - "HTTP Status: {{ solr_http_check.status }}"
+      - "Authentication: {{ 'ACTIVE' if auth_active_check.status == 401 else 'INACTIVE' }}"
+      - "security.json: DEPLOYED"
+      - "Port: {{ solr_port }}"
+  when: not rundeck_integration_enabled | default(false)

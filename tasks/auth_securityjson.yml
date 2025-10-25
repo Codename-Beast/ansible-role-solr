@@ -1,0 +1,100 @@
+---
+# Version: 1.1.0
+# Description: Create security.json from pre-hashed passwords
+# Changelog v1.1:
+#   - NEW: Creates security.json BEFORE container deployment
+#   - Uses pre-computed bcrypt hashes from auth_prehash.yml
+#   - Ensures config directory structure exists
+#   - Validates JSON syntax
+#   - Sets correct ownership for Solr user (8983)
+
+- name: install-solr - Ensure config directory exists
+  file:
+    path: "{{ solr_config_dir }}"
+    state: directory
+    owner: "8983"
+    group: "8983"
+    mode: '0755'
+  become: true
+
+- name: install-solr - Create security.json from template
+  template:
+    src: security.json.j2
+    dest: "{{ solr_config_dir }}/security.json"
+    owner: "8983"
+    group: "8983"
+    mode: '0600'
+  become: true
+  register: security_json_created
+
+- name: install-solr - Validate JSON syntax
+  shell: cat {{ solr_config_dir }}/security.json | jq empty
+  register: json_validation
+  changed_when: false
+  failed_when: json_validation.rc != 0
+
+- name: install-solr - Read security.json for verification
+  slurp:
+    src: "{{ solr_config_dir }}/security.json"
+  register: security_json_content
+  become: true
+
+- name: install-solr - Parse security.json
+  set_fact:
+    security_json_parsed: "{{ security_json_content.content | b64decode | from_json }}"
+
+- name: install-solr - Validate security.json structure
+  assert:
+    that:
+      - security_json_parsed.authentication is defined
+      - security_json_parsed.authentication.class == "solr.BasicAuthPlugin"
+      - security_json_parsed.authentication.credentials is defined
+      - security_json_parsed.authentication.credentials.admin is defined
+      - security_json_parsed.authorization is defined
+      - security_json_parsed.authorization.class == "solr.RuleBasedAuthorizationPlugin"
+    fail_msg: "security.json structure validation failed"
+    success_msg: "security.json structure validated"
+
+- name: install-solr - Verify file ownership
+  stat:
+    path: "{{ solr_config_dir }}/security.json"
+  register: security_json_stat
+  become: true
+
+- name: install-solr - Create Rundeck-compatible output
+  set_fact:
+    auth_securityjson_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "security.json created and validated"
+      details:
+        path: "{{ solr_config_dir }}/security.json"
+        size: "{{ security_json_stat.stat.size }}"
+        owner_uid: "{{ security_json_stat.stat.uid }}"
+        owner_gid: "{{ security_json_stat.stat.gid }}"
+        permissions: "{{ security_json_stat.stat.mode }}"
+        auth_class: "{{ security_json_parsed.authentication.class }}"
+        authz_class: "{{ security_json_parsed.authorization.class }}"
+        users:
+          - "{{ solr_admin_user }}"
+          - "{{ solr_support_user }}"
+          - "{{ solr_customer_user }}"
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ auth_securityjson_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "SECURITY JSON CREATED"
+      - "Path: {{ solr_config_dir }}/security.json"
+      - "Size: {{ security_json_stat.stat.size }} bytes"
+      - "Owner: {{ security_json_stat.stat.uid }}:{{ security_json_stat.stat.gid }}"
+      - "Permissions: {{ security_json_stat.stat.mode }}"
+      - "JSON syntax: VALID"
+      - "Structure validation: PASSED"
+      - "Authentication: {{ security_json_parsed.authentication.class }}"
+      - "Authorization: {{ security_json_parsed.authorization.class }}"
+  when: not rundeck_integration_enabled | default(false)

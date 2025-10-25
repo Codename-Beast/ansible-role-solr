@@ -1,0 +1,220 @@
+---
+# Version: 1.1.0
+# Description: Integration tests for Solr installation
+# Changelog v1.1:
+#   - NEW: Initial integration tests task file
+#   - Authentication tests
+#   - Core functionality tests
+#   - Performance tests
+#   - Security validation
+
+- name: install-solr - Test Solr admin ping endpoint
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/ping"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: admin_ping_test
+  changed_when: false
+
+- name: install-solr - Test Solr core ping endpoint
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    method: GET
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_ping_test
+  changed_when: false
+
+- name: install-solr - Test authentication rejection (no credentials)
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/ping"
+    method: GET
+    status_code: 401
+  register: auth_reject_test
+  changed_when: false
+  failed_when: auth_reject_test.status != 401
+
+- name: install-solr - Test authentication rejection (wrong credentials)
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/ping"
+    method: GET
+    user: "invalid_user"
+    password: "invalid_password"
+    force_basic_auth: yes
+    status_code: 401
+  register: auth_wrong_test
+  changed_when: false
+  failed_when: auth_wrong_test.status != 401
+
+- name: install-solr - Test document indexing (add test document)
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    method: POST
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      id: "test_doc_{{ ansible_date_time.epoch }}"
+      title: "Integration Test Document"
+      content: "This is a test document for integration testing"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+    status_code: 200
+  register: index_test
+  changed_when: false
+
+- name: install-solr - Commit test document
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    method: GET
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: commit_test
+  changed_when: false
+
+- name: install-solr - Test document search
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=title:Integration*"
+    method: GET
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: search_test
+  changed_when: false
+
+- name: install-solr - Verify search results
+  assert:
+    that:
+      - "'numFound' in search_test.content"
+      - search_test.json.response.numFound >= 1
+    fail_msg: "Search test failed - no results found"
+    success_msg: "Search test passed - documents found"
+
+- name: install-solr - Delete test document
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    method: POST
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      delete:
+        query: "title:Integration*"
+    status_code: 200
+  register: delete_test
+  changed_when: false
+
+- name: install-solr - Check Docker container health
+  command: docker inspect --format='{{`{{.State.Health.Status}}`}}' {{ solr_container_name }}
+  register: container_health
+  changed_when: false
+  failed_when: false
+
+- name: install-solr - Check Docker container status
+  command: docker inspect --format='{{`{{.State.Status}}`}}' {{ solr_container_name }}
+  register: container_status
+  changed_when: false
+
+- name: install-solr - Get Solr memory usage
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/metrics?group=jvm&prefix=memory"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: memory_metrics
+  changed_when: false
+
+- name: install-solr - Test security.json is present in container
+  command: docker exec {{ solr_container_name }} ls -la /var/solr/data/security.json
+  register: security_json_check
+  changed_when: false
+
+- name: install-solr - Test user permissions (customer user cannot access admin)
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores"
+    method: GET
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    status_code: 403
+  register: permission_test
+  changed_when: false
+  failed_when: permission_test.status != 403
+
+- name: install-solr - Calculate test results summary
+  set_fact:
+    tests_passed: "{{ [
+      admin_ping_test.status == 200,
+      core_ping_test.status == 200,
+      auth_reject_test.status == 401,
+      auth_wrong_test.status == 401,
+      index_test.status == 200,
+      search_test.json.response.numFound >= 1,
+      container_status.stdout == 'running',
+      security_json_check.rc == 0,
+      permission_test.status == 403
+    ] | select('true') | list | length }}"
+    tests_total: 9
+
+- name: install-solr - Create Rundeck-compatible output
+  set_fact:
+    integration_tests_result:
+      status: "{{ 'success' if tests_passed | int == tests_total | int else 'warning' }}"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Integration tests completed"
+      summary:
+        tests_total: "{{ tests_total }}"
+        tests_passed: "{{ tests_passed }}"
+        tests_failed: "{{ tests_total | int - tests_passed | int }}"
+        success_rate: "{{ ((tests_passed | int / tests_total | int) * 100) | round(2) }}%"
+      test_results:
+        admin_ping: "{{ 'PASSED' if admin_ping_test.status == 200 else 'FAILED' }}"
+        core_ping: "{{ 'PASSED' if core_ping_test.status == 200 else 'FAILED' }}"
+        auth_no_credentials: "{{ 'PASSED' if auth_reject_test.status == 401 else 'FAILED' }}"
+        auth_wrong_credentials: "{{ 'PASSED' if auth_wrong_test.status == 401 else 'FAILED' }}"
+        document_indexing: "{{ 'PASSED' if index_test.status == 200 else 'FAILED' }}"
+        document_search: "{{ 'PASSED' if search_test.json.response.numFound >= 1 else 'FAILED' }}"
+        container_status: "{{ 'PASSED' if container_status.stdout == 'running' else 'FAILED' }}"
+        container_health: "{{ container_health.stdout if container_health.rc == 0 else 'N/A' }}"
+        security_json_present: "{{ 'PASSED' if security_json_check.rc == 0 else 'FAILED' }}"
+        permission_isolation: "{{ 'PASSED' if permission_test.status == 403 else 'FAILED' }}"
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ integration_tests_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "INTEGRATION TESTS COMPLETED"
+      - "Tests passed: {{ tests_passed }}/{{ tests_total }} ({{ ((tests_passed | int / tests_total | int) * 100) | round(2) }}%)"
+      - "---"
+      - "Admin ping: {{ 'PASSED' if admin_ping_test.status == 200 else 'FAILED' }}"
+      - "Core ping: {{ 'PASSED' if core_ping_test.status == 200 else 'FAILED' }}"
+      - "Auth rejection (no creds): {{ 'PASSED' if auth_reject_test.status == 401 else 'FAILED' }}"
+      - "Auth rejection (wrong creds): {{ 'PASSED' if auth_wrong_test.status == 401 else 'FAILED' }}"
+      - "Document indexing: {{ 'PASSED' if index_test.status == 200 else 'FAILED' }}"
+      - "Document search: {{ 'PASSED' if search_test.json.response.numFound >= 1 else 'FAILED' }}"
+      - "Container running: {{ 'PASSED' if container_status.stdout == 'running' else 'FAILED' }}"
+      - "Container health: {{ container_health.stdout if container_health.rc == 0 else 'N/A' }}"
+      - "Security.json present: {{ 'PASSED' if security_json_check.rc == 0 else 'FAILED' }}"
+      - "Permission isolation: {{ 'PASSED' if permission_test.status == 403 else 'FAILED' }}"
+  when: not rundeck_integration_enabled | default(false)
+
+- name: install-solr - Fail if critical tests failed
+  fail:
+    msg: "Critical integration tests failed. Please review the test results above."
+  when:
+    - admin_ping_test.status != 200 or core_ping_test.status != 200 or container_status.stdout != 'running'

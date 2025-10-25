@@ -1,0 +1,26 @@
+- id: solr-backup-{{ customer_name | default('default') }}
+  project: {{ rundeck_project_name }}
+  loglevel: INFO
+  sequence:
+    keepgoing: false
+    strategy: node-first
+    commands:
+      - exec: docker exec {{ solr_container_name }} solr backup -c {{ solr_core_name }} -d /var/solr/backup -name backup_$(date +%Y%m%d_%H%M%S)
+      - exec: find /var/solr/backup -type d -name "backup_*" -mtime +{{ solr_backup_retention | default(7) }} -exec rm -rf {} \; || true
+  description: Backup Solr core {{ solr_core_name }} for {{ customer_name | default('default') }}
+  name: Solr Backup - {{ customer_name | default('default') }}
+  group: solr/maintenance
+  nodefilters:
+    filter: name:{{ inventory_hostname }}
+  scheduleEnabled: true
+  schedule:
+    crontab: '0 2 * * *'
+  notification:
+    onfailure:
+      email:
+        recipients: {{ admin_email | default('') }}
+        subject: Solr Backup Failed - {{ customer_name | default('default') }}
+    onsuccess:
+      email:
+        recipients: {{ admin_email | default('') }}
+        subject: Solr Backup Completed - {{ customer_name | default('default') }}

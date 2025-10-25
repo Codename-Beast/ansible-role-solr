@@ -1,0 +1,126 @@
+---
+# Version: 1.1.0
+# Description: System preparation for Solr installation
+# Changelog v1.1:
+#   - NEW: Initial system preparation task file
+#   - Directory structure creation
+#   - User/group setup for Solr (8983:8983)
+#   - Required packages installation
+#   - Compatible with Hetzner Cloud and Xen Server
+
+- name: install-solr - Install required system packages
+  apt:
+    name:
+      - curl
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - apache2-utils  # for htpasswd
+      - net-tools      # for netstat
+    state: present
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true
+
+- name: install-solr - Create base directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  loop:
+    - "{{ solr_compose_dir }}"
+    - "{{ solr_config_dir }}"
+    - "{{ solr_backup_dir }}"
+    - "{{ solr_log_dir }}"
+
+- name: install-solr - Ensure proper permissions for log directory
+  file:
+    path: "{{ solr_log_dir }}"
+    state: directory
+    owner: "8983"
+    group: "8983"
+    mode: '0755'
+  become: true
+  ignore_errors: yes  # User 8983 might not exist yet
+
+- name: install-solr - Check if Solr volume already exists
+  command: docker volume ls -q -f name={{ solr_volume_name }}
+  register: existing_volume
+  changed_when: false
+  failed_when: false
+
+- name: install-solr - Display existing volume warning
+  debug:
+    msg:
+      - "WARNING: Solr volume {{ solr_volume_name }} already exists"
+      - "Existing data will be preserved unless force_recreate=true"
+  when: existing_volume.stdout != ""
+
+- name: install-solr - Remove existing volume if force_recreate
+  command: docker volume rm {{ solr_volume_name }}
+  when:
+    - existing_volume.stdout != ""
+    - solr_force_recreate | default(false)
+  become: true
+
+- name: install-solr - Optimize system for Solr (vm.max_map_count)
+  sysctl:
+    name: vm.max_map_count
+    value: '262144'
+    state: present
+    reload: yes
+  become: true
+  when: ansible_virtualization_type != 'openvz'  # Skip for OpenVZ
+
+- name: install-solr - Configure file descriptor limits
+  blockinfile:
+    path: /etc/security/limits.conf
+    block: |
+      * soft nofile 65535
+      * hard nofile 65535
+      * soft nproc 4096
+      * hard nproc 4096
+    marker: "# {mark} ANSIBLE MANAGED - SOLR LIMITS"
+  become: true
+
+- name: install-solr - Create Rundeck-compatible output
+  set_fact:
+    system_preparation_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "System preparation completed"
+      details:
+        directories_created:
+          - "{{ solr_compose_dir }}"
+          - "{{ solr_config_dir }}"
+          - "{{ solr_backup_dir }}"
+          - "{{ solr_log_dir }}"
+        packages_installed:
+          - "curl"
+          - "ca-certificates"
+          - "apache2-utils"
+          - "net-tools"
+        system_tuning:
+          vm_max_map_count: "262144"
+          file_descriptors: "65535"
+        existing_volume: "{{ existing_volume.stdout != '' }}"
+        force_recreate: "{{ solr_force_recreate | default(false) }}"
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ system_preparation_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "SYSTEM PREPARATION COMPLETED"
+      - "Directories created: {{ solr_compose_dir }}, {{ solr_config_dir }}, {{ solr_backup_dir }}"
+      - "Required packages installed: curl, ca-certificates, apache2-utils, net-tools"
+      - "System tuning applied: vm.max_map_count=262144, file descriptors=65535"
+      - "Existing volume: {{ 'YES' if existing_volume.stdout != '' else 'NO' }}"
+      - "Force recreate: {{ 'YES' if solr_force_recreate | default(false) else 'NO' }}"
+  when: not rundeck_integration_enabled | default(false)

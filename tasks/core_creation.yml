@@ -1,0 +1,160 @@
+---
+# Version: 1.1.0
+# Description: Solr core creation and configuration
+# Changelog v1.1:
+#   - NEW: Initial core creation task file
+#   - Create core with authentication
+#   - Configure core settings
+#   - Verify core availability
+
+- name: install-solr - Wait for Solr to be fully ready
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/ping"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: solr_ping
+  until: solr_ping.status == 200
+  retries: 12
+  delay: 5
+  changed_when: false
+
+- name: install-solr - Check if core already exists
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS&core={{ solr_core_name }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: core_status
+  changed_when: false
+  failed_when: false
+
+- name: install-solr - Parse core status
+  set_fact:
+    core_exists: "{{ solr_core_name in core_status.content }}"
+
+- name: install-solr - Display core already exists
+  debug:
+    msg:
+      - "Core {{ solr_core_name }} already exists"
+      - "Skipping core creation"
+  when: core_exists
+
+- name: install-solr - Create Solr core
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=CREATE&name={{ solr_core_name }}&configSet={{ solr_core_config }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_creation
+  when: not core_exists
+  failed_when: core_creation.status != 200
+
+- name: install-solr - Wait for core to be available
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_ping
+  until: core_ping.status == 200
+  retries: 6
+  delay: 3
+  changed_when: false
+
+- name: install-solr - Get core status details
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS&core={{ solr_core_name }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: core_details
+  changed_when: false
+
+- name: install-solr - Configure core properties (maxBooleanClauses)
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/config"
+    method: POST
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      set-property:
+        query.maxBooleanClauses: "{{ solr_max_boolean_clauses }}"
+    status_code: 200
+  register: core_config
+  when: not core_exists
+
+- name: install-solr - Configure autoCommit settings
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/config"
+    method: POST
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      set-property:
+        updateHandler.autoCommit.maxTime: "{{ solr_auto_commit_time }}"
+        updateHandler.autoSoftCommit.maxTime: "{{ solr_auto_soft_commit_time }}"
+    status_code: 200
+  register: core_commit_config
+  when: not core_exists
+
+- name: install-solr - Test core with simple query
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
+    method: GET
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_query_test
+  changed_when: false
+
+- name: install-solr - Create Rundeck-compatible output
+  set_fact:
+    core_creation_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Solr core creation completed"
+      details:
+        core_name: "{{ solr_core_name }}"
+        core_config: "{{ solr_core_config }}"
+        core_existed: "{{ core_exists }}"
+        core_created: "{{ not core_exists }}"
+        max_boolean_clauses: "{{ solr_max_boolean_clauses }}"
+        auto_commit_time: "{{ solr_auto_commit_time }}"
+        auto_soft_commit_time: "{{ solr_auto_soft_commit_time }}"
+        core_url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
+        query_test: "{{ 'PASSED' if core_query_test.status == 200 else 'FAILED' }}"
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ core_creation_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "SOLR CORE CREATION COMPLETED"
+      - "Core name: {{ solr_core_name }}"
+      - "Core config: {{ solr_core_config }}"
+      - "Core status: {{ 'ALREADY EXISTED' if core_exists else 'NEWLY CREATED' }}"
+      - "Core URL: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
+      - "Max boolean clauses: {{ solr_max_boolean_clauses }}"
+      - "Auto-commit time: {{ solr_auto_commit_time }}ms"
+      - "Auto soft-commit time: {{ solr_auto_soft_commit_time }}ms"
+      - "Query test: {{ 'PASSED' if core_query_test.status == 200 else 'FAILED' }}"
+  when: not rundeck_integration_enabled | default(false)

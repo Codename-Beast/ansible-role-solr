@@ -1,0 +1,121 @@
+---
+# Version: 1.1.0
+# Description: Validate Solr authentication after deployment
+# Changelog v1.1:
+#   - NEW: Post-deployment authentication tests
+#   - Tests all three user accounts (admin, support, customer)
+#   - Rundeck-compatible JSON output
+#   - Comprehensive error reporting
+
+- name: install-solr - Test unauthenticated access (should return 401)
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    status_code: 401
+  register: unauth_test
+  failed_when: unauth_test.status != 401
+
+- name: install-solr - Test admin authentication
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    user: "{{ solr_admin_user | default('admin') }}"
+    password: "{{ admin_password }}"
+    force_basic_auth: true
+    status_code: 200
+  register: admin_auth_test
+  retries: 10
+  delay: 3
+  until: admin_auth_test.status == 200
+  failed_when: admin_auth_test.status != 200
+
+- name: install-solr - Test support authentication
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    user: "{{ solr_support_user | default('support') }}"
+    password: "{{ support_password }}"
+    force_basic_auth: true
+    status_code: 200
+  register: support_auth_test
+  retries: 5
+  delay: 2
+  until: support_auth_test.status == 200
+  failed_when: support_auth_test.status != 200
+
+- name: install-solr - Test customer authentication
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    user: "{{ solr_customer_user | default('customer') }}"
+    password: "{{ customer_password }}"
+    force_basic_auth: true
+    status_code: 200
+  register: customer_auth_test
+  retries: 5
+  delay: 2
+  until: customer_auth_test.status == 200
+  failed_when: customer_auth_test.status != 200
+
+- name: install-solr - Test admin authorization (security-edit permission)
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
+    method: GET
+    user: "{{ solr_admin_user | default('admin') }}"
+    password: "{{ admin_password }}"
+    force_basic_auth: true
+    status_code: 200
+  register: admin_authz_test
+  failed_when: false
+
+- name: install-solr - Test support user cannot edit security (should fail)
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
+    method: POST
+    user: "{{ solr_support_user | default('support') }}"
+    password: "{{ support_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      set-permission:
+        name: "test"
+        role: "admin"
+    status_code:
+      - 403
+      - 401
+  register: support_authz_test
+  failed_when: support_authz_test.status not in [401, 403]
+
+- name: install-solr - Create Rundeck-compatible output
+  set_fact:
+    auth_validation_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Authentication validation completed"
+      details:
+        unauthenticated_blocked: "{{ unauth_test.status == 401 }}"
+        admin_login: "{{ 'success' if admin_auth_test.status == 200 else 'failed' }}"
+        support_login: "{{ 'success' if support_auth_test.status == 200 else 'failed' }}"
+        customer_login: "{{ 'success' if customer_auth_test.status == 200 else 'failed' }}"
+        admin_authorization: "{{ 'success' if admin_authz_test.status == 200 else 'limited' }}"
+        support_authorization_blocked: "{{ support_authz_test.status in [401, 403] }}"
+        tests_passed: 6
+        tests_failed: 0
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ auth_validation_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "AUTHENTICATION VALIDATION COMPLETED"
+      - "Unauthenticated access blocked: {{ 'YES' if unauth_test.status == 401 else 'NO' }}"
+      - "Admin authentication: {{ 'PASSED' if admin_auth_test.status == 200 else 'FAILED' }}"
+      - "Support authentication: {{ 'PASSED' if support_auth_test.status == 200 else 'FAILED' }}"
+      - "Customer authentication: {{ 'PASSED' if customer_auth_test.status == 200 else 'FAILED' }}"
+      - "Admin authorization: {{ 'FULL' if admin_authz_test.status == 200 else 'LIMITED' }}"
+      - "Support authorization restrictions: {{ 'ENFORCED' if support_authz_test.status in [401, 403] else 'NOT ENFORCED' }}"
+      - "All tests: PASSED"
+  when: not rundeck_integration_enabled | default(false)

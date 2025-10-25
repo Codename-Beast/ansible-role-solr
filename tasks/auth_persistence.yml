@@ -1,0 +1,144 @@
+---
+# Version: 1.1.0
+# Description: Persist Solr credentials to host_vars and backup locations
+# Changelog v1.1:
+#   - NEW: Credential persistence after successful validation
+#   - Saves to host_vars for reuse
+#   - Creates backup in /var/solr
+#   - Rundeck-compatible credential export
+#   - Ansible Vault ready format
+
+- name: install-solr - Ensure host_vars directory exists
+  file:
+    path: "{{ inventory_dir }}/host_vars"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+
+- name: install-solr - Persist credentials to host_vars
+  blockinfile:
+    path: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
+    create: true
+    mode: '0600'
+    marker: "# {mark} ANSIBLE MANAGED SOLR CREDENTIALS v1.1"
+    block: |
+      # Solr Authentication Credentials
+      # Generated: {{ ansible_date_time.iso8601 }}
+      # Host: {{ inventory_hostname }}
+      # Customer: {{ customer_name | default('default') }}
+      #
+      # IMPORTANT: Encrypt with ansible-vault before committing to version control
+      # Command: ansible-vault encrypt host_vars/{{ inventory_hostname }}
+      #
+      # These passwords match bcrypt hashes in {{ solr_config_dir }}/security.json
+      # DO NOT regenerate security.json with these passwords - hashes are unique
+      
+      solr_admin_user: {{ solr_admin_user | default('admin') }}
+      solr_admin_password: "{{ admin_password }}"
+      
+      solr_support_user: {{ solr_support_user | default('support') }}
+      solr_support_password: "{{ support_password }}"
+      
+      solr_customer_user: {{ solr_customer_user | default('customer') }}
+      solr_customer_password: "{{ customer_password }}"
+      
+      # Metadata
+      solr_auth_configured_date: "{{ ansible_date_time.iso8601 }}"
+      solr_auth_version: "1.1.0"
+      solr_auth_method: "bcrypt_prehash"
+  delegate_to: localhost
+  run_once: true
+
+- name: install-solr - Create credential backup file
+  copy:
+    content: |
+      # Solr Credentials Backup
+      # Customer: {{ customer_name | default('default') }}
+      # Host: {{ inventory_hostname }}
+      # Generated: {{ ansible_date_time.iso8601 }}
+      #
+      # KEEP THIS FILE SECURE
+      
+      Admin User: {{ solr_admin_user | default('admin') }}
+      Admin Password: {{ admin_password }}
+      
+      Support User: {{ solr_support_user | default('support') }}
+      Support Password: {{ support_password }}
+      
+      Customer User: {{ solr_customer_user | default('customer') }}
+      Customer Password: {{ customer_password }}
+      
+      Solr Port: {{ solr_port }}
+      Container: {{ solr_container_name }}
+    dest: "/var/solr/.credentials_backup_{{ ansible_date_time.epoch }}"
+    owner: "8983"
+    group: "8983"
+    mode: '0400'
+  become: true
+  when: solr_backup_credentials | default(true)
+
+- name: install-solr - Create Rundeck credential file
+  copy:
+    content: |
+      {
+        "host": "{{ inventory_hostname }}",
+        "customer": "{{ customer_name | default('default') }}",
+        "solr_port": {{ solr_port }},
+        "solr_container": "{{ solr_container_name }}",
+        "credentials": {
+          "admin": {
+            "username": "{{ solr_admin_user | default('admin') }}",
+            "password": "{{ admin_password }}"
+          },
+          "support": {
+            "username": "{{ solr_support_user | default('support') }}",
+            "password": "{{ support_password }}"
+          },
+          "customer": {
+            "username": "{{ solr_customer_user | default('customer') }}",
+            "password": "{{ customer_password }}"
+          }
+        },
+        "configured_date": "{{ ansible_date_time.iso8601 }}",
+        "version": "1.1.0"
+      }
+    dest: "/var/solr/.rundeck_credentials.json"
+    owner: "8983"
+    group: "8983"
+    mode: '0400'
+  become: true
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Create Rundeck-compatible output
+  set_fact:
+    auth_persistence_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Credentials persisted successfully"
+      details:
+        host_vars_file: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
+        backup_file: "/var/solr/.credentials_backup_{{ ansible_date_time.epoch }}"
+        rundeck_file: "{{ '/var/solr/.rundeck_credentials.json' if rundeck_integration_enabled | default(false) else 'not created' }}"
+        users_configured: 3
+        encryption_recommended: true
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ auth_persistence_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "CREDENTIALS PERSISTED SUCCESSFULLY"
+      - "Host vars: {{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
+      - "Backup: /var/solr/.credentials_backup_{{ ansible_date_time.epoch }}"
+      - "Rundeck integration: {{ 'ENABLED' if rundeck_integration_enabled | default(false) else 'DISABLED' }}"
+      - ""
+      - "SECURITY RECOMMENDATIONS:"
+      - "1. Encrypt host_vars with: ansible-vault encrypt host_vars/{{ inventory_hostname }}"
+      - "2. Restrict file permissions (currently 0600)"
+      - "3. Never commit unencrypted credentials to version control"
+      - "4. Backup /var/solr/.credentials_backup_* to secure location"
+  when: not rundeck_integration_enabled | default(false)

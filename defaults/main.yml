@@ -1,0 +1,100 @@
+---
+# Version: 1.1.0
+# Description: Default variables for Solr installation
+# Changelog v1.1:
+#   - Added Docker Compose directory structure
+#   - Added Init-Container configuration
+#   - Added Rundeck integration variables
+#   - Removed Python-related variables
+
+solr_version: "9.9.0"
+solr_major_version: "{{ solr_version.split('.')[0] }}"
+
+solr_container_name: "solr_{{ customer_name | default('default') }}"
+solr_volume_name: "solr_data_{{ customer_name | default('default') }}"
+solr_network_name: "solr_network"
+
+solr_port: 8983
+solr_jmx_port: 18983
+
+solr_compose_dir: "/opt/solr"
+solr_config_dir: "{{ solr_compose_dir }}/config"
+solr_data_dir: "/var/solr/data"
+solr_backup_dir: "/var/solr/backup"
+solr_log_dir: "/var/log/solr"
+
+solr_core_name: "{{ customer_name | default('default') }}_core"
+solr_core_config: "basic_configs"
+
+solr_heap_size: "512m"
+solr_memory_limit: "1g"
+solr_memory_swap: "2g"
+
+solr_cpu_quota: 100000
+solr_cpu_period: 100000
+
+solr_auth_enabled: true
+solr_auth_type: "basic"
+solr_bcrypt_rounds: 10
+
+solr_admin_user: "admin"
+solr_admin_password: ""
+solr_support_user: "support"
+solr_support_password: ""
+solr_customer_user: "customer"
+solr_customer_password: ""
+
+solr_proxy_enabled: true
+solr_proxy_path: "/__solr"
+solr_webserver: "apache"
+
+solr_ssl_enabled: true
+solr_ssl_cert_path: "/etc/letsencrypt/live/{{ moodle_app_domain | default('localhost') }}"
+
+solr_max_boolean_clauses: 1024
+solr_auto_commit_time: 15000
+solr_auto_soft_commit_time: 1000
+
+solr_log_level: "INFO"
+
+solr_backup_enabled: true
+solr_backup_retention: 7
+solr_backup_credentials: true
+
+solr_force_recreate: false
+solr_force_pull: false
+solr_force_reconfigure_auth: false
+solr_validate_deployment: true
+
+solr_start_command: "solr-foreground"
+
+solr_health_check_timeout: 30
+solr_startup_wait_time: 60
+solr_init_container_timeout: 60
+solr_init_container_retries: 5
+
+solr_min_disk_space_gb: 5
+solr_min_memory_gb: 2
+
+docker_api_version: "1.41"
+docker_timeout: 60
+docker_compose_version: "2.0"
+
+customer_name: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else 'default' }}"
+
+moodle_solr_host: "localhost"
+moodle_solr_port: "{{ solr_port }}"
+moodle_solr_secure: false
+moodle_solr_username: "{{ solr_customer_user }}"
+moodle_config_path: "/home/vhosts/moodle/{{ moodle_app_domain }}/public_html/config.php"
+
+rundeck_integration_enabled: false
+rundeck_api_url: ""
+rundeck_api_token: ""
+rundeck_api_version: "40"
+rundeck_project_name: ""
+rundeck_webhook_enabled: false
+rundeck_webhook_secret: ""
+
+notification_enabled: false
+admin_email: ""
