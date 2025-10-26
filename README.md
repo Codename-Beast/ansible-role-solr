@@ -1,6 +1,6 @@
-# Solr Installation Role v1.2.0
+# Solr Installation Role v1.2.1(26102025)
 
-**Version:** 1.2.0  
+**Version:** 1.2.1  
 **Maintainer:** Bernd Schreistetter  
 **Kompatibilität:** Ansible 2.12.0 - 2.15.x  
 **Solr-Version:** 9.9.0  
