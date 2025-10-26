@@ -202,11 +202,11 @@ curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/select?q=type
 
 ---
 
-## Version 1.1.0 - 15.9.2025
+## Version 1.1.0
 
 **Maintainer:** Bernd Schreistetter  
 **Typ:** Major Feature Release + Bugfix  
-**Priorität:** Hoch - Löst kritisches BasicAuth-Problem
+**Priorität:** Hoch - Löst kritisches BasicAuth-Problem (Funfact hat es nicht)
 
 ---
 
@@ -543,4 +543,6 @@ Version 1.0 ist major release:
 
 **Version:** v1.2.1(26102025)
 **Datum:** 25.10.2025  
+**Task Datein** 17
+**Template Datein** 9
 **Status:** Testing Ready (Real Data)

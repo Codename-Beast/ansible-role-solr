@@ -11,7 +11,7 @@
     url: "http://localhost:{{ solr_port }}/solr/admin/ping"
     method: GET
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: solr_ping
@@ -25,7 +25,7 @@
     url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS&core={{ solr_core_name }}"
     method: GET
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: core_status
@@ -48,19 +48,32 @@
     url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=CREATE&name={{ solr_core_name }}&configSet={{ solr_core_config }}"
     method: GET
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: core_creation
   when: not core_exists
   failed_when: core_creation.status != 200
 
+- name: install-solr - Upload Moodle schema to core
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/schema"
+    method: POST
+    user: "{{ solr_admin_user }}"
+    password: "{{ admin_password }}"
+    force_basic_auth: yes
+    body: "{{ lookup('file', solr_config_dir + '/moodle_schema.xml') }}"
+    headers:
+      Content-Type: "application/xml"
+    status_code: 200
+  when: solr_use_moodle_schema | default(true)
+
 - name: install-solr - Wait for core to be available
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
     method: GET
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: core_ping
@@ -74,7 +87,7 @@
     url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS&core={{ solr_core_name }}"
     method: GET
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: core_details
@@ -85,7 +98,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/config"
     method: POST
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -100,7 +113,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/config"
     method: POST
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:

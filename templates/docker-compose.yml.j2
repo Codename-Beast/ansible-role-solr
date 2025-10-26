@@ -11,6 +11,7 @@ services:
     volumes:
       - {{ solr_volume_name }}:/var/solr
       - {{ solr_config_dir }}:/config:ro
+      - {{ solr_config_dir }}:/opt/solr/config:ro  # Für Schema-Zugriff
     command: >
       sh -c "
       echo 'Init-Container: Deploying security.json';
@@ -34,6 +35,7 @@ services:
       - "127.0.0.1:{{ solr_port }}:8983"
     volumes:
       - {{ solr_volume_name }}:/var/solr
+      - {{ solr_config_dir }}:/opt/solr/config:ro  # Für Schema-Zugriff
     environment:
       SOLR_HEAP: {{ solr_heap_size }}
       SOLR_JAVA_MEM: "-Xms{{ solr_heap_size }} -Xmx{{ solr_heap_size }}"
@@ -57,6 +59,9 @@ services:
 volumes:
   {{ solr_volume_name }}:
     name: {{ solr_volume_name }}
+    driver: local
+  {{ solr_config_dir }}
+    name: {{ solr_config_dir }}
     driver: local
 
 networks:

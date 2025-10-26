@@ -31,13 +31,13 @@
   register: compose_up
 
 - name: solr-deployment - Wait for init-container to complete
-  command: docker wait {{ solr_container_name }}_init
+  command: docker wait {{ solr_container_name }}_powerinit
   register: init_container_wait
   failed_when: init_container_wait.stdout != '0'
   timeout: "{{ solr_init_container_timeout | default(60) }}"
 
 - name: solr-deployment - Check init-container logs
-  command: docker logs {{ solr_container_name }}_init
+  command: docker logs {{ solr_container_name }}_powerinit
   register: init_logs
   changed_when: false
 
@@ -85,7 +85,7 @@
       message: "Solr container deployed with authentication"
       details:
         container_name: "{{ solr_container_name }}"
-        init_container: "{{ solr_container_name }}_init"
+        init_container: "{{ solr_container_name }}_powerinit"
         health_status: "{{ container_health.stdout }}"
         http_status: "{{ solr_http_check.status }}"
         auth_status: "{{ 'active' if auth_active_check.status == 401 else 'inactive' }}"
@@ -102,7 +102,7 @@
     msg:
       - "SOLR CONTAINER DEPLOYED SUCCESSFULLY"
       - "Container: {{ solr_container_name }}"
-      - "Init-Container: {{ solr_container_name }}_init (completed)"
+      - "Init-Container: {{ solr_container_name }}_powerinit(completed)"
       - "Health Status: {{ container_health.stdout }}"
       - "HTTP Status: {{ solr_http_check.status }}"
       - "Authentication: {{ 'ACTIVE' if auth_active_check.status == 401 else 'INACTIVE' }}"

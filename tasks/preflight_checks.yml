@@ -59,12 +59,6 @@
   changed_when: false
   failed_when: false
 
-- name: preflight-check - Check if htpasswd is available
-  command: htpasswd -h
-  register: htpasswd_check
-  changed_when: false
-  failed_when: false
-
 - name: preflight-check - Check required variables
   assert:
     that:
@@ -98,7 +92,6 @@
         memory_gb: "{{ total_memory.stdout }}"
         docker_installed: "{{ docker_version_check.rc == 0 }}"
         docker_compose_installed: "{{ docker_compose_check.rc == 0 }}"
-        htpasswd_available: "{{ htpasswd_check.rc == 0 }}"
         port_available: "{{ 'PORT_FREE' in port_check.stdout }}"
 
 - name: preflight-check - Display Rundeck output
@@ -116,6 +109,5 @@
       - "Memory: {{ total_memory.stdout }}GB available"
       - "Docker: {{ 'INSTALLED' if docker_version_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Docker Compose: {{ 'INSTALLED' if docker_compose_check.rc == 0 else 'NOT INSTALLED' }}"
-      - "htpasswd: {{ 'AVAILABLE' if htpasswd_check.rc == 0 else 'NOT AVAILABLE' }}"
       - "Port {{ solr_port }}: {{ 'AVAILABLE' if 'PORT_FREE' in port_check.stdout else 'IN USE' }}"
   when: not rundeck_integration_enabled | default(false)
