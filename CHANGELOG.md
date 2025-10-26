@@ -543,6 +543,7 @@ Version 1.0 ist major release:
 
 **Version:** v1.2.1(26102025)
 **Datum:** 25.10.2025  
+**Edit:** 26.10.2025  
 **Task Datein** 17
 **Template Datein** 9
 **Status:** Testing Ready (Real Data)

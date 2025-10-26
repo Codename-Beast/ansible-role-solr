@@ -3,7 +3,7 @@
 # Description: Pre-hash passwords for Solr authentication (SOLR-COMPATIBLE SHA256)
 # Changelog v1.2.1:
 #   - FIXED: Changed from Bcrypt to SHA256 double-hash (Solr-compatible)
-#   - FIXED: Removed htpasswd dependency (now using openssl)
+#   - FIXED: Removed htpasswd dependency (now using openssl(Not yet))
 #   - Format: base64(sha256(sha256(salt+password))) base64(salt)
 #   - Reference: https://solr.apache.org/guide/solr/latest/deployment-guide/basic-authentication-plugin.html
 
@@ -152,8 +152,8 @@
   debug:
     msg:
       - "SHA256 DOUBLE-HASH PASSWORD HASHING COMPLETED"
-      - "Method: Solr-compatible SHA256(SHA256(salt+password))"
-      - "Tool: OpenSSL (no htpasswd needed)"
+      - "Algorithm: base64(sha256(sha256(salt+password))) base64(salt)"
+      - "Tool: OpenSSL"
       - "Salt size: 32 bytes per user"
       - "Format: HASH SALT (space-separated base64)"
       - "Validation: PASSED"

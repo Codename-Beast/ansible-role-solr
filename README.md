@@ -1,6 +1,6 @@
-# Solr Installation Role v1.2.0
+# Solr Installation Role v1.2.1
 
-**Version:** 1.2.0  
+**Version:** 1.2.1  
 **Maintainer:** Bernd Schreistetter  
 **Kompatibilität:** Ansible 2.12.0 - 2.15.x  
 **Solr-Version:** 9.9.0  
@@ -11,9 +11,9 @@
 
 ## Übersicht
 
-Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Containern bereit. Version 1.2 erweitert v1.1 um **vollständige Moodle-Integration** mit spezifischem Schema und Test-Dokumenten.
+Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Containern bereit. Version 1.2.1 erweitert v1.0 um **vollständige Moodle-Integration** mit spezifischem Schema und Test-Dokumenten.
 
-### Neue Features in v1.2
+### Neue Features in v1.2.x
 
 - **Moodle Schema Support**: Vorgefertigtes Schema für Moodle Global Search (4.1 - 5.0.x)
 - **Moodle Test Documents**: 5 Test-Dokument-Typen (Forum, Wiki, Course, Assignment, Page)
@@ -25,7 +25,7 @@ Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Cont
 - **Pre-Deployment Authentication**: security.json wird VOR dem ersten Container-Start erstellt (Basic Auth Plugin / Role Based ? )
 - **Init-Container Pattern**: Für eine hoffetlich Garantiert korrekte Deployment-Reihenfolge (Auth Probleme [Tested Datum])
 - **Rundeck-Integration**: Vollständige Monitoring- und Automation-Integration (Untested und für Kkeck)
-- **Modulare Task-Struktur**: 16 Task-Dateien a max. 250 Zeilen ← **AKTUALISIERT: +2 in v1.2**
+- **Modulare Task-Struktur**: 16 Task-Dateien a max. 250 Zeilen ← **AKTUALISIERT: +2 in v1.2.x**
 - **Style Guide konform**: Befolgt weitestgehend eLeDia Naming Conventions (Guidlines bla)
 - **Idempotent**: Kann beliebig oft ausgeführt werden ohne Schaden (Hoffentlich)
 
@@ -33,7 +33,7 @@ Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Cont
 
 ## Architektur
 
-### Task-Reihenfolge v1.2
+### Task-Reihenfolge v1.2.x
 
 ```
 1.  preflight_checks.yml      → System-Validierung

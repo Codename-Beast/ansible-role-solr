@@ -19,8 +19,8 @@
     onfailure:
       email:
         recipients: {{ admin_email | default('bsc@eledia.de') }}
-        subject: Solr Backup Failed - {{ customer_name | default('default') }}
+        subject: Solr Backup Failed - {{ customer_name | default('eledia_default') }}
     onsuccess:
       email:
         recipients: {{ admin_email | default('bsc@eledia.de') }}
-        subject: Solr Backup Completed - {{ customer_name | default('default') }}
+        subject: Solr Backup Completed - {{ customer_name | default('eledia_default') }}

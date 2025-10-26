@@ -13,6 +13,7 @@
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
     status_code: 401
+
   register: unauth_test
   failed_when: unauth_test.status != 401
 
@@ -20,7 +21,7 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
-    user: "{{ solr_admin_user | default('admin') }}"
+    user: "{{ solr_admin_user | default('eledia_admin') }}"
     password: "{{ admin_password }}"
     force_basic_auth: true
     status_code: 200
@@ -34,7 +35,7 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
-    user: "{{ solr_support_user | default('support') }}"
+    user: "{{ solr_support_user | default('eledia_support') }}"
     password: "{{ support_password }}"
     force_basic_auth: true
     status_code: 200
@@ -48,7 +49,7 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
-    user: "{{ solr_customer_user | default('customer') }}"
+    user: "{{ solr_customer_user | default('eledia_customer') }}"
     password: "{{ customer_password }}"
     force_basic_auth: true
     status_code: 200
