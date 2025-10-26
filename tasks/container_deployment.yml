@@ -65,7 +65,7 @@
       - 200
       - 401
   register: solr_http_check
-  retries: 20
+  retries: 10
   delay: 3
   until: solr_http_check.status in [200, 401]
 

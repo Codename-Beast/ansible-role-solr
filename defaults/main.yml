@@ -1,32 +1,38 @@
 ---
-# Version: 1.1.0
+# Version: 1.1.1
 # Description: Default variables for Solr installation
 # Changelog v1.1:
 #   - Added Docker Compose directory structure
 #   - Added Init-Container configuration
 #   - Added Rundeck integration variables
 #   - Removed Python-related variables
+# Changelog v1.1.1:
+#   - changed some default
+#   - Add moodle_env: default('public_html') }} 
+#   - Add moodle_eledia_path:"/home/vhosts/moodle" as of 2025
+#   - Add Solr Log-Level Overview
 
 solr_version: "9.9.0"
 solr_major_version: "{{ solr_version.split('.')[0] }}"
 
-solr_container_name: "solr_{{ customer_name | default('default') }}"
-solr_volume_name: "solr_data_{{ customer_name | default('default') }}"
+solr_container_name: "solr_{{ customer_name | default('default_eledia') }}"
+solr_volume_name: "solr_data_{{ customer_name | default('default_eledia') }}"
 solr_network_name: "solr_network"
+solr_create_systemd_service: false
 
 solr_port: 8983
 solr_jmx_port: 18983
 
 solr_compose_dir: "/opt/solr"
 solr_config_dir: "{{ solr_compose_dir }}/config"
-solr_data_dir: "/var/solr/data"
+solr_data_dir: "/var/solr/data" #im Container da sollte auch die security.json liegen
 solr_backup_dir: "/var/solr/backup"
-solr_log_dir: "/var/log/solr"
+solr_log_dir: "/var/log/eledia/solr"
 
-solr_core_name: "{{ customer_name | default('default') }}_core"
+solr_core_name: "{{ customer_name | default('default_eledia') }}_core"
 solr_core_config: "basic_configs"
 
-solr_heap_size: "512m"
+solr_heap_size: "1g"
 solr_memory_limit: "1g"
 solr_memory_swap: "2g"
 
@@ -35,14 +41,14 @@ solr_cpu_period: 100000
 
 solr_auth_enabled: true
 solr_auth_type: "basic"
-solr_bcrypt_rounds: 10
+#solr_bcrypt_rounds: 10 #Deaktiviert da anderes Hashformart genutzt wird als erwartet SHA-irgednwas
 
 solr_admin_user: "admin"
-solr_admin_password: ""
+solr_admin_password: "" #SHA Algo
 solr_support_user: "support"
-solr_support_password: ""
+solr_support_password: "" #SHA Algo
 solr_customer_user: "customer"
-solr_customer_password: ""
+solr_customer_password: "" #SHA Algo
 
 solr_proxy_enabled: true
 solr_proxy_path: "/__solr"
@@ -54,10 +60,21 @@ solr_ssl_cert_path: "/etc/letsencrypt/live/{{ moodle_app_domain | default('local
 solr_max_boolean_clauses: 1024
 solr_auto_commit_time: 15000
 solr_auto_soft_commit_time: 1000
+# ---------------------------------------------------------
+# Solr Log-Level Übersicht
+# ---------------------------------------------------------
+# INFO  - Allgemeine Betriebsinformationen (Standard)
+# OFF   - Deaktiviert jegliche Log-Ausgabe
+# FATAL - Nur kritische Fehler, die zum Absturz führen
+# ERROR - Fehler, die Funktionen beeinträchtigen, Solr läuft aber weiter
+# WARN  - Warnungen über mögliche Probleme oder unsichere Zustände
+# DEBUG - Detaillierte Debug-Informationen für Fehleranalyse
+# TRACE - Sehr detaillierte interne Logs (nur für tiefgehendes Debugging)
+# ALL   - Aktiviert alle Log-Nachrichten (inkl. TRACE)
+# ---------------------------------------------------------
+solr_log_level: "INFO" 
 
-solr_log_level: "INFO"
-
-solr_backup_enabled: true
+solr_backup_enabled: false
 solr_backup_retention: 7
 solr_backup_credentials: true
 
@@ -76,6 +93,10 @@ solr_init_container_retries: 5
 solr_min_disk_space_gb: 5
 solr_min_memory_gb: 2
 
+solr_use_moodle_schema: false
+solr_moodle_test_docs: false
+solr_moodle_versions: ["4.1", "4.2", "4.3", "4.4", "5.0.x"]
+
 docker_api_version: "1.41"
 docker_timeout: 60
 docker_compose_version: "2.0"
@@ -86,7 +107,9 @@ moodle_solr_host: "localhost"
 moodle_solr_port: "{{ solr_port }}"
 moodle_solr_secure: false
 moodle_solr_username: "{{ solr_customer_user }}"
-moodle_config_path: "/home/vhosts/moodle/{{ moodle_app_domain }}/public_html/config.php"
+moodle_env: "public_html" #man muckelt das sich das in zukunft ändert
+moodle_eledia_path: "/home/vhosts/moodle"
+moodle_config_path: "{{ moodle_eledia_path }}/{{ moodle_app_domain }}/{{ moodle_env }}/config.php"
 
 rundeck_integration_enabled: false
 rundeck_api_url: ""

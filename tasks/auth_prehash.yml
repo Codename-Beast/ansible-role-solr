@@ -1,12 +1,11 @@
 ---
-# Version: 1.1.0
-# Description: Pre-hash passwords for Solr authentication (Python-free)
-# Changelog v1.1:
-#   - NEW: Python-free bcrypt hashing using htpasswd (Danke Daniel Schwarzburg & Karsten Keck)
-#   - Generates all password hashes BEFORE container deployment
-#   - Idempotency check for existing security.json
-#   - Password resolution from host_vars or generation
-#   - Rundeck-compatible JSON output
+# Version: 1.2.1 - HOTFIX
+# Description: Pre-hash passwords for Solr authentication (SOLR-COMPATIBLE SHA256)
+# Changelog v1.2.1:
+#   - FIXED: Changed from Bcrypt to SHA256 double-hash (Solr-compatible)
+#   - FIXED: Removed htpasswd dependency (now using openssl)
+#   - Format: base64(sha256(sha256(salt+password))) base64(salt)
+#   - Reference: https://solr.apache.org/guide/solr/latest/deployment-guide/basic-authentication-plugin.html
 
 - name: install-solr - Check for existing security.json
   stat:
@@ -43,27 +42,56 @@
     customer_password: "{{ solr_customer_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=16')) }}"
   no_log: true
 
-- name: install-solr - Ensure apache2-utils installed (provides htpasswd)
-  apt:
-    name: apache2-utils
-    state: present
-    update_cache: false
-  become: true
+- name: install-solr - Generate random salt for admin (32 bytes)
+  shell: openssl rand -base64 32
+  register: admin_salt
+  changed_when: false
+  no_log: true
 
-- name: install-solr - Generate bcrypt hash for admin
-  shell: htpasswd -nbBC {{ solr_bcrypt_rounds | default(10) }} admin "{{ admin_password }}" | cut -d: -f2
+- name: install-solr - Generate random salt for support (32 bytes)
+  shell: openssl rand -base64 32
+  register: support_salt
+  changed_when: false
+  no_log: true
+
+- name: install-solr - Generate random salt for customer (32 bytes)
+  shell: openssl rand -base64 32
+  register: customer_salt
+  changed_when: false
+  no_log: true
+
+- name: install-solr - Generate SHA256 double-hash for admin
+  shell: |
+    SALT="{{ admin_salt.stdout }}"
+    PASS="{{ admin_password }}"
+    # Step 1: SHA256(salt+password) as binary
+    HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
+    # Step 2: SHA256(hash1) as base64
+    HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
+    # Output: HASH SALT (space-separated)
+    echo "${HASH2} ${SALT}"
   register: admin_hash
   changed_when: false
   no_log: true
 
-- name: install-solr - Generate bcrypt hash for support
-  shell: htpasswd -nbBC {{ solr_bcrypt_rounds | default(10) }} support "{{ support_password }}" | cut -d: -f2
+- name: install-solr - Generate SHA256 double-hash for support
+  shell: |
+    SALT="{{ support_salt.stdout }}"
+    PASS="{{ support_password }}"
+    HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
+    HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
+    echo "${HASH2} ${SALT}"
   register: support_hash
   changed_when: false
   no_log: true
 
-- name: install-solr - Generate bcrypt hash for customer
-  shell: htpasswd -nbBC {{ solr_bcrypt_rounds | default(10) }} customer "{{ customer_password }}" | cut -d: -f2
+- name: install-solr - Generate SHA256 double-hash for customer
+  shell: |
+    SALT="{{ customer_salt.stdout }}"
+    PASS="{{ customer_password }}"
+    HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
+    HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
+    echo "${HASH2} ${SALT}"
   register: customer_hash
   changed_when: false
   no_log: true
@@ -75,39 +103,45 @@
     customer_password_hash: "{{ customer_hash.stdout }}"
   no_log: true
 
-- name: install-solr - Validate bcrypt hash format
+- name: install-solr - Validate SHA256 hash format
   assert:
     that:
-      - admin_password_hash is match('^\$2[aby]\$\d{2}\$.{53}$')
-      - support_password_hash is match('^\$2[aby]\$\d{2}\$.{53}$')
-      - customer_password_hash is match('^\$2[aby]\$\d{2}\$.{53}$')
-    fail_msg: "Bcrypt hash validation failed - incorrect format"
-    success_msg: "All bcrypt hashes validated successfully"
+      - admin_password_hash is match('^[A-Za-z0-9+/=]+ [A-Za-z0-9+/=]+$')
+      - support_password_hash is match('^[A-Za-z0-9+/=]+ [A-Za-z0-9+/=]+$')
+      - customer_password_hash is match('^[A-Za-z0-9+/=]+ [A-Za-z0-9+/=]+$')
+      - admin_password_hash.split(' ') | length == 2
+      - support_password_hash.split(' ') | length == 2
+      - customer_password_hash.split(' ') | length == 2
+    fail_msg: "SHA256 hash validation failed - incorrect format (expected: 'HASH SALT')"
+    success_msg: "All SHA256 hashes validated successfully"
 
-- name: install-solr - Verify hash matching (prevent rehashing problem)
-  shell: |
-    echo "{{ admin_password }}" | htpasswd -ivBC {{ solr_bcrypt_rounds | default(10) }} /dev/stdin admin "{{ admin_password_hash }}"
-    echo "{{ support_password }}" | htpasswd -ivBC {{ solr_bcrypt_rounds | default(10) }} /dev/stdin support "{{ support_password_hash }}"
-    echo "{{ customer_password }}" | htpasswd -ivBC {{ solr_bcrypt_rounds | default(10) }} /dev/stdin customer "{{ customer_password_hash }}"
-  register: hash_verification
-  changed_when: false
-  failed_when: hash_verification.rc != 0
-  no_log: true
+- name: install-solr - Display hash format info
+  debug:
+    msg:
+      - "HASH FORMAT: Solr-compatible SHA256 double-hash"
+      - "Algorithm: base64(sha256(sha256(salt+password))) base64(salt)"
+      - "Admin hash length: {{ admin_password_hash | length }} chars"
+      - "Support hash length: {{ support_password_hash | length }} chars"
+      - "Customer hash length: {{ customer_password_hash | length }} chars"
+      - "Format: HASH SALT (space-separated)"
 
-- name: install-solr - Create Rundeck-compatible output
+- name: install-solr - Create Rundeck output
   set_fact:
     auth_prehash_result:
       status: "success"
       timestamp: "{{ ansible_date_time.iso8601 }}"
       message: "Password hashing completed"
       details:
-        method: "bcrypt"
-        rounds: "{{ solr_bcrypt_rounds | default(10) }}"
-        tool: "htpasswd"
+        method: "sha256_double_hash"
+        format: "base64(sha256(sha256(salt+password))) base64(salt)"
+        tool: "openssl"
+        salt_size_bytes: 32
         users:
           - "{{ solr_admin_user }}"
           - "{{ solr_support_user }}"
           - "{{ solr_customer_user }}"
+        solr_compatible: true
+        version: "1.2.1"
 
 - name: install-solr - Display prehash summary
   debug:
@@ -117,11 +151,11 @@
 - name: install-solr - Display standard summary
   debug:
     msg:
-      - "BCRYPT PASSWORD HASHING COMPLETED"
-      - "Method: htpasswd with bcrypt algorithm"
-      - "Rounds: {{ solr_bcrypt_rounds | default(10) }}"
-      - "Admin hash length: {{ admin_password_hash | length }}"
-      - "Support hash length: {{ support_password_hash | length }}"
-      - "Customer hash length: {{ customer_password_hash | length }}"
-      - "Hash verification: PASSED"
+      - "SHA256 DOUBLE-HASH PASSWORD HASHING COMPLETED"
+      - "Method: Solr-compatible SHA256(SHA256(salt+password))"
+      - "Tool: OpenSSL (no htpasswd needed)"
+      - "Salt size: 32 bytes per user"
+      - "Format: HASH SALT (space-separated base64)"
+      - "Validation: PASSED"
+      - ""
   when: not rundeck_integration_enabled | default(false)

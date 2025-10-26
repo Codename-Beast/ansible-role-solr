@@ -485,7 +485,7 @@ ansible-vault encrypt host_vars/server01
 
 2. **Firewall konfigurieren**
 ```bash
-ufw allow from 192.168.1.0/24 to any port 8983
+ufw allow from ip:/24 to any port 8983
 ufw enable
 ```
 
@@ -513,7 +513,7 @@ solr_backup_retention: 14  # 2 Wochen
 
 **Maintainer:** Bernd Schreistetter  
 **Email:** bernd.schreistetter@eledia.de  
-**Version:** 1.1.0  
+**Version:** 1.2.1  
 **Status:** Test Ready
 
 ---

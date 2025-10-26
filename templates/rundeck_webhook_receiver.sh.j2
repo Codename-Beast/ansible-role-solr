@@ -8,7 +8,7 @@ set -euo pipefail
 WEBHOOK_SECRET="{{ rundeck_webhook_secret | default('') }}"
 CONTAINER="{{ solr_container_name }}"
 COMPOSE_FILE="{{ solr_compose_dir }}/docker-compose.yml"
-LOG_FILE="/var/log/solr/webhook.log"
+LOG_FILE="/var/log/eledia/rundeck/solr-webhook.log"
 
 log_message() {
     echo "[$(date -Iseconds)] $1" | tee -a "${LOG_FILE}"

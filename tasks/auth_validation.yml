@@ -6,6 +6,7 @@
 #   - Tests all three user accounts (admin, support, customer)
 #   - Rundeck-compatible JSON output
 #   - Comprehensive error reporting
+#   - Hotfix with auth changes the algo from bcrypt to SHA
 
 - name: install-solr - Test unauthenticated access (should return 401)
   uri:

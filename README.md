@@ -1,31 +1,39 @@
-# Solr Installation Role v1.1.0
+# Solr Installation Role v1.2.0
 
-**Version:** 1.1.0  
+**Version:** 1.2.0  
 **Maintainer:** Bernd Schreistetter  
 **Kompatibilität:** Ansible 2.12.0 - 2.15.x  
-**Solr-Version:** 9.9.0
+**Solr-Version:** 9.9.0  
+**Moodle-Kompatibilität:** 4.1, 4.2, 4.3, 4.4, 5.0.x
+**Tested:** None 
 
 ---
 
 ## Übersicht
 
-Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Containern bereit. Version 1.1 implementiert das **Init-Container-Pattern** zur Lösung des Solr BasicAuth "Rehashing-Problems" und eliminiert alle Python-Abhängigkeiten.
+Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Containern bereit. Version 1.2 erweitert v1.1 um **vollständige Moodle-Integration** mit spezifischem Schema und Test-Dokumenten.
 
-### Neue Features in v1.1
+### Neue Features in v1.2
 
-- **Pre-Deployment Authentication**: security.json wird VOR dem ersten Container-Start erstellt
-- **Init-Container Pattern**:Für eine hoffetlich Garantiert korrekte Deployment-Reihenfolge (Auth Probleme)
-- **Python-frei**: Verwendet htpasswd für bcrypt-Hashing (Wollte da irgenwie Erfolglos mit der Brechtrange ran)
+- **Moodle Schema Support**: Vorgefertigtes Schema für Moodle Global Search (4.1 - 5.0.x)
+- **Moodle Test Documents**: 5 Test-Dokument-Typen (Forum, Wiki, Course, Assignment, Page)
+- **Schema Validation**: Automatische Validierung der Moodle-Felder
+- **Flexible Aktivierung**: Moodle-Features optional ein/ausschaltbar
+
+### Features aus v1.1 (weiterhin enthalten)
+
+- **Pre-Deployment Authentication**: security.json wird VOR dem ersten Container-Start erstellt (Basic Auth Plugin / Role Based ? )
+- **Init-Container Pattern**: Für eine hoffetlich Garantiert korrekte Deployment-Reihenfolge (Auth Probleme [Tested Datum])
 - **Rundeck-Integration**: Vollständige Monitoring- und Automation-Integration (Untested und für Kkeck)
-- **Modulare Task-Struktur**: 14 Task-Dateien a max. 250 Zeilen
-- **Style Guide konform**: Befolgt weitestgehend eLeDia Naming Conventions
+- **Modulare Task-Struktur**: 16 Task-Dateien a max. 250 Zeilen ← **AKTUALISIERT: +2 in v1.2**
+- **Style Guide konform**: Befolgt weitestgehend eLeDia Naming Conventions (Guidlines bla)
 - **Idempotent**: Kann beliebig oft ausgeführt werden ohne Schaden (Hoffentlich)
 
 ---
 
 ## Architektur
 
-### Task-Reihenfolge
+### Task-Reihenfolge v1.2
 
 ```
 1.  preflight_checks.yml      → System-Validierung
@@ -38,20 +46,23 @@ Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Cont
 8.  auth_validation.yml       → Auth-Tests durchführen
 9.  auth_persistence.yml      → Credentials speichern
 10. core_creation.yml         → Solr Core erstellen
-11. proxy_configuration.yml   → Apache/Nginx Proxy
-12. integration_tests.yml     → Vollständige Tests
-13. finalization.yml          → Backup-Scripts, Logrotate
-14. rundeck_integration.yml   → Rundeck Jobs registrieren
+11. moodle_schema_preparation.yml  → Moodle Schema generieren ← NEU v1.2
+12. proxy_configuration.yml   → Apache/Nginx Proxy
+13. integration_tests.yml     → Vollständige Tests
+14. moodle_test_documents.yml → Moodle Test-Docs indexieren ← NEU v1.2
+15. finalization.yml          → Backup-Scripts, Logrotate
+16. rundeck_integration.yml   → Rundeck Jobs registrieren
 ```
 
 **WICHTIG:** Auth MUSS vor Deployment erfolgen!
 
-### Verzeichnisstruktur
+### Verzeichnisstruktur v1.2
 
 ```
 /opt/solr/
 ├── config/                   # Pre-Deployment Configs
-│   └── security.json         # Erstellt BEVOR Container startet
+│   ├── security.json         # Erstellt BEVOR Container startet
+│   └── moodle_schema.xml     # NEU: Moodle-Schema (optional)
 ├── docker-compose.yml        # Compose-Konfiguration
 └── .env                      # Environment Variables
 
@@ -89,14 +100,14 @@ systemctl enable --now docker
 ```yaml
 ---
 # install_solr.yml
-- name: Install Solr with authentication
+- name: Install Solr with authentication and Moodle support
   hosts: solr_servers
   become: true
   roles:
     - install-solr
 ```
 
-### 2. Inventory konfigurieren
+### 2. Inventory konfigurieren (Ansibile Guideline Komform)
 
 ```ini
 # inventory/hosts
@@ -118,6 +129,10 @@ solr_version: "9.9.0"
 solr_port: 8983
 solr_heap_size: "1g"
 
+# NEU in v1.2: Moodle-Optionen
+solr_use_moodle_schema: true      # Moodle-Schema verwenden (default: true)
+solr_moodle_test_docs: true       # Test-Dokumente indexieren (default: false)
+
 # Optional: Bestehende Credentials (werden sonst generiert)
 # solr_admin_password: "secure_password_123"
 # solr_support_password: "support_password_456"
@@ -133,28 +148,97 @@ ansible-playbook install_solr.yml -i inventory/hosts
 # Mit Tags (nur bestimmte Phasen)
 ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-auth
 
+# Nur Moodle-Features (bei bestehender Installation)
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle
+
 # Check-Mode (Dry-Run)
 ansible-playbook install_solr.yml -i inventory/hosts --check
 ```
 
 ---
 
-## Authentifizierung
+## Moodle-Integration ← **NEU in v1.2**
 
-### Bcrypt-Hashing
+### Automatische Schema-Generierung
 
-Version 1.1 verwendet `htpasswd` (apache2-utils) für bcrypt-Hashing:
+Wenn `solr_use_moodle_schema: true` (Standard), wird automatisch ein Moodle-spezifisches Schema erstellt:
 
 ```yaml
+# Moodle-Schema-Felder (Auswahl)
+- id               # Unique identifier
+- title            # Document title
+- content          # Main searchable content
+- contextid        # Moodle context ID
+- courseid         # Course association
+- owneruserid      # Document owner
+- modified         # Timestamp
+- type             # Document type (forum_post, wiki_page, etc.)
+- areaid           # Search area identifier
+- itemid           # Moodle item ID
+- modname          # Module name (forum, wiki, assign, etc.)
+- username         # User display name
+- categoryid       # Course category
+```
+
+### Moodle-Versionen Unterstützt
+
+- Moodle 4.1.x ✅
+- Moodle 4.2.x ✅
+- Moodle 4.3.x ✅
+- Moodle 4.4.x ✅
+- Moodle 5.0.x ✅
+
+### Test-Dokumente
+
+Bei Aktivierung von `solr_moodle_test_docs: true` werden folgende Test-Dokumente indexiert:
+
+1. **Forum Post** - "Einführung in die Mathematik"
+2. **Wiki Page** - "Projektmanagement Methoden"
+3. **Course Module** - "Einführung in Python Programmierung"
+4. **Assignment** - "Hausaufgabe: Datenbankdesign"
+5. **Page Resource** - "Lernmaterialien: HTML und CSS"
+
+**Verwendung:**
+```bash
+# Test-Dokumente indexieren
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle-test
+
+# Suche testen
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/select?q=title:Mathematik"
+```
+
+### Moodle Config.php Konfiguration
+
+Nach erfolgreicher Installation Solr in Moodle konfigurieren:
+
+```php
+// In config.php oder via Admin-Interface
+$CFG->searchengine = 'solr';
+$CFG->searchhosts = ['http://localhost:8983/solr'];
+$CFG->searchindexname = 'kunde01_core';
+$CFG->searchuser = 'customer';
+$CFG->searchpassword = 'PASSWORD_FROM_CREDENTIALS_FILE';
+```
+
+---
+
+## Authentifizierung
+
+### Bcrypt-Hashing (OutOfDate) - Wer Lesen kann ist klar im Vorteil.
+### SHA-256 (UpdaTODate)
+Version 1.1+ verwendet ` SHA-256` (solrbasicath) für  SHA-256 Hasing:
+
+#
+```yaml
 # tasks/auth_prehash.yml
-- name: Generate bcrypt hash for admin
-  shell: htpasswd -nbBC 10 admin "{{ admin_password }}" | cut -d: -f2
+- name: Generate SHA-256 hash for admin
+  #code
   register: admin_hash
 ```
 
 **Vorteile:**
 - Keine Python-Dependencies
-- Native bcrypt-Implementation
+- Native SHA-256 intern von Solr
 - Deterministische Hashes für Idempotenz
 
 ### security.json Struktur
@@ -165,9 +249,9 @@ Version 1.1 verwendet `htpasswd` (apache2-utils) für bcrypt-Hashing:
     "blockUnknown": true,
     "class": "solr.BasicAuthPlugin",
     "credentials": {
-      "admin": "$2b$10$...",
-      "support": "$2b$10$...",
-      "customer": "$2b$10$..."
+      "admin": "SHA-256...",
+      "support": "SHA-256...",
+      "customer": "SHA-256..."
     }
   },
   "authorization": {
@@ -186,7 +270,7 @@ Nach erfolgreicher Installation werden Credentials gespeichert in:
 2. **/var/solr/.credentials_backup_{{ epoch }}** (als Backup)
 3. **/var/solr/.rundeck_credentials.json** (für Rundeck-Integration)
 
-**Empfehlung:** Verschlüsseln mit Ansible Vault:
+**Empfehlung:** Verschlüsseln mit Ansible Vault: (Hinweis) hab noch keine Erfahrung damit
 
 ```bash
 ansible-vault encrypt host_vars/server01.yml
@@ -203,12 +287,13 @@ Container startet → API-Call für User → Solr generiert Hash →
 Container-Restart → security.json weg → 401-Fehler
 ```
 
-### Lösung (v1.1)
+### Lösung (v1.1+)
 
 ```
-Pre-Hash Passwörter → Erstelle security.json → 
+Pre-Hash Passwörter → Erstelle security.json → mit SHA-256 Hashung
 Init-Container kopiert security.json → Solr startet mit Auth → 
 Container-Restart → security.json bleibt (Named Volume) → Funktioniert! (Needs to be Tested)
+
 ```
 
 ### docker-compose.yml
@@ -245,7 +330,7 @@ volumes:
 ### Aktivierung
 
 ```yaml
-# host_vars/server01.yml
+# host_vars/kundexyz.yml
 rundeck_integration_enabled: true
 rundeck_api_url: "https://rundeck.example.com"
 rundeck_api_token: "your_api_token_here"
@@ -309,6 +394,13 @@ curl -u admin:PASSWORD http://localhost:8983/solr/admin/info/system
 docker compose -f /opt/solr/docker-compose.yml restart
 sleep 15
 curl -u admin:PASSWORD http://localhost:8983/solr/admin/info/system
+
+# 7. NEU: Moodle-Schema testen
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/schema/fields" | \
+  jq '.fields[] | select(.name | contains("course"))'
+
+# 8. NEU: Moodle Test-Docs suchen
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/select?q=type:forum_post"
 ```
 
 ### Automated Tests
@@ -316,13 +408,16 @@ curl -u admin:PASSWORD http://localhost:8983/solr/admin/info/system
 ```bash
 # Nur Tests ausführen
 ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-test
+
+# NEU: Nur Moodle-Tests
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle-test
 ```
 
 ---
 
 ## Troubleshooting
 
-### Auth funktioniert nicht
+### Auth funktioniert nicht (Sollte behoben sein benötigt Testing! )
 
 ```bash
 # 1. security.json im Container prüfen
@@ -350,6 +445,32 @@ docker run --rm \
   -v /opt/solr/config:/config:ro \
   alpine:3.18 \
   sh -c "cp /config/security.json /var/solr/data/; ls -la /var/solr/data/"
+```
+
+### Moodle-Schema nicht gefunden ← **Seit Moodle Optimierung**
+
+```bash
+# 1. Schema-Datei prüfen
+ls -la /opt/solr/config/moodle_schema.xml
+
+# 2. Schema neu generieren
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle
+
+# 3. Core-Schema anzeigen
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/schema/fields"
+```
+
+### Moodle Test-Dokumente fehlen ← **Seit Moodle Optimierung**
+
+```bash
+# 1. Anzahl Dokumente prüfen
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/select?q=*:*&rows=0"
+
+# 2. Test-Docs neu indexieren
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle-test
+
+# 3. Nach Test-Docs suchen
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/select?q=type:forum_post"
 ```
 
 ### Credentials vergessen
@@ -419,12 +540,13 @@ Automatisch konfiguriert via `/etc/logrotate.d/solr`:
 - Täglich rotieren
 - 7 Tage behalten
 - Komprimiert speichern
+- Mit More Infos :) Markus wird es Lieben
 
 ---
 
-## Migration von v1.0
+## Migration
 
-### Schritte
+### Von v1.0 zu v1.1
 
 1. **Backup erstellen**
 ```bash
@@ -442,14 +564,24 @@ docker rm solr_kunde01
 ansible-playbook install_solr.yml -i inventory/hosts
 ```
 
-4. **Verifikation**
+### Von v1.1 zu v1.2 ← **NEU**
+
+**WICHTIG-Breaking Changes:** Keine Breaking Changes gefunden.
+
 ```bash
-curl -u admin:PASSWORD http://localhost:8983/solr/admin/info/system
+# Einfach v1.2 deployen
+ansible-playbook install_solr.yml -i inventory/hosts
+
+# Optional: Moodle-Features aktivieren
+# In host_vars/server01.yml:
+solr_use_moodle_schema: true
+solr_moodle_test_docs: true
+
+# Schema nachrüsten
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle
 ```
 
-### Breaking Changes
-
-**KEINE** - v1.1 ist vollständig rückwärtskompatibel. Bestehende Credentials und Cores bleiben erhalten.
+**Breaking Changes:** KEINE - v1.2 ist vollständig rückwärtskompatibel. Bestehende Credentials und Cores bleiben erhalten.
 
 ---
 
@@ -502,6 +634,23 @@ Diese Role befolgt den eLeDia Ansible Style Guide:
 
 ---
 
+## Bekannte Limitierungen
+### v1.2.1 (26.10)
+1. Moodle-Schema ist read-only nach Core-Erstellung (Solr-Limitation)
+2. Test-Dokumente sind Demo-Daten (keine echten Moodle-Daten)
+3. Schema-Änderungen erfordern Core-Neuanlage
+### v1.2
+1. Moodle-Schema ist read-only nach Core-Erstellung (Solr-Limitation)
+2. Test-Dokumente sind Demo-Daten (keine echten Moodle-Daten)
+3. Schema-Änderungen erfordern Core-Neuanlage
+
+### v1.1
+1. Rundeck-Integration erfordert manuelle API-Token-Konfiguration
+2. Webhook-Receiver benötigt nginx/Apache für HTTPS-Zugriff
+3. Email-Benachrichtigungen erfordern konfigurierte Mail-Relay
+
+---
+
 ## Lizenz
 
 Das was Markus und Sehart sagen ;)
@@ -513,5 +662,5 @@ Das was Markus und Sehart sagen ;)
 **Maintainer:** Bernd Schreistetter  
 **Email:** bernd.schreistetter@eledia.de oder info ? 
 **Dokumentation:** Kein Recht in Redmine somit hier in der Rolle mitverpackt
-**Version:** 1.1.0  
-**Datum:** 15.10.2025
+**Version:** 1.2.0  
+**Datum:** 25.10.2025

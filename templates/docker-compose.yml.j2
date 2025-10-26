@@ -7,7 +7,7 @@ version: '3.8'
 services:
   solr-init:
     image: alpine:3.18
-    container_name: {{ solr_container_name }}_init
+    container_name: {{ solr_container_name }}_powerinit
     volumes:
       - {{ solr_volume_name }}:/var/solr
       - {{ solr_config_dir }}:/config:ro
@@ -15,10 +15,10 @@ services:
       sh -c "
       echo 'Init-Container: Deploying security.json';
       mkdir -p /var/solr/data;
-      cp /config/security.json /var/solr/data/security.json;
+      cp /config/security.json /var/solr/data/security.json; #wichtig!!!!!!!!
       chown -R 8983:8983 /var/solr;
       chmod 600 /var/solr/data/security.json;
-      echo 'Init-Container: Deployment complete';
+      echo 'Eledia PowerInit-Container: Deployment complete';
       ls -la /var/solr/data/security.json;
       "
     networks:

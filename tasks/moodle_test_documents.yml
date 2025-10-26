@@ -281,3 +281,5 @@
       - "  Search by courseid: {{ 'PASSED (' + (search_course.json.response.numFound | string) + ' results)' if search_course.json.response.numFound >= 1 else 'FAILED' }}"
       - "  Search by type: {{ 'PASSED (' + (search_type.json.response.numFound | string) + ' results)' if search_type.json.response.numFound >= 1 else 'FAILED' }}"
   when: not rundeck_integration_enabled | default(false)
+
+  ##Cleanup Maybe? Timeissue

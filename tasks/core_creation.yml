@@ -2,7 +2,6 @@
 # Version: 1.1.0
 # Description: Solr core creation and configuration
 # Changelog v1.1:
-#   - NEW: Initial core creation task file
 #   - Create core with authentication
 #   - Configure core settings
 #   - Verify core availability
@@ -123,7 +122,7 @@
   register: core_query_test
   changed_when: false
 
-- name: install-solr - Create Rundeck-compatible output
+- name: install-solr - Create Rundeck output
   set_fact:
     core_creation_result:
       status: "success"

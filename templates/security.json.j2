@@ -6,7 +6,9 @@
       "{{ solr_admin_user | default('admin') }}": "{{ admin_password_hash }}",
       "{{ solr_support_user | default('support') }}": "{{ support_password_hash }}",
       "{{ solr_customer_user | default('customer') }}": "{{ customer_password_hash }}"
-    }
+    },
+    "realm": "{{ solr_auth_realm | default(customer_name | title + ' Eledia') }}",
+    "forwardCredentials": {{ solr_forward_credentials | default('false') | lower }}
   },
   "authorization": {
     "class": "solr.RuleBasedAuthorizationPlugin",

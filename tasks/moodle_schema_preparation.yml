@@ -3,6 +3,7 @@
 # Description: Prepare Moodle schema for Solr core
 # Moodle Compatibility: 4.1, 4.2, 4.3, 4.4, 5.0.x
 
+
 - name: moodle-schema - Generate Moodle schema XML
   template:
     src: moodle_schema.xml.j2

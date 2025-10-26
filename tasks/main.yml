@@ -7,7 +7,6 @@
 #   - Added pre-hash authentication (security.json before first start)
 #   - Added Docker Compose generation with init-container pattern
 #   - Added Rundeck integration support
-#   - Eliminated all Python dependencies (htpasswd bcrypt only)
 
 - name: install-solr - Preflight checks
   include_tasks: preflight_checks.yml
@@ -36,6 +35,12 @@
   when: solr_auth_enabled | default(true)
   tags:
     - install-solr-auth
+
+- name: install-solr - Prepare Moodle schema
+  include_tasks: moodle_schema_preparation.yml
+  when: solr_use_moodle_schema | default(true)
+  tags:
+    - install-solr-moodle
 
 - name: install-solr - Generate Docker Compose configuration
   include_tasks: compose_generation.yml
@@ -75,11 +80,17 @@
   tags:
     - install-solr-test
 
+- name: install-solr - Moodle document tests
+  include_tasks: moodle_test_documents.yml
+  when: solr_use_moodle_schema | default(false)
+  tags:
+    - install-solr-test
+    - install-solr-moodle
+
 - name: install-solr - Finalization
   include_tasks: finalization.yml
   tags:
     - install-solr-finalize
-
 
 - name: install-solr - Rundeck integration
   include_tasks: rundeck_integration.yml

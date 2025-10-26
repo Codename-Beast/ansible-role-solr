@@ -15,8 +15,6 @@
       - ca-certificates
       - gnupg
       - lsb-release
-      - apache2-utils  # for htpasswd
-      - net-tools      # for netstat
     state: present
     update_cache: yes
     cache_valid_time: 3600
@@ -86,7 +84,7 @@
     marker: "# {mark} ANSIBLE MANAGED - SOLR LIMITS"
   become: true
 
-- name: install-solr - Create Rundeck-compatible output
+- name: install-solr - Create Rundeck output
   set_fact:
     system_preparation_result:
       status: "success"
@@ -101,7 +99,6 @@
         packages_installed:
           - "curl"
           - "ca-certificates"
-          - "apache2-utils"
           - "net-tools"
         system_tuning:
           vm_max_map_count: "262144"

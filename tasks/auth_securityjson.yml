@@ -4,7 +4,7 @@
 # Changelog v1.1:
 #   - NEW: Creates security.json BEFORE container deployment
 #   - Uses pre-computed bcrypt hashes from auth_prehash.yml
-#   - Ensures config directory structure exists
+#   - Ensures Paths are ok
 #   - Validates JSON syntax
 #   - Sets correct ownership for Solr user (8983)
 

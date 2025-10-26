@@ -31,7 +31,7 @@
       # IMPORTANT: Encrypt with ansible-vault before committing to version control
       # Command: ansible-vault encrypt host_vars/{{ inventory_hostname }}
       #
-      # These passwords match bcrypt hashes in {{ solr_config_dir }}/security.json
+      # These passwords match solr hashes in {{ solr_config_dir }}/security.json
       # DO NOT regenerate security.json with these passwords - hashes are unique
       
       solr_admin_user: {{ solr_admin_user | default('admin') }}
@@ -110,7 +110,7 @@
   become: true
   when: rundeck_integration_enabled | default(false)
 
-- name: install-solr - Create Rundeck-compatible output
+- name: install-solr - Create Rundeck output
   set_fact:
     auth_persistence_result:
       status: "success"

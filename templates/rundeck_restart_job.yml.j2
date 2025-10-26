@@ -8,8 +8,8 @@
       - exec: docker compose -f {{ solr_compose_dir }}/docker-compose.yml restart
       - exec: sleep 15
       - exec: /usr/local/bin/solr_health_check
-  description: Restart Solr container for {{ customer_name | default('default') }}
-  name: Solr Restart - {{ customer_name | default('default') }}
+  description: Restart Solr container for {{ customer_name | default('eledia_default') }}
+  name: Solr Restart - {{ customer_name | default('eledia_default') }}
   group: solr/maintenance
   nodefilters:
     filter: name:{{ inventory_hostname }}
@@ -17,9 +17,9 @@
   notification:
     onfailure:
       email:
-        recipients: {{ admin_email | default('') }}
-        subject: Solr Restart Failed - {{ customer_name | default('default') }}
+        recipients: {{ admin_email | default('bsc@eledia.de') }}
+        subject: Solr Restart Failed - {{ customer_name | default('eledia_default') }}
     onsuccess:
       email:
-        recipients: {{ admin_email | default('') }}
-        subject: Solr Restart Completed - {{ customer_name | default('default') }}
+        recipients: {{ admin_email | default('bsc@eledia.de') }}
+        subject: Solr Restart Completed - {{ customer_name | default('eledia_default') }}

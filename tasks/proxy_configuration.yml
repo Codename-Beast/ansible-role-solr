@@ -161,7 +161,7 @@
   changed_when: false
   failed_when: false
 
-- name: proxy_config - Create Rundeck-compatible output
+- name: proxy_config - Create Rundeck output
   set_fact:
     proxy_configuration_result:
       status: "success"

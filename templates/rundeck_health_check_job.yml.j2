@@ -1,4 +1,4 @@
-- id: solr-health-check-{{ customer_name | default('default') }}
+- id: solr-health-check-{{ customer_name | default('eledia_default') }}
   project: {{ rundeck_project_name }}
   loglevel: INFO
   sequence:
@@ -6,8 +6,8 @@
     strategy: node-first
     commands:
       - exec: /usr/local/bin/solr_health_check
-  description: Health check for Solr instance {{ customer_name | default('default') }}
-  name: Solr Health Check - {{ customer_name | default('default') }}
+  description: Health check for Solr instance {{ customer_name | default('eledia_default') }}
+  name: Solr Health Check - {{ customer_name | default('eledia_default') }}
   group: solr/monitoring
   nodefilters:
     filter: name:{{ inventory_hostname }}
