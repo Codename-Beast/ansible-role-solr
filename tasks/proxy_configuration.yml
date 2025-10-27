@@ -146,12 +146,13 @@
   become: true
   when: apache_config.changed or apache_config_inline.changed or site_enabled.changed
 
-- name: proxy_config - Test proxy endpoint
+
+- name: Test Solr proxy endpoint
   uri:
     url: "http://localhost{{ solr_proxy_path }}/admin/ping"
     method: GET
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: proxy_test

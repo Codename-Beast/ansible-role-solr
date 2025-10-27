@@ -124,12 +124,12 @@
   register: core_commit_config
   when: not core_exists
 
-- name: install-solr - Test core with simple query
+- name: install-solr - Test core with simple query by Customer User
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     status_code: 200
   register: core_query_test

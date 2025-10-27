@@ -8,7 +8,7 @@
 #   - Validates JSON syntax
 #   - Sets correct ownership for Solr user (8983)
 
-- name: install-solr - Ensure config directory exists
+- name: Ensure Solr config directory exists
   file:
     path: "{{ solr_config_dir }}"
     state: directory
@@ -17,21 +17,37 @@
     mode: '0755'
   become: true
 
-- name: install-solr - Create security.json from template
-  template:
-    src: security.json.j2
-    dest: "{{ solr_config_dir }}/security.json"
-    owner: "8983"
-    group: "8983"
-    mode: '0600'
-  become: true
-  register: security_json_created
+- block:
+    - name: Create security.json from template
+      template:
+        src: security.json.j2
+        dest: "{{ solr_config_dir }}/security.json"
+        owner: "8983"
+        group: "8983"
+        mode: '0600'
+      become: true
+      register: security_json_created
 
-- name: install-solr - Validate JSON syntax
-  shell: cat {{ solr_config_dir }}/security.json | jq empty
-  register: json_validation
-  changed_when: false
-  failed_when: json_validation.rc != 0
+    - name: Validate security.json syntax
+      shell: cat {{ solr_config_dir }}/security.json | jq empty
+      register: json_validation
+      changed_when: false
+      failed_when: json_validation.rc != 0
+
+    - name: Parse security.json and display summary
+      slurp:
+        src: "{{ solr_config_dir }}/security.json"
+      register: security_json_content
+      become: true
+
+    - name: Show security.json details
+      debug:
+        msg:
+          - "security.json created or updated"
+          - "Authentication class: {{ (security_json_content.content | b64decode | from_json).authentication.class }}"
+          - "User list: {{ (security_json_content.content | b64decode | from_json).authentication.credentials.keys() | list }}"
+          - "Authorization class: {{ (security_json_content.content | b64decode | from_json).authorization.class }}"
+  when: not skip_auth
 
 - name: install-solr - Read security.json for verification
   slurp:

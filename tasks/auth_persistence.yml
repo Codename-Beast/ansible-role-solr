@@ -16,37 +16,32 @@
   delegate_to: localhost
   run_once: true
 
-- name: install-solr - Persist credentials to host_vars
+- name: Persist credentials to host_vars
   blockinfile:
     path: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
     create: true
     mode: '0600'
-    marker: "# {mark} ANSIBLE MANAGED SOLR CREDENTIALS v1.1"
+    marker: "# {mark} ANSIBLE MANAGED SOLR CREDENTIALS v1.2"
     block: |
-      # Solr Authentication Credentials
+      # Solr authentication credentials
       # Generated: {{ ansible_date_time.iso8601 }}
       # Host: {{ inventory_hostname }}
       # Customer: {{ customer_name | default('default') }}
-      #
-      # IMPORTANT: Encrypt with ansible-vault before committing to version control
-      # Command: ansible-vault encrypt host_vars/{{ inventory_hostname }}
-      #
-      # These passwords match solr hashes in {{ solr_config_dir }}/security.json
-      # DO NOT regenerate security.json with these passwords - hashes are unique
-      
-      solr_admin_user: {{ solr_admin_user | default('admin') }}
-      solr_admin_password: "{{ admin_password }}"
-      
-      solr_support_user: {{ solr_support_user | default('support') }}
-      solr_support_password: "{{ support_password }}"
-      
-      solr_customer_user: {{ solr_customer_user | default('customer') }}
-      solr_customer_password: "{{ customer_password }}"
-      
+
+      # Plaintext passwords
+      solr_admin_password_plain: "{{ admin_password }}"
+      solr_support_password_plain: "{{ support_password }}"
+      solr_customer_password_plain: "{{ customer_password }}"
+
+      # Stored hashes (for reference only)
+      solr_admin_password_hash: "{{ admin_password_hash }}"
+      solr_support_password_hash: "{{ support_password_hash }}"
+      solr_customer_password_hash: "{{ customer_password_hash }}"
+
       # Metadata
       solr_auth_configured_date: "{{ ansible_date_time.iso8601 }}"
-      solr_auth_version: "1.1.0"
-      solr_auth_method: "bcrypt_prehash"
+      solr_auth_version: "1.2.0"
+      solr_auth_method: "sha256_double_hash"
   delegate_to: localhost
   run_once: true
 

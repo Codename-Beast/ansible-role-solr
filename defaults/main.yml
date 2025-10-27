@@ -1,12 +1,12 @@
 ---
-# Version: 1.1.1
+# Version: 1.1.2
 # Description: Default variables for Solr installation
 # Changelog v1.1:
 #   - Added Docker Compose directory structure
 #   - Added Init-Container configuration
 #   - Added Rundeck integration variables
 #   - Removed Python-related variables
-# Changelog v1.1.1:
+# Changelog v1.1.2:
 #   - changed some default
 #   - Add moodle_env: default('public_html') }} 
 #   - Add moodle_eledia_path:"/home/vhosts/moodle" as of 2025
@@ -51,8 +51,8 @@ solr_customer_user: "customer"
 solr_customer_password: "" #SHA Algo
 
 solr_proxy_enabled: true
-solr_proxy_path: "/__solr"
-solr_webserver: "apache"
+solr_proxy_path: "/solr-admin"
+solr_webserver: "apache" #diese andere da :) 
 
 solr_ssl_enabled: true
 solr_ssl_cert_path: "/etc/letsencrypt/live/{{ moodle_app_domain | default('localhost') }}"
@@ -69,7 +69,7 @@ solr_auto_soft_commit_time: 1000
 # ERROR - Fehler, die Funktionen beeinträchtigen, Solr läuft aber weiter
 # WARN  - Warnungen über mögliche Probleme oder unsichere Zustände
 # DEBUG - Detaillierte Debug-Informationen für Fehleranalyse
-# TRACE - Sehr detaillierte interne Logs (nur für tiefgehendes Debugging)
+# TRACE - Sehr detaillierte interne Logs (nur für Debugging)
 # ALL   - Aktiviert alle Log-Nachrichten (inkl. TRACE)
 # ---------------------------------------------------------
 solr_log_level: "INFO" 

@@ -7,6 +7,7 @@
 #   - Added pre-hash authentication (security.json before first start)
 #   - Added Docker Compose generation with init-container pattern
 #   - Added Rundeck integration support
+#   - Add auth_detection
 
 - name: install-solr - Preflight checks
   include_tasks: preflight_checks.yml
@@ -23,16 +24,28 @@
   include_tasks: docker_installation.yml
   tags:
     - install-solr-docker
-
-- name: install-solr - Auth pre-hash passwords
-  include_tasks: auth_prehash.yml
+# Detect mismatches between host_vars passwords and security.json
+- name: solr-auth detection
+  include_tasks: auth_detection.yml
   when: solr_auth_enabled | default(true)
   tags:
     - install-solr-auth
 
-- name: install-solr - Auth create security json
+# Only perform hashing if authentication needs to be updated
+- name: solr-auth prehash passwords
+  include_tasks: auth_prehash.yml
+  when:
+    - solr_auth_enabled | default(true)
+    - not skip_auth | default(false)
+  tags:
+    - install-solr-auth
+
+# Only update security.json when required
+- name: solr-auth create security.json
   include_tasks: auth_securityjson.yml
-  when: solr_auth_enabled | default(true)
+  when:
+    - solr_auth_enabled | default(true)
+    - not skip_auth | default(false)
   tags:
     - install-solr-auth
 

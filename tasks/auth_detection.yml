@@ -1,0 +1,134 @@
+---
+# Version: 1.0.0
+# Purpose: Check whether stored hashes match the plaintext passwords in host_vars.
+# If mismatched, set skip_auth to false and generate new random passwords.
+
+- name: Check if security.json exists
+  stat:
+    path: "{{ solr_config_dir }}/security.json"
+  register: existing_security_json
+
+- name: Initialise detection variables
+  set_fact:
+    skip_auth: false
+    admin_password_plain: "{{ solr_admin_password_plain | default(solr_admin_password) | default('') }}"
+    support_password_plain: "{{ solr_support_password_plain | default(solr_support_password) | default('') }}"
+    customer_password_plain: "{{ solr_customer_password_plain | default(solr_customer_password) | default('') }}"
+
+- name: Read existing security.json
+  when: existing_security_json.stat.exists
+  slurp:
+    src: "{{ solr_config_dir }}/security.json"
+  register: security_json_content
+  become: true
+
+- name: Parse existing security.json
+  when: existing_security_json.stat.exists
+  set_fact:
+    security_json_parsed: "{{ security_json_content.content | b64decode | from_json }}"
+    existing_admin_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user] | default('') }}"
+    existing_support_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user] | default('') }}"
+    existing_customer_hash: "{{ security_json_parsed.authentication.credentials[solr_customer_user] | default('') }}"
+
+# Validate admin password
+- name: Verify admin hash
+  when: existing_security_json.stat.exists
+  block:
+    - name: Extract admin salt
+      set_fact:
+        admin_existing_salt: "{{ existing_admin_hash.split(' ')[1] if existing_admin_hash | length > 0 else '' }}"
+    - name: Compute expected admin hash
+      when: admin_password_plain | length > 0 and admin_existing_salt | length > 0
+      shell: |
+        SALT="{{ admin_existing_salt }}"
+        PASS="{{ admin_password_plain }}"
+        HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
+        HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
+        echo "${HASH2} ${SALT}"
+      register: admin_expected_hash
+      changed_when: false
+      no_log: true
+    - name: Set admin mismatch fact
+      set_fact:
+        mismatch_admin: "{{ (admin_expected_hash.stdout | default('')) != existing_admin_hash }}"
+      when: admin_password_plain | length > 0 and admin_existing_salt | length > 0
+    - name: Mark admin mismatched when no plaintext or no salt
+      set_fact:
+        mismatch_admin: true
+      when: admin_password_plain | length == 0 or admin_existing_salt | length == 0
+
+# Validate support password
+- name: Verify support hash
+  when: existing_security_json.stat.exists
+  block:
+    - name: Extract support salt
+      set_fact:
+        support_existing_salt: "{{ existing_support_hash.split(' ')[1] if existing_support_hash | length > 0 else '' }}"
+    - name: Compute expected support hash
+      when: support_password_plain | length > 0 and support_existing_salt | length > 0
+      shell: |
+        SALT="{{ support_existing_salt }}"
+        PASS="{{ support_password_plain }}"
+        HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
+        HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
+        echo "${HASH2} ${SALT}"
+      register: support_expected_hash
+      changed_when: false
+      no_log: true
+    - name: Set support mismatch fact
+      set_fact:
+        mismatch_support: "{{ (support_expected_hash.stdout | default('')) != existing_support_hash }}"
+      when: support_password_plain | length > 0 and support_existing_salt | length > 0
+    - name: Mark support mismatched when no plaintext or no salt
+      set_fact:
+        mismatch_support: true
+      when: support_password_plain | length == 0 or support_existing_salt | length == 0
+
+# Validate customer password
+- name: Verify customer hash
+  when: existing_security_json.stat.exists
+  block:
+    - name: Extract customer salt
+      set_fact:
+        customer_existing_salt: "{{ existing_customer_hash.split(' ')[1] if existing_customer_hash | length > 0 else '' }}"
+    - name: Compute expected customer hash
+      when: customer_password_plain | length > 0 and customer_existing_salt | length > 0
+      shell: |
+        SALT="{{ customer_existing_salt }}"
+        PASS="{{ customer_password_plain }}"
+        HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
+        HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
+        echo "${HASH2} ${SALT}"
+      register: customer_expected_hash
+      changed_when: false
+      no_log: true
+    - name: Set customer mismatch fact
+      set_fact:
+        mismatch_customer: "{{ (customer_expected_hash.stdout | default('')) != existing_customer_hash }}"
+      when: customer_password_plain | length > 0 and customer_existing_salt | length > 0
+    - name: Mark customer mismatched when no plaintext or no salt
+      set_fact:
+        mismatch_customer: true
+      when: customer_password_plain | length == 0 or customer_existing_salt | length == 0
+
+# Determine whether to skip hashing (all passwords match existing hashes)
+- name: Determine skip_auth flag
+  set_fact:
+    skip_auth: "{{ existing_security_json.stat.exists and (not mismatch_admin) and (not mismatch_support) and (not mismatch_customer) }}"
+
+# Generate new passwords if mismatches detected or no security.json present
+- name: Generate new random passwords when necessary
+  when: not skip_auth
+  block:
+    - name: Generate new admin password
+      set_fact:
+        admin_password_plain: "{{ lookup('password', '/dev/null', chars='ascii_letters,digits', length=20) }}"
+      when: mismatch_admin | default(true)
+    - name: Generate new support password
+      set_fact:
+        support_password_plain: "{{ lookup('password', '/dev/null', chars='ascii_letters,digits', length=16) }}"
+      when: mismatch_support | default(true)
+    - name: Generate new customer password
+      set_fact:
+        customer_password_plain: "{{ lookup('password', '/dev/null', chars='ascii_letters,digits', length=16) }}"
+      when: mismatch_customer | default(true)

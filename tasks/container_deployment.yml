@@ -77,7 +77,7 @@
   register: auth_active_check
   failed_when: auth_active_check.status != 401
 
-- name: solr-deployment - Create Rundeck-compatible output
+- name: solr-deployment - Create Rundeck output
   set_fact:
     container_deployment_result:
       status: "success"

@@ -8,7 +8,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     status_code: 200
   register: core_ready
@@ -22,7 +22,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -48,7 +48,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -74,7 +74,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -99,7 +99,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -125,7 +125,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -151,7 +151,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     status_code: 200
   register: commit_result
@@ -161,7 +161,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=title:Mathematik&wt=json"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_math
@@ -172,7 +172,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=content:Python&wt=json"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_python
@@ -183,7 +183,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=courseid:5&wt=json"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_course
@@ -194,7 +194,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=type:forum_post&wt=json"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_type
@@ -205,7 +205,7 @@
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*&facet=true&facet.field=modname&wt=json"
     method: GET
     user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    password: "{{ customer_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_facet
