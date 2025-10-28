@@ -15,13 +15,13 @@
       # Host: {{ inventory_hostname }}
       # Customer: {{ customer_name | default('default') }}
       # Plaintext passwords (for host_vars reference) 
-      solr_admin_password: "{{ admin_password }}" 
-      solr_support_password: "{{ support_password }}" 
-      solr_customer_password: "{{ customer_password }}" 
+      solr_admin_password: "{{ solr_admin_password }}" 
+      solr_support_password: "{{ solr_support_password }}" 
+      solr_customer_password: "{{ solr_customer_password }}" 
       # Usernames
-      solr_admin_user: "{{ admin_user | default('admin') }}"
-      solr_support_user: "{{ support_user | default('support') }}"
-      solr_customer_user: "{{ customer_user | default('customer') }}"
+      solr_admin_user: "{{ solr_admin_user | default('admin') }}"
+      solr_support_user: "{{ solr_support_user | default('support') }}"
+      solr_customer_user: "{{ solr_customer_user | default('customer') }}"
   delegate_to: localhost
   run_once: true
 
@@ -35,14 +35,14 @@
       #
       # KEEP THIS FILE SECURE
       
-      Admin User: {{ admin_user | default('admin') }}
-      Admin Password: {{ admin_password }}
+      Admin User: {{ solr_admin_user | default('admin') }}
+      Admin Password: {{ solr_admin_password }}
       
-      Support User: {{ support_user | default('support') }}
-      Support Password: {{ support_password }}
+      Support User: {{ solr_support_user | default('support') }}
+      Support Password: {{ solr_support_password }}
       
-      Customer User: {{ customer_user | default('customer') }}
-      Customer Password: {{ customer_password }}
+      Customer User: {{ solr_customer_user | default('customer') }}
+      Customer Password: {{ solr_customer_password }}
       
       Solr Port: {{ solr_port }}
       Container: {{ solr_container_name }}
@@ -63,16 +63,16 @@
         "solr_container": "{{ solr_container_name }}",
         "credentials": {
           "admin": {
-            "username": "{{ admin_user | default('admin') }}",
-            "password": "{{ admin_password }}"
+            "username": "{{ solr_admin_user | default('admin') }}",
+            "password": "{{ solr_admin_password }}"
           },
           "support": {
-            "username": "{{ support_user | default('support') }}",
-            "password": "{{ support_password }}"
+            "username": "{{ solr_support_user | default('support') }}",
+            "password": "{{ solr_support_password }}"
           },
           "customer": {
-            "username": "{{ customer_user | default('customer') }}",
-            "password": "{{ customer_password }}"
+            "username": "{{ solr_customer_user | default('customer') }}",
+            "password": "{{ solr_customer_password }}"
           }
         },
         "configured_date": "{{ ansible_date_time.iso8601 }}",

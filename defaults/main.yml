@@ -1,11 +1,66 @@
 ---
-# Version: 1.3.0
+# Version: 1.4.0
 # Description: Default variables for Solr installation
-# Changelog v1.3.0:
-#   - Fixed variable naming: solr_* for host_vars, internal use within role
-#   - Corrected hash algorithm comment
-#   - Removed bcrypt references
+# Changelog v1.4.0:
+#   - FIXED: Variable naming consistency (removed confusing mappings)
+#   - FIXED: Hardcoded values moved to defaults
+#   - ADDED: Retry and timeout configurations
 
+# ============================================================================
+# AUTHENTICATION CONFIGURATION
+# ============================================================================
+# IMPORTANT: Use these names in host_vars:
+#   solr_admin_password: "your_password"
+#   solr_support_password: "your_password"  
+#   solr_customer_password: "your_password"
+
+solr_admin_user: "admin"
+solr_admin_password: ""  # Auto-generated if empty
+solr_admin_password_hash: ""
+
+solr_support_user: "support"
+solr_support_password: ""  # Auto-generated if empty
+solr_support_password_hash: ""
+
+solr_customer_user: "customer"
+solr_customer_password: ""  # Auto-generated if empty
+solr_customer_password_hash: ""
+
+solr_auth_enabled: true
+solr_auth_type: "basic"
+solr_auth_realm: "Solr Eledia"
+solr_forward_credentials: false
+
+# ============================================================================
+# HASH CONFIGURATION
+# ============================================================================
+solr_hash_salt_bytes: 32  # SHA256 requires 32 bytes
+solr_hash_algorithm: "sha256"
+
+# ============================================================================
+# RETRY & TIMEOUT CONFIGURATION
+# ============================================================================
+# Container deployment
+solr_container_start_retries: 12
+solr_container_start_delay: 5  # seconds
+
+# Authentication validation
+solr_auth_validation_retries: 10
+solr_auth_validation_delay: 3  # seconds
+
+# Core creation
+solr_core_creation_retries: 5
+solr_core_creation_delay: 3  # seconds
+
+# Health checks
+solr_health_check_timeout: 30
+solr_startup_wait_time: 60
+solr_init_container_timeout: 60
+solr_init_container_retries: 5
+
+# ============================================================================
+# DOCKER CONFIGURATION
+# ============================================================================
 solr_version: "9.9.0"
 solr_major_version: "{{ solr_version.split('.')[0] }}"
 
@@ -17,15 +72,24 @@ solr_create_systemd_service: false
 solr_port: 8983
 solr_jmx_port: 18983
 
+# ============================================================================
+# DIRECTORY CONFIGURATION
+# ============================================================================
 solr_compose_dir: "/opt/solr"
 solr_config_dir: "{{ solr_compose_dir }}/config"
 solr_data_dir: "/var/solr/data"
 solr_backup_dir: "/var/solr/backup"
 solr_log_dir: "/var/log/eledia/solr"
 
+# ============================================================================
+# CORE CONFIGURATION
+# ============================================================================
 solr_core_name: "{{ customer_name | default('default_eledia') }}_core"
 solr_core_config: "moodle_configs"
 
+# ============================================================================
+# MEMORY CONFIGURATION
+# ============================================================================
 solr_heap_size: "1g"
 solr_memory_limit: "1g"
 solr_memory_swap: "2g"
@@ -33,38 +97,33 @@ solr_memory_swap: "2g"
 solr_cpu_quota: 100000
 solr_cpu_period: 100000
 
-solr_auth_enabled: true
-solr_auth_type: "basic"
-
-# Map host-level solr_* variables into role-local names to avoid collisions (e.g. Moodle)
-admin_user: "{{ solr_admin_user | default('admin') }}"
-admin_password: "{{ solr_admin_password | default(omit) }}"
-admin_password_hash: "{{ solr_admin_password_hash | default(omit) }}"
-
-support_user: "{{ solr_support_user | default('support') }}"
-support_password: "{{ solr_support_password | default(omit) }}"
-support_password_hash: "{{ solr_support_password_hash | default(omit) }}"
-
-customer_user: "{{ solr_customer_user | default('customer') }}"
-customer_password: "{{ solr_customer_password | default(omit) }}"
-customer_password_hash: "{{ solr_customer_password_hash | default(omit) }}"
-
+# ============================================================================
+# PROXY CONFIGURATION
+# ============================================================================
 solr_proxy_enabled: true
 solr_proxy_path: "/solr-admin"
 solr_webserver: "apache"
 
+# ============================================================================
+# SSL CONFIGURATION
+# ============================================================================
 solr_ssl_enabled: true
 solr_ssl_cert_path: "/etc/letsencrypt/live/{{ moodle_app_domain | default('localhost') }}"
 
+# ============================================================================
+# SOLR SETTINGS
+# ============================================================================
 solr_max_boolean_clauses: 1024
-solr_auto_commit_time: 15000
-solr_auto_soft_commit_time: 1000
+solr_auto_commit_time: 15000  # milliseconds
+solr_auto_soft_commit_time: 1000  # milliseconds
+solr_log_level: "INFO"
 
-
-solr_multi_version_cores: true  # Create version-specific cores
+# ============================================================================
+# MOODLE CONFIGURATION
+# ============================================================================
+solr_multi_version_cores: true
 solr_single_core_name: "{{ customer_name | default('default') }}_core"
 
-# Moodle versions configuration (dynamisch!)
 solr_moodle_versions_config:
   "4.1":
     max_field_length: 32766
@@ -87,7 +146,6 @@ solr_moodle_versions_config:
     use_legacy_date: false
     features: ["basic_search", "file_indexing", "multilang", "categories", "completion", "competencies", "outcomes", "tags"]
 
-# Performance tuning per version
 solr_moodle_performance:
   "4.1": { heap: "1g", cache_size: 1024 }
   "4.2": { heap: "1g", cache_size: 1024 }
@@ -95,24 +153,20 @@ solr_moodle_performance:
   "4.4": { heap: "1g", cache_size: 1024 }
   "5.0": { heap: "2g", cache_size: 2048 }
 
-# ---------------------------------------------------------
-# Solr Log-Level Übersicht
-# ---------------------------------------------------------
-# INFO  - Allgemeine Betriebsinformationen (Standard)
-# OFF   - Deaktiviert jegliche Log-Ausgabe
-# FATAL - Nur kritische Fehler, die zum Absturz führen
-# ERROR - Fehler, die Funktionen beeinträchtigen, Solr läuft aber weiter
-# WARN  - Warnungen über mögliche Probleme oder unsichere Zustände
-# DEBUG - Detaillierte Debug-Informationen für Fehleranalyse
-# TRACE - Sehr detaillierte interne Logs (nur für Debugging)
-# ALL   - Aktiviert alle Log-Nachrichten (inkl. TRACE)
-# ---------------------------------------------------------
-solr_log_level: "INFO"
+solr_use_moodle_schema: true
+solr_moodle_test_docs: true
+solr_moodle_versions: ["4.1", "4.2", "4.3", "4.4", "5.0.x"]
 
+# ============================================================================
+# BACKUP CONFIGURATION
+# ============================================================================
 solr_backup_enabled: false
-solr_backup_retention: 7
+solr_backup_retention: 7  # days
 solr_backup_credentials: true
 
+# ============================================================================
+# DEPLOYMENT FLAGS
+# ============================================================================
 solr_force_recreate: false
 solr_force_pull: false
 solr_force_reconfigure_auth: false
@@ -120,24 +174,27 @@ solr_validate_deployment: true
 
 solr_start_command: "solr-foreground"
 
-solr_health_check_timeout: 30
-solr_startup_wait_time: 60
-solr_init_container_timeout: 60
-solr_init_container_retries: 5
-
+# ============================================================================
+# SYSTEM REQUIREMENTS
+# ============================================================================
 solr_min_disk_space_gb: 5
 solr_min_memory_gb: 2
 
-solr_use_moodle_schema: true
-solr_moodle_test_docs: true
-solr_moodle_versions: ["4.1", "4.2", "4.3", "4.4", "5.0.x"]
-
+# ============================================================================
+# DOCKER API
+# ============================================================================
 docker_api_version: "1.41"
 docker_timeout: 60
 docker_compose_version: "2.0"
 
+# ============================================================================
+# AUTOMATIC CUSTOMER NAME
+# ============================================================================
 customer_name: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else 'default' }}"
 
+# ============================================================================
+# MOODLE PATHS
+# ============================================================================
 moodle_solr_host: "localhost"
 moodle_solr_port: "{{ solr_port }}"
 moodle_solr_secure: false
@@ -146,6 +203,9 @@ moodle_env: "public_html"
 moodle_eledia_path: "/home/vhosts/moodle"
 moodle_config_path: "{{ moodle_eledia_path }}/{{ moodle_app_domain }}/{{ moodle_env }}/config.php"
 
+# ============================================================================
+# RUNDECK INTEGRATION
+# ============================================================================
 rundeck_integration_enabled: false
 rundeck_api_url: ""
 rundeck_api_token: ""
@@ -154,5 +214,8 @@ rundeck_project_name: ""
 rundeck_webhook_enabled: false
 rundeck_webhook_secret: ""
 
+# ============================================================================
+# NOTIFICATION
+# ============================================================================
 notification_enabled: false
 admin_email: ""

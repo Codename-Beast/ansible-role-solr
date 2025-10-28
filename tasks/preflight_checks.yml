@@ -1,11 +1,11 @@
+#/update tasks/preflight_checks.yml
 ---
-# Version: 1.1.0
-# Description: Pre-flight checks before Solr installation
-# Changelog v1.1:
-#   - Renamed from preflight.yml
-#   - Added Docker Compose version check
-#   - Added htpasswd availability check
-#   - Rundeck-compatible output
+# Version: 1.2.0
+# Description: Pre-flight checks with enhanced validation
+# Changelog v1.2.0:
+#   - FIXED: YAML syntax errors (missing assert/that blocks)
+#   - ADDED: Enhanced validation checks
+#   - ADDED: changed_when to all shell/command tasks
 
 - name: preflight-check - Check Ansible version
   assert:
@@ -31,16 +31,16 @@
 - name: preflight-check - Verify sufficient disk space
   assert:
     that:
-      - disk_space.stdout | int >= solr_min_disk_space_gb | default(5)
+      - disk_space.stdout | int >= solr_min_disk_space_gb
     fail_msg: "Insufficient disk space. Required: {{ solr_min_disk_space_gb }}GB, Available: {{ disk_space.stdout }}GB"
-    success_msg: "Disk space check passed"
+    success_msg: "Disk space check passed ({{ disk_space.stdout }}GB available)"
 
 - name: preflight-check - Check if Docker is installed
   command: docker --version
   register: docker_version_check
   changed_when: false
   failed_when: false
-# Sollte vorher passieren?! Need to be Tested
+
 - name: preflight-check - Check if Docker Compose is installed
   command: docker compose version
   register: docker_compose_check
@@ -65,7 +65,81 @@
     msg:
       - "WARNING: Port {{ solr_port }} is already in use"
       - "This may cause deployment issues"
+      - "Consider changing solr_port in host_vars"
   when: "'PORT_FREE' not in port_check.stdout"
+
+# ============================================================================
+# NEW VALIDATION CHECKS
+# ============================================================================
+
+- name: preflight-check - Validate required variables are defined
+  assert:
+    that:
+      - customer_name is defined
+      - customer_name | length > 0
+      - moodle_app_domain is defined
+      - moodle_app_domain | length > 0
+    fail_msg: "Required variables missing: customer_name and/or moodle_app_domain"
+    success_msg: "Required variables present"
+
+- name: preflight-check - Validate customer name format
+  assert:
+    that:
+      - customer_name is match('^[a-z0-9_-]+$')
+    fail_msg: "customer_name must contain only lowercase letters, numbers, hyphens, and underscores"
+    success_msg: "customer_name format valid"
+
+- name: preflight-check - Validate domain format
+  assert:
+    that:
+      - moodle_app_domain is match('^[a-z0-9.-]+\.[a-z]{2,}$')
+    fail_msg: "moodle_app_domain must be a valid domain (e.g., example.com)"
+    success_msg: "moodle_app_domain format valid"
+
+- name: preflight-check - Validate password strength (if provided)
+  assert:
+    that:
+      - item.password | length >= 12
+    fail_msg: "{{ item.name }} password must be at least 12 characters"
+    success_msg: "{{ item.name }} password strength OK"
+  loop:
+    - { name: "Admin", password: "{{ solr_admin_password }}" }
+    - { name: "Support", password: "{{ solr_support_password }}" }
+    - { name: "Customer", password: "{{ solr_customer_password }}" }
+  when: item.password | length > 0
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: preflight-check - Check available memory
+  shell: free -g | grep "Mem:" | awk '{print $2}'
+  register: available_memory
+  changed_when: false
+
+#- name: preflight-check - Verify sufficient memory
+#  assert:
+#    that:
+#      - available_memory.stdout | int >= solr_min_memory_gb
+#    fail_msg: "Insufficient memory. Required: {{ solr_min_memory_gb }}GB, Available: {{ available_memory.stdout }}GB"
+#    success_msg: "Memory check passed ({{ available_memory.stdout }}GB available)"
+
+- name: preflight-check - Validate Solr port is numeric
+  assert:
+    that:
+      - solr_port | int > 1024
+      - solr_port | int < 65535
+    fail_msg: "solr_port must be between 1024 and 65535"
+    success_msg: "solr_port valid ({{ solr_port }})"
+
+- name: preflight-check - Validate heap size format
+  assert:
+    that:
+      - solr_heap_size is match('^\d+[mg]$')
+    fail_msg: "solr_heap_size must be in format '512m' or '1g'"
+    success_msg: "solr_heap_size format valid ({{ solr_heap_size }})"
+
+# ============================================================================
+# RUNDECK OUTPUT
+# ============================================================================
 
 - name: preflight-check - Create Rundeck output
   set_fact:
@@ -77,10 +151,13 @@
         ansible_version: "{{ ansible_version.full }}"
         os_distribution: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
         disk_space_gb: "{{ disk_space.stdout }}"
+        memory_gb: "{{ available_memory.stdout }}"
         docker_installed: "{{ docker_version_check.rc == 0 }}"
         docker_compose_installed: "{{ docker_compose_check.rc == 0 }}"
         port_available: "{{ 'PORT_FREE' in port_check.stdout }}"
-  when: not rundeck_integration_enabled | default(false)
+        customer_name_valid: true
+        domain_valid: true
+  when: rundeck_integration_enabled | default(false)
 
 - name: preflight-check - Display Rundeck output
   debug:
@@ -90,11 +167,17 @@
 - name: preflight-check - Display standard summary
   debug:
     msg:
+      - "=========================================="
       - "PRE-FLIGHT CHECKS COMPLETED"
+      - "=========================================="
       - "Ansible: {{ ansible_version.full }}"
       - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
-      - "Disk space: {{ disk_space.stdout }}GB available"
+      - "Disk space: {{ disk_space.stdout }}GB (minimum: {{ solr_min_disk_space_gb }}GB)"
+      - "Memory: {{ available_memory.stdout }}GB (minimum: {{ solr_min_memory_gb }}GB)"
       - "Docker: {{ 'INSTALLED' if docker_version_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Docker Compose: {{ 'INSTALLED' if docker_compose_check.rc == 0 else 'NOT INSTALLED' }}"
-      - "Port {{ solr_port }}: {{ 'AVAILABLE' if 'PORT_FREE' in port_check.stdout else 'IN USE' }}"
+      - "Port {{ solr_port }}: {{ 'AVAILABLE' if 'PORT_FREE' in port_check.stdout else 'IN USE (WARNING)' }}"
+      - "Customer: {{ customer_name }}"
+      - "Domain: {{ moodle_app_domain }}"
+      - "=========================================="
   when: not rundeck_integration_enabled | default(false)

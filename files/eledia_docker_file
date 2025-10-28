@@ -1,9 +1,5 @@
-# ====================================================================
-# ELEDIA SOLR v3.3.1 - Multi-Tenant Solr with Authentication Support
-# ====================================================================
 FROM solr:9.9.0-slim
 
-# Create configuration structure and scripts
 RUN mkdir -p /tmp/moodle-conf/conf && \
     mkdir -p /tmp/scripts && \
     chmod 755 /tmp/scripts && \
@@ -20,11 +16,6 @@ RUN mkdir -p /tmp/moodle-conf/conf && \
     echo 'fi' >> /tmp/scripts/start-solr.sh && \
     echo 'export SOLR_JAVA_MEM="-Xms${SOLR_MEMORY} -Xmx${SOLR_MEMORY}"' >> /tmp/scripts/start-solr.sh
 
-# ==============================================================================
-# Eledia Moodle Solr - Optimized Dockerfile v3.3.1
-# maintainer: Bernd Schreistetter, Eledia GmbH
-#
-# ==============================================================================
 
 LABEL maintainer="eledia-ops@eledia.de" \
       version="3.3.1" \
@@ -33,7 +24,6 @@ LABEL maintainer="eledia-ops@eledia.de" \
 
 USER root
 
-# Install only essential dependencies (minimal footprint)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl jq netcat-traditional && \
@@ -43,7 +33,6 @@ RUN apt-get update && \
     mkdir -p /tmp/scripts /tmp/moodle-conf /var/solr/backups /tmp/health && \
     chown -R solr:solr /tmp/scripts /tmp/moodle-conf /var/solr/backups /tmp/health
 
-# Environment variables - AUTHENTICATION REMOVED (handled by security_management.yml)
 ENV MOODLE_APP_DOMAIN="" \
     MOODLE_VERSION="45" \
     CREATE_MAIN_CORE="true" \
@@ -54,13 +43,9 @@ ENV MOODLE_APP_DOMAIN="" \
     METRICS_PORT="9854" \
     SOLR_TIMEZONE="UTC"
 
-# Copy configuration files
 COPY conf/ /tmp/moodle-conf/conf/
 
-# Start as root to fix volume permissions, then switch to solr user
-# USER solr
 
-# Create scripts - Status Check (NO AUTH - handled by security_management.yml)
 RUN echo '#!/bin/bash' > /tmp/scripts/status-check.sh && \
     echo 'set -euo pipefail' >> /tmp/scripts/status-check.sh && \
     echo '# Simple connectivity check - no authentication required for health check' >> /tmp/scripts/status-check.sh && \
@@ -70,7 +55,6 @@ RUN echo '#!/bin/bash' > /tmp/scripts/status-check.sh && \
     echo 'echo "{"status":"healthy","timestamp":"$(date -Iseconds)","version":"$version","server":{"running":true,"port":8983}}"' >> /tmp/scripts/status-check.sh && \
     chmod +x /tmp/scripts/status-check.sh
 
-# Create scripts - Customer Management
 RUN echo '#!/bin/bash' > /tmp/scripts/create-customer.sh && \
     echo 'set -euo pipefail' >> /tmp/scripts/create-customer.sh && \
     echo 'CUSTOMER_NAME="${1:-}"; MOODLE_VERSION="${2:-}"; PASSWORD="${3:-}"' >> /tmp/scripts/create-customer.sh && \
@@ -84,7 +68,6 @@ RUN echo '#!/bin/bash' > /tmp/scripts/create-customer.sh && \
     echo 'fi' >> /tmp/scripts/create-customer.sh && \
     chmod +x /tmp/scripts/create-customer.sh
 
-# Create scripts - Startup
 RUN echo '#!/bin/bash' > /tmp/scripts/start-solr.sh && \
     echo 'set -euo pipefail' >> /tmp/scripts/start-solr.sh && \
     echo 'echo "🚀 Starting Eledia Moodle Solr v3.3.1"' >> /tmp/scripts/start-solr.sh && \
@@ -123,20 +106,15 @@ RUN echo '#!/bin/bash' > /tmp/scripts/start-solr.sh && \
     echo 'exec solr -f -m "${SOLR_MEMORY}"' >> /tmp/scripts/start-solr.sh && \
     chmod +x /tmp/scripts/start-solr.sh
 
-# Create health check
 RUN echo '#!/bin/bash' > /tmp/scripts/healthcheck.sh && \
     echo '/tmp/scripts/status-check.sh >/dev/null 2>&1' >> /tmp/scripts/healthcheck.sh && \
     chmod +x /tmp/scripts/healthcheck.sh
 
-# Expose ports
 EXPOSE 8983 9854
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=15s --start-period=120s --retries=5 \
     CMD /tmp/scripts/healthcheck.sh
 
-# Set working directory
 WORKDIR /var/solr
 
-# Start command
 CMD ["/tmp/scripts/start-solr.sh"]

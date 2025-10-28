@@ -144,7 +144,7 @@
 - name: solr-deployment - Wait for Solr container to be running (not healthy) 
   command: docker inspect {{ solr_container_name }} --format '{% raw %}{{.State.Status}}{% endraw %}' 
   register: container_status 
-  retries: 12 
+  retries: "{{ solr_container_start_retries }}" 
   delay: 5 
   until: container_status.stdout == "running" 
   changed_when: false 

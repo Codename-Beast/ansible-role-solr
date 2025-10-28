@@ -61,7 +61,7 @@
       fi 
       
       # Generate 32 random bytes for salt
-      openssl rand 32 > {{ hash_temp_dir }}/admin_salt.bin
+      openssl rand {{ solr_hash_salt_bytes }} > {{ hash_temp_dir }}/admin_salt.bin
       
       # Write password as binary
       printf '%s' "{{ admin_password }}" > {{ hash_temp_dir }}/admin_pass.bin
@@ -96,7 +96,7 @@
         BASE64_CMD="base64" 
       fi 
       
-      openssl rand 32 > {{ hash_temp_dir }}/support_salt.bin
+      openssl rand {{ solr_hash_salt_bytes }} > {{ hash_temp_dir }}/support_salt.bin
       printf '%s' "{{ support_password }}" > {{ hash_temp_dir }}/support_pass.bin
       cat {{ hash_temp_dir }}/support_salt.bin {{ hash_temp_dir }}/support_pass.bin > {{ hash_temp_dir }}/support_combined.bin
       openssl dgst -sha256 -binary {{ hash_temp_dir }}/support_combined.bin > {{ hash_temp_dir }}/support_hash1.bin
@@ -121,7 +121,7 @@
         BASE64_CMD="base64" 
       fi 
       
-      openssl rand 32 > {{ hash_temp_dir }}/customer_salt.bin
+      openssl rand {{ solr_hash_salt_bytes }} > {{ hash_temp_dir }}/customer_salt.bin
       printf '%s' "{{ customer_password }}" > {{ hash_temp_dir }}/customer_pass.bin
       cat {{ hash_temp_dir }}/customer_salt.bin {{ hash_temp_dir }}/customer_pass.bin > {{ hash_temp_dir }}/customer_combined.bin
       openssl dgst -sha256 -binary {{ hash_temp_dir }}/customer_combined.bin > {{ hash_temp_dir }}/customer_hash1.bin

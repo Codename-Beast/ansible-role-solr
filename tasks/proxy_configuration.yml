@@ -152,7 +152,7 @@
     url: "http://localhost{{ solr_proxy_path }}/admin/ping"
     method: GET
     user: "{{ solr_admin_user }}"
-    password: "{{ admin_password }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: proxy_test

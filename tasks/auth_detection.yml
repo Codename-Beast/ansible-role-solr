@@ -10,12 +10,12 @@
 - name: Initialise detection variables
   set_fact:
     skip_auth: false
-    admin_password: "{{ solr_admin_password | default('') }}"
-    support_password: "{{ solr_support_password | default('') }}"
-    customer_password: "{{ solr_customer_password | default('') }}"
-    admin_user: "{{ solr_admin_user | default('admin') }}"
-    support_user: "{{ solr_support_user | default('support') }}"
-    customer_user: "{{ solr_customer_user | default('customer') }}"
+    solr_admin_password: "{{ solr_admin_password | default('') }}"
+    solr_support_password: "{{ solr_support_password | default('') }}"
+    solr_customer_password: "{{ solr_customer_password | default('') }}"
+    solr_admin_user: "{{ solr_admin_user | default('admin') }}"
+    solr_support_user: "{{ solr_support_user | default('support') }}"
+    solr_customer_user: "{{ solr_customer_user | default('customer') }}"
 
 - name: Read existing security.json
   when: existing_security_json.stat.exists
@@ -32,9 +32,9 @@
 - name: Extract existing hashes
   when: existing_security_json.stat.exists
   set_fact:
-    existing_admin_hash: "{{ security_json_parsed.authentication.credentials[admin_user] | default('') }}"
-    existing_support_hash: "{{ security_json_parsed.authentication.credentials[support_user] | default('') }}"
-    existing_customer_hash: "{{ security_json_parsed.authentication.credentials[customer_user] | default('') }}"
+    existing_admin_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user] | default('') }}"
+    existing_support_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user] | default('') }}"
+    existing_customer_hash: "{{ security_json_parsed.authentication.credentials[solr_customer_user] | default('') }}"
 
 - name: Create temp directory for verification
   file:
@@ -50,10 +50,10 @@
   when: existing_security_json.stat.exists
 
 # Validate admin password
-- name: Verify admin hash (CROSS-PLATFORM) 
+- name: Verify admin hash
   when:
     - existing_security_json.stat.exists
-    - admin_password | length > 0
+    - solr_admin_password | length > 0
     - existing_admin_hash | length > 0
   block:
     - name: Extract admin salt from existing hash
@@ -76,7 +76,7 @@
           echo "{{ admin_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/admin_salt.bin
           
           # Write password as binary
-          printf '%s' "{{ admin_password }}" > {{ verify_dir }}/admin_pass.bin
+          printf '%s' "{{ solr_admin_password }}" > {{ verify_dir }}/admin_pass.bin
           
           # Binary concatenation
           cat {{ verify_dir }}/admin_salt.bin {{ verify_dir }}/admin_pass.bin > {{ verify_dir }}/admin_combined.bin
@@ -104,14 +104,14 @@
     mismatch_admin: true
   when:
     - existing_security_json.stat.exists
-    - admin_password | length == 0 or existing_admin_hash | length == 0
+    - solr_admin_password | length == 0 or existing_admin_hash | length == 0
 
 # Validate support password
 - name: Verify support hash (CROSS-PLATFORM) 
   when:
     - existing_security_json.stat.exists
-    - support_password | length > 0
-    - existing_support_hash | length > 0
+    - solr_admin_password | length > 0
+    - existing_admin_hash | length > 0
   block:
     - name: Extract support salt from existing hash
       set_fact:
@@ -129,7 +129,7 @@
           fi 
           
           echo "{{ support_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/support_salt.bin
-          printf '%s' "{{ support_password }}" > {{ verify_dir }}/support_pass.bin
+          printf '%s' "{{ solr_support_password }}" > {{ verify_dir }}/support_pass.bin
           cat {{ verify_dir }}/support_salt.bin {{ verify_dir }}/support_pass.bin > {{ verify_dir }}/support_combined.bin
           openssl dgst -sha256 -binary {{ verify_dir }}/support_combined.bin > {{ verify_dir }}/support_hash1.bin
           openssl dgst -sha256 -binary {{ verify_dir }}/support_hash1.bin > {{ verify_dir }}/support_hash2.bin
@@ -149,14 +149,15 @@
     mismatch_support: true
   when:
     - existing_security_json.stat.exists
-    - support_password | length == 0 or existing_support_hash | length == 0
+    - solr_support_password | length == 0 or existing_support_hash | length == 0
 
 # Validate customer password
-- name: Verify customer hash (CROSS-PLATFORM) 
+- name: Verify customer hash
   when:
     - existing_security_json.stat.exists
-    - customer_password | length > 0
+    - solr_customer_password | length > 0
     - existing_customer_hash | length > 0
+
   block:
     - name: Extract customer salt from existing hash
       set_fact:
@@ -174,7 +175,7 @@
           fi 
           
           echo "{{ customer_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/customer_salt.bin
-          printf '%s' "{{ customer_password }}" > {{ verify_dir }}/customer_pass.bin
+          printf '%s' "{{ solr_customer_password }}" > {{ verify_dir }}/customer_pass.bin
           cat {{ verify_dir }}/customer_salt.bin {{ verify_dir }}/customer_pass.bin > {{ verify_dir }}/customer_combined.bin
           openssl dgst -sha256 -binary {{ verify_dir }}/customer_combined.bin > {{ verify_dir }}/customer_hash1.bin
           openssl dgst -sha256 -binary {{ verify_dir }}/customer_hash1.bin > {{ verify_dir }}/customer_hash2.bin
@@ -194,7 +195,7 @@
     mismatch_customer: true
   when:
     - existing_security_json.stat.exists
-    - customer_password | length == 0 or existing_customer_hash | length == 0
+    - solr_customer_password | length == 0 or existing_customer_hash | length == 0
 
 - name: Cleanup verification temp directory
   file:

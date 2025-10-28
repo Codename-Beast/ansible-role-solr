@@ -1,320 +1,260 @@
 ---
-# Version: v2.1.5
-# Description: Dynamic Solr core creation with Ansible Docker modules
-# Changelog v2.1.5:
-#   - Uses Ansible docker_container_exec instead of shell commands
-#   - Dynamic schema generation per Moodle version
-#   - Cores moodle_41, moodle_42, etc.
-#   - Automatic configset management
+# Version: 1.3.0
+# Description: Solr core creation with robust checks for registered core vs. instance dir
 
-- name: core-creation - Define Moodle version cores
+- name: install-solr - Check core registration via API
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS&core={{ solr_core_name }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: core_status
+  changed_when: false
+  failed_when: false
+
+- name: install-solr - Parse core status JSON
   set_fact:
-    solr_cores:
-      - name: "main_core"
-        config: "_default"
-        description: "Main Solr core with default configuration"
-        moodle_version: null
-      - name: "moodle_41"
-        config: "moodle_41_config"
-        description: "Moodle 4.1 core"
-        moodle_version: "4.1"
-        schema_features:
-          max_field_length: 32766
-          use_legacy_date: false
-      - name: "moodle_42"
-        config: "moodle_42_config"
-        description: "Moodle 4.2 core"
-        moodle_version: "4.2"
-        schema_features:
-          max_field_length: 32766
-          use_legacy_date: false
-      - name: "moodle_43"
-        config: "moodle_43_config"
-        description: "Moodle 4.3 core"
-        moodle_version: "4.3"
-        schema_features:
-          max_field_length: 32766
-          use_legacy_date: false
-          additional_fields:
-            - {name: "coursecategory", type: "string", indexed: true, stored: true}
-      - name: "moodle_44"
-        config: "moodle_44_config"
-        description: "Moodle 4.4 core"
-        moodle_version: "4.4"
-        schema_features:
-          max_field_length: 65536
-          use_legacy_date: false
-          additional_fields:
-            - {name: "coursecategory", type: "string", indexed: true, stored: true}
-            - {name: "activitycompletionstate", type: "pint", indexed: true, stored: true}
-      - name: "moodle_50"
-        config: "moodle_50_config"
-        description: "Moodle 5.0.x core"
-        moodle_version: "5.0"
-        schema_features:
-          max_field_length: 65536
-          use_legacy_date: false
-          additional_fields:
-            - {name: "coursecategory", type: "string", indexed: true, stored: true}
-            - {name: "activitycompletionstate", type: "pint", indexed: true, stored: true}
-            - {name: "competencies", type: "text_general", indexed: true, stored: false}
-            - {name: "outcomes", type: "text_general", indexed: true, stored: false}
-  when: solr_multi_version_cores | default(true)
+    core_status_json: "{{ core_status.content | default('{}') | from_json }}"
+  when: core_status.content is defined
+  changed_when: false
 
-- name: core-creation - Use single core configuration
+- name: install-solr - Determine if core is registered (API)
   set_fact:
-    solr_cores:
-      - name: "{{ customer_name | default('default') }}_core"
-        config: "_default"
-        description: "Single Solr core"
-        moodle_version: null
-  when: not solr_multi_version_cores | default(true)
+    core_registered: "{{ (core_status_json.status is defined) and (core_status_json.status[solr_core_name] is defined) }}"
+  changed_when: false
 
-# ============================================
-# PREPARE CONFIGSETS WITH DOCKER MODULE
-# ============================================
+- name: install-solr - Check if core instance directory exists inside container
+  command: >
+    docker exec {{ solr_container_name }} test -f /var/solr/data/{{ solr_core_name }}/core.properties
+  register: core_dir_check
+  failed_when: false
+  changed_when: false
 
-- name: core-creation - Create configsets directories
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: |
-      bash -c "
-        for config in {{ solr_cores | selectattr('config', 'ne', '_default') | map(attribute='config') | join(' ') }}; do
-          mkdir -p /var/solr/data/configsets/\${config}/conf
-          if [ ! -f /var/solr/data/configsets/\${config}/conf/solrconfig.xml ]; then
-            cp -r /opt/solr/server/solr/configsets/_default/conf/* /var/solr/data/configsets/\${config}/conf/
-            echo \"ConfigSet \${config} created\"
-          fi
-        done
-        chown -R solr:solr /var/solr/data/configsets/
-      "
-  register: configset_creation
-  when: solr_cores | selectattr('config', 'ne', '_default') | list | length > 0
+- name: install-solr - Set fact if instance directory present
+  set_fact:
+    core_instance_present: "{{ core_dir_check.rc == 0 }}"
+  changed_when: false
 
-# ============================================
-# GENERATE DYNAMIC SCHEMAS
-# ============================================
+- name: install-solr - Debug core state
+  debug:
+    msg:
+      - "core_registered: {{ core_registered | default(false) }}"
+      - "core_instance_present: {{ core_instance_present | default(false) }}"
 
-- name: core-creation - Generate version-specific Moodle schemas
-  template:
-    src: moodle_schema_dynamic.xml.j2
-    dest: "{{ solr_config_dir }}/moodle_schema_{{ item.moodle_version | replace('.', '_') }}.xml"
+# If core is registered but instance missing -> UNLOAD to remove registration so we can CREATE
+- name: install-solr - UNLOAD registered core with missing instance
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=UNLOAD&core={{ solr_core_name }}&deleteIndex=false&deleteInstanceDir=false"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_unload
+  failed_when: false
+  when: core_registered and not core_instance_present
+
+- name: install-solr - Refresh registration fact after UNLOAD
+  set_fact:
+    core_registered: false
+  when: core_registered and not core_instance_present and (core_unload is defined)
+
+# Try create via API if instance missing
+- name: install-solr - Create Solr core via API when instance absent
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=CREATE&name={{ solr_core_name }}&configSet={{ solr_core_config }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_creation
+  failed_when: false
+  when: not core_instance_present
+
+- name: install-solr - If API CREATE succeeded, wait for ping
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_ping
+  retries: 10
+  delay: 3
+  until: core_ping.status == 200
+  when: core_creation is defined and core_creation.status == 200
+
+# Fallback: if API CREATE did not produce an instance, copy bundled conf into the volume and restart container
+- name: install-solr - copy bundled conf into volume if instance still missing
+  shell: |
+      docker run --rm \
+        -v {{ solr_volume | default('solr_data_bschrei') }}:/data \
+        -v {{ role_path }}/files/conf:/tmp/conf \
+        busybox sh -c "mkdir -p /data/{{ solr_core_name }} && cp -r /tmp/conf /data/{{ solr_core_name }}/conf && printf 'name={{ solr_core_name }}\nconfigSet={{ solr_core_config }}\n' > /data/{{ solr_core_name }}/core.properties"
+  register: copy_conf
+  failed_when: copy_conf.rc != 0
+  when:
+    - not core_instance_present
+    - not (core_creation is defined and core_creation.status == 200)
+
+- name: install-solr - Restart Solr container to pick up new core instance (fallback)
+  command: docker compose -f {{ docker_compose_file | default('/opt/solr/docker-compose.yml') }} restart {{ solr_container_name }}
+  when: copy_conf is defined and copy_conf.rc == 0
+
+# After actions, re-check instance dir
+- name: install-solr - Re-check instance directory after create/copy
+  command: >
+    docker exec {{ solr_container_name }} test -f /var/solr/data/{{ solr_core_name }}/core.properties
+  register: core_dir_check_after
+  failed_when: false
+  changed_when: false
+
+- name: install-solr - Set final instance present fact
+  set_fact:
+    core_instance_present: "{{ core_dir_check_after.rc == 0 }}"
+  changed_when: false
+
+# If core exists or now present, deploy moodle schema and config changes as before
+- name: install-solr - Display core already exists
+  debug:
+    msg:
+      - "Core {{ solr_core_name }} already exists"
+      - "Skipping core creation"
+  when: core_instance_present
+
+- name: install-solr - Copy Moodle schema to local config directory
+  copy:
+    src: moodle_schema.xml
+    dest: "{{ solr_config_dir }}/moodle_schema.xml"
     owner: root
     group: root
     mode: '0644'
-  loop: "{{ solr_cores | selectattr('moodle_version', 'ne', None) | list }}"
-  loop_control:
-    label: "Generating schema for {{ item.name }}"
-  vars:
-    schema_version: "{{ item.moodle_version }}"
-    schema_features: "{{ item.schema_features | default({}) }}"
+  when:
+    - solr_use_moodle_schema | default(true)
+    - core_instance_present
 
-- name: core-creation - Copy schemas to container
-  community.docker.docker_container_copy:
-    container: "{{ solr_container_name }}"
-    path: "/tmp/moodle_schema_{{ item.moodle_version | replace('.', '_') }}.xml"
-    content: "{{ lookup('file', solr_config_dir + '/moodle_schema_' + (item.moodle_version | replace('.', '_')) + '.xml') }}"
-  loop: "{{ solr_cores | selectattr('moodle_version', 'ne', None) | list }}"
-  loop_control:
-    label: "Copying schema for {{ item.name }}"
+- name: install-solr - Copy Moodle schema to container
+  command: >
+    docker cp {{ solr_config_dir }}/moodle_schema.xml
+    {{ solr_container_name }}:/var/solr/data/{{ solr_core_name }}/conf/managed-schema
+  when:
+    - solr_use_moodle_schema | default(true)
+    - core_instance_present
+  register: schema_copy
 
-- name: core-creation - Deploy schemas to configsets
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: |
-      bash -c "
-        SOURCE='/tmp/moodle_schema_{{ item.moodle_version | replace('.', '_') }}.xml'
-        TARGET='/var/solr/data/configsets/{{ item.config }}/conf/managed-schema'
-        if [ -f \"\${SOURCE}\" ]; then
-          cp \"\${SOURCE}\" \"\${TARGET}\"
-          chown solr:solr \"\${TARGET}\"
-          echo 'Schema deployed for {{ item.name }}'
-        fi
-      "
-  loop: "{{ solr_cores | selectattr('moodle_version', 'ne', None) | list }}"
-  loop_control:
-    label: "Deploying schema for {{ item.name }}"
-    
-- name: core-creation - Check existing cores
+- name: install-solr - Set schema file permissions in container
+  command: >
+    docker exec {{ solr_container_name }}
+    chown solr:solr /var/solr/data/{{ solr_core_name }}/conf/managed-schema
+  when:
+    - solr_use_moodle_schema | default(true)
+    - core_instance_present
+    - schema_copy is succeeded
+
+- name: install-solr - Reload core to apply new schema
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS"
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=RELOAD&core={{ solr_core_name }}"
     method: GET
-    user: "{{ admin_user | default('admin') }}"
-    password: "{{ admin_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  when:
+    - solr_use_moodle_schema | default(true)
+    - core_instance_present
+    - schema_copy is succeeded
+
+- name: install-solr - Get core status details
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS&core={{ solr_core_name }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     return_content: yes
-  register: all_cores_status
+  register: core_details
+  changed_when: false
 
-- name: core-creation - Parse existing cores
-  set_fact:
-    existing_cores: "{{ all_cores_status.json.status.keys() | list if all_cores_status.json.status is defined else [] }}"
-
-- name: core-creation - Display existing cores
-  debug:
-    msg: "Existing cores: {{ existing_cores }}"
-
-- name: core-creation - Create missing cores via API
+- name: install-solr - Configure core properties (maxBooleanClauses)
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/cores"
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/config"
     method: POST
-    user: "{{ admin_user | default('admin') }}"
-    password: "{{ admin_password }}"
-    force_basic_auth: yes
-    body_format: form-urlencoded
-    body:
-      action: "CREATE"
-      name: "{{ item.name }}"
-      configSet: "{{ item.config }}"
-      property.moodle_version: "{{ item.moodle_version | default('') }}"
-    status_code: [200, 201]
-  loop: "{{ solr_cores }}"
-  when: item.name not in existing_cores
-  register: core_creation_results
-  failed_when: false
-  loop_control:
-    label: "Creating core {{ item.name }}"
-
-- name: core-creation - Fallback creation for failed cores
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: |
-      bash -c "
-        CORE_DIR='/var/solr/data/{{ item.item.name }}'
-        if [ ! -d \"\${CORE_DIR}\" ]; then
-          mkdir -p \"\${CORE_DIR}/conf\"
-          if [ -d '/var/solr/data/configsets/{{ item.item.config }}/conf' ]; then
-            cp -r /var/solr/data/configsets/{{ item.item.config }}/conf/* \"\${CORE_DIR}/conf/\"
-          else
-            cp -r /opt/solr/server/solr/configsets/_default/conf/* \"\${CORE_DIR}/conf/\"
-          fi
-          echo 'name={{ item.item.name }}' > \"\${CORE_DIR}/core.properties\"
-          echo 'configSet={{ item.item.config }}' >> \"\${CORE_DIR}/core.properties\"
-          chown -R solr:solr \"\${CORE_DIR}\"
-          echo 'Core {{ item.item.name }} created via fallback'
-        fi
-      "
-  loop: "{{ core_creation_results.results }}"
-  when:
-    - item.failed | default(false) or item.status | default(200) not in [200, 201]
-    - item.item.name not in existing_cores
-  loop_control:
-    label: "Fallback for {{ item.item.name }}"
-
-
-- name: core-creation - Reload Solr to detect new cores
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=RELOAD"
-    method: GET
-    user: "{{ admin_user | default('admin') }}"
-    password: "{{ admin_password }}"
-    force_basic_auth: yes
-  failed_when: false
-  
-
-- name: core-creation - Configure each core
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ item.name }}/config"
-    method: POST
-    user: "{{ admin_user | default('admin') }}"
-    password: "{{ admin_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
       set-property:
-        query.maxBooleanClauses: "{{ solr_max_boolean_clauses | default(1024) }}"
-        updateHandler.autoCommit.maxTime: "{{ solr_auto_commit_time | default(15000) }}"
-        updateHandler.autoSoftCommit.maxTime: "{{ solr_auto_soft_commit_time | default(1000) }}"
-    status_code: [200, 201]
-  loop: "{{ solr_cores }}"
-  failed_when: false
-  loop_control:
-    label: "Configuring {{ item.name }}"
+        query.maxBooleanClauses: "{{ solr_max_boolean_clauses }}"
+    status_code: 200
+  register: core_config
+  when: not core_exists
 
-
-- name: core-creation - Final verification of all cores
+- name: install-solr - Configure autoCommit settings
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ item.name }}/admin/ping"
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/config"
+    method: POST
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      set-property:
+        updateHandler.autoCommit.maxTime: "{{ solr_auto_commit_time }}"
+        updateHandler.autoSoftCommit.maxTime: "{{ solr_auto_soft_commit_time }}"
+    status_code: 200
+  register: core_commit_config
+  when: not core_exists
+
+- name: install-solr - Test core with simple query by Customer User
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
     method: GET
-    user: "{{ admin_user | default('admin') }}"
-    password: "{{ admin_password }}"
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
     force_basic_auth: yes
     status_code: 200
-  loop: "{{ solr_cores }}"
-  register: cores_ping
-  failed_when: false
-  loop_control:
-    label: "Pinging {{ item.name }}"
-    
-- name: core-creation - Verify core configs are loaded
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ item.name }}/admin/system"
-    method: GET
-    user: "{{ admin_user | default('admin') }}"
-    password: "{{ admin_password }}"
-    force_basic_auth: yes
-    status_code: 200
-  loop: "{{ solr_cores }}"
-  register: cores_config_check
-  failed_when: false
-  loop_control:
-    label: "Checking config for {{ item.name }}"
+  register: core_query_test
+  changed_when: false
 
-- name: core-creation - Verify schema fields are present
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ item.name }}/schema/fields"
-    method: GET
-    user: "{{ admin_user | default('admin') }}"
-    password: "{{ admin_password }}"
-    force_basic_auth: yes
-    return_content: yes
-  loop: "{{ solr_cores | selectattr('moodle_version', 'ne', None) | list }}"
-  register: schema_fields_check
-  failed_when: false
-  loop_control:
-    label: "Checking schema for {{ item.name }}"
-
-- name: core-creation - Display schema validation summary
-  debug:
-    msg:
-      - "SCHEMA VALIDATION:"
-      - "Cores with Moodle schema: {{ schema_fields_check.results | length }}"
-      - "Cores with valid config: {{ cores_config_check.results | selectattr('status', 'equalto', 200) | list | length }}"
-
-- name: core-creation - Generate summary report
+- name: install-solr - Create Rundeck output
   set_fact:
-    core_report:
-      total_requested: "{{ solr_cores | length }}"
-      total_created: "{{ cores_ping.results | selectattr('status', 'equalto', 200) | list | length }}"
-      cores:
-        main_core: "{{ 'ACTIVE' if (cores_ping.results | selectattr('item.name', 'equalto', 'main_core') | selectattr('status', 'equalto', 200) | list | length > 0) else 'FAILED' }}"
-        moodle_41: "{{ 'ACTIVE' if (cores_ping.results | selectattr('item.name', 'equalto', 'moodle_41') | selectattr('status', 'equalto', 200) | list | length > 0) else 'FAILED' }}"
-        moodle_42: "{{ 'ACTIVE' if (cores_ping.results | selectattr('item.name', 'equalto', 'moodle_42') | selectattr('status', 'equalto', 200) | list | length > 0) else 'FAILED' }}"
-        moodle_43: "{{ 'ACTIVE' if (cores_ping.results | selectattr('item.name', 'equalto', 'moodle_43') | selectattr('status', 'equalto', 200) | list | length > 0) else 'FAILED' }}"
-        moodle_44: "{{ 'ACTIVE' if (cores_ping.results | selectattr('item.name', 'equalto', 'moodle_44') | selectattr('status', 'equalto', 200) | list | length > 0) else 'FAILED' }}"
-        moodle_50: "{{ 'ACTIVE' if (cores_ping.results | selectattr('item.name', 'equalto', 'moodle_50') | selectattr('status', 'equalto', 200) | list | length > 0) else 'FAILED' }}"
+    core_creation_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Solr core creation completed"
+      details:
+        core_name: "{{ solr_core_name }}"
+        core_config: "{{ solr_core_config }}"
+        core_existed: "{{ core_exists }}"
+        core_created: "{{ not core_exists }}"
+        max_boolean_clauses: "{{ solr_max_boolean_clauses }}"
+        auto_commit_time: "{{ solr_auto_commit_time }}"
+        auto_soft_commit_time: "{{ solr_auto_soft_commit_time }}"
+        core_url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
+        query_test: "{{ 'PASSED' if core_query_test.status == 200 else 'FAILED' }}"
+        moodle_schema: "{{ 'DEPLOYED' if schema_copy is succeeded else 'SKIPPED' }}"
 
-- name: core-creation - Display final summary
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ core_creation_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
   debug:
     msg:
-      - "=========================================="
       - "SOLR CORE CREATION COMPLETED"
-      - "=========================================="
-      - "Total Cores Requested: {{ core_report.total_requested }}"
-      - "Total Cores Active: {{ core_report.total_created }}"
-      - ""
-      - "CORE STATUS:"
-      - "  main_core: {{ core_report.cores.main_core }}"
-      - "  moodle_41: {{ core_report.cores.moodle_41 }}"
-      - "  moodle_42: {{ core_report.cores.moodle_42 }}"
-      - "  moodle_43: {{ core_report.cores.moodle_43 }}"
-      - "  moodle_44: {{ core_report.cores.moodle_44 }}"
-      - "  moodle_50: {{ core_report.cores.moodle_50 }}"
-      - ""
-      - "ACCESS URLs:"
-      - "  Main: http://localhost:{{ solr_port }}/solr/main_core"
-      - "  Moodle 4.1: http://localhost:{{ solr_port }}/solr/moodle_41"
-      - "  Moodle 4.2: http://localhost:{{ solr_port }}/solr/moodle_42"
-      - "  Moodle 4.3: http://localhost:{{ solr_port }}/solr/moodle_43"
-      - "  Moodle 4.4: http://localhost:{{ solr_port }}/solr/moodle_44"
-      - "  Moodle 5.0: http://localhost:{{ solr_port }}/solr/moodle_50"
-      - "=========================================="
+      - "Core name: {{ solr_core_name }}"
+      - "Core config: {{ solr_core_config }}"
+      - "Core status: {{ 'ALREADY EXISTED' if core_exists else 'NEWLY CREATED' }}"
+      - "Core URL: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
+      - "Max boolean clauses: {{ solr_max_boolean_clauses }}"
+      - "Auto-commit time: {{ solr_auto_commit_time }}ms"
+      - "Auto soft-commit time: {{ solr_auto_soft_commit_time }}ms"
+      - "Query test: {{ 'PASSED' if core_query_test.status == 200 else 'FAILED' }}"
+      - "Moodle schema: {{ 'DEPLOYED' if schema_copy is succeeded else 'SKIPPED' }}"
+  when: not rundeck_integration_enabled | default(false)

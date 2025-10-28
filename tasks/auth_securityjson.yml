@@ -92,9 +92,9 @@
         auth_class: "{{ security_json_parsed.authentication.class }}"
         authz_class: "{{ security_json_parsed.authorization.class }}"
         users:
-          - "{{ admin_user | default('admin') }}"
-          - "{{ support_user | default('support') }}"
-          - "{{ customer_user | default('customer') }}"
+          - "{{ solr_admin_user | default('admin') }}"
+          - "{{ solr_support_user | default('support') }}"
+          - "{{ solr_customer_user | default('customer') }}"
   when: rundeck_integration_enabled | default(false)
 
 - name: install-solr - Display Rundeck output

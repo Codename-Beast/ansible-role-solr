@@ -167,7 +167,7 @@
     ] | select('true') | list | length }}"
     tests_total: 9
 
-- name: install-solr - Create Rundeck output
+- name: install-solr - Create Rundeck-compatible output
   set_fact:
     integration_tests_result:
       status: "{{ 'success' if tests_passed | int == tests_total | int else 'warning' }}"
@@ -189,7 +189,6 @@
         container_health: "{{ container_health.stdout if container_health.rc == 0 else 'N/A' }}"
         security_json_present: "{{ 'PASSED' if security_json_check.rc == 0 else 'FAILED' }}"
         permission_isolation: "{{ 'PASSED' if permission_test.status == 403 else 'FAILED' }}"
-  when: rundeck_integration_enabled | default(false)
 
 - name: install-solr - Display Rundeck output
   debug:
