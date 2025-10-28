@@ -34,7 +34,7 @@
     - "{{ solr_backup_dir }}"
     - "{{ solr_log_dir }}"
 
-- name: install-solr - Ensure proper permissions for log directory
+- name: install-solr - Ensure permissions for log directory
   file:
     path: "{{ solr_log_dir }}"
     state: directory
@@ -62,26 +62,6 @@
   when:
     - existing_volume.stdout != ""
     - solr_force_recreate | default(false)
-  become: true
-
-- name: install-solr - Optimize system for Solr (vm.max_map_count)
-  sysctl:
-    name: vm.max_map_count
-    value: '262144'
-    state: present
-    reload: yes
-  become: true
-  when: ansible_virtualization_type != 'openvz'  # Skip for OpenVZ
-
-- name: install-solr - Configure file descriptor limits
-  blockinfile:
-    path: /etc/security/limits.conf
-    block: |
-      * soft nofile 65535
-      * hard nofile 65535
-      * soft nproc 4096
-      * hard nproc 4096
-    marker: "# {mark} ANSIBLE MANAGED - SOLR LIMITS"
   become: true
 
 - name: install-solr - Create Rundeck output
