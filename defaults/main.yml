@@ -60,6 +60,41 @@ solr_max_boolean_clauses: 1024
 solr_auto_commit_time: 15000
 solr_auto_soft_commit_time: 1000
 
+
+solr_multi_version_cores: true  # Create version-specific cores
+solr_single_core_name: "{{ customer_name | default('default') }}_core"
+
+# Moodle versions configuration (dynamisch!)
+solr_moodle_versions_config:
+  "4.1":
+    max_field_length: 32766
+    use_legacy_date: false
+    features: ["basic_search", "file_indexing"]
+  "4.2":
+    max_field_length: 32766
+    use_legacy_date: false
+    features: ["basic_search", "file_indexing", "multilang"]
+  "4.3":
+    max_field_length: 32766
+    use_legacy_date: false
+    features: ["basic_search", "file_indexing", "multilang", "categories"]
+  "4.4":
+    max_field_length: 65536
+    use_legacy_date: false
+    features: ["basic_search", "file_indexing", "multilang", "categories", "completion"]
+  "5.0":
+    max_field_length: 65536
+    use_legacy_date: false
+    features: ["basic_search", "file_indexing", "multilang", "categories", "completion", "competencies", "outcomes", "tags"]
+
+# Performance tuning per version
+solr_moodle_performance:
+  "4.1": { heap: "1g", cache_size: 1024 }
+  "4.2": { heap: "1g", cache_size: 1024 }
+  "4.3": { heap: "1g", cache_size: 1024 }
+  "4.4": { heap: "1g", cache_size: 1024 }
+  "5.0": { heap: "2g", cache_size: 2048 }
+
 # ---------------------------------------------------------
 # Solr Log-Level Übersicht
 # ---------------------------------------------------------
