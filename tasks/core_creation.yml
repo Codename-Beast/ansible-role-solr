@@ -109,7 +109,7 @@
     schema_version: "{{ item.moodle_version }}"
     schema_features: "{{ item.schema_features | default({}) }}"
 
-- name: core-creation - Copy schemas to container using docker cp
+- name: core-creation - Copy schemas to container
   community.docker.docker_container_copy:
     container: "{{ solr_container_name }}"
     path: "/tmp/moodle_schema_{{ item.moodle_version | replace('.', '_') }}.xml"
@@ -134,11 +134,7 @@
   loop: "{{ solr_cores | selectattr('moodle_version', 'ne', None) | list }}"
   loop_control:
     label: "Deploying schema for {{ item.name }}"
-
-# ============================================
-# CREATE CORES VIA API
-# ============================================
-
+    
 - name: core-creation - Check existing cores
   uri:
     url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS"
@@ -178,10 +174,6 @@
   loop_control:
     label: "Creating core {{ item.name }}"
 
-# ============================================
-# FALLBACK: CREATE VIA DOCKER VOLUMES
-# ============================================
-
 - name: core-creation - Fallback creation for failed cores
   community.docker.docker_container_exec:
     container: "{{ solr_container_name }}"
@@ -208,9 +200,6 @@
   loop_control:
     label: "Fallback for {{ item.item.name }}"
 
-# ============================================
-# RELOAD TO REGISTER NEW CORES
-# ============================================
 
 - name: core-creation - Reload Solr to detect new cores
   uri:
@@ -220,10 +209,7 @@
     password: "{{ admin_password }}"
     force_basic_auth: yes
   failed_when: false
-
-# ============================================
-# CONFIGURE CORE SETTINGS
-# ============================================
+  
 
 - name: core-creation - Configure each core
   uri:
@@ -244,9 +230,6 @@
   loop_control:
     label: "Configuring {{ item.name }}"
 
-# ============================================
-# VERIFY ALL CORES
-# ============================================
 
 - name: core-creation - Final verification of all cores
   uri:
@@ -261,6 +244,41 @@
   failed_when: false
   loop_control:
     label: "Pinging {{ item.name }}"
+    
+- name: core-creation - Verify core configs are loaded
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ item.name }}/admin/system"
+    method: GET
+    user: "{{ admin_user | default('admin') }}"
+    password: "{{ admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  loop: "{{ solr_cores }}"
+  register: cores_config_check
+  failed_when: false
+  loop_control:
+    label: "Checking config for {{ item.name }}"
+
+- name: core-creation - Verify schema fields are present
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ item.name }}/schema/fields"
+    method: GET
+    user: "{{ admin_user | default('admin') }}"
+    password: "{{ admin_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  loop: "{{ solr_cores | selectattr('moodle_version', 'ne', None) | list }}"
+  register: schema_fields_check
+  failed_when: false
+  loop_control:
+    label: "Checking schema for {{ item.name }}"
+
+- name: core-creation - Display schema validation summary
+  debug:
+    msg:
+      - "SCHEMA VALIDATION:"
+      - "Cores with Moodle schema: {{ schema_fields_check.results | length }}"
+      - "Cores with valid config: {{ cores_config_check.results | selectattr('status', 'equalto', 200) | list | length }}"
 
 - name: core-creation - Generate summary report
   set_fact:
