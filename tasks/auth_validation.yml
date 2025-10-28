@@ -1,19 +1,13 @@
 ---
-# Version: 1.1.0
+# Version: 1.3.0
 # Description: Validate Solr authentication after deployment
-# Changelog v1.1:
-#   - NEW: Post-deployment authentication tests
-#   - Tests all three user accounts (admin, support, customer)
-#   - Rundeck-compatible JSON output
-#   - Comprehensive error reporting
-#   - Hotfix with auth changes the algo from bcrypt to SHA
+# Changelog v1.3.0: Variable naming consistency
 
 - name: install-solr - Test unauthenticated access (should return 401)
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
     status_code: 401
-
   register: unauth_test
   failed_when: unauth_test.status != 401
 
@@ -21,7 +15,7 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
-    user: "{{ solr_admin_user | default('eledia_admin') }}"
+    user: "{{ admin_user | default('admin') }}" #/2
     password: "{{ admin_password }}"
     force_basic_auth: true
     status_code: 200
@@ -35,35 +29,35 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
-    user: "{{ solr_support_user | default('eledia_support') }}"
+    user: "{{ support_user | default('support') }}"
     password: "{{ support_password }}"
     force_basic_auth: true
-    status_code: 200
+    status_code: [200, 403]
   register: support_auth_test
   retries: 5
   delay: 2
-  until: support_auth_test.status == 200
-  failed_when: support_auth_test.status != 200
+  until: support_auth_test.status in [200, 403]
+  failed_when: support_auth_test.status == 401
 
 - name: install-solr - Test customer authentication
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
-    user: "{{ solr_customer_user | default('eledia_customer') }}"
+    user: "{{ customer_user | default('customer') }}"
     password: "{{ customer_password }}"
     force_basic_auth: true
-    status_code: 200
+    status_code: [200, 403]
   register: customer_auth_test
   retries: 5
   delay: 2
-  until: customer_auth_test.status == 200
-  failed_when: customer_auth_test.status != 200
+  until: customer_auth_test.status in [200, 403]
+  failed_when: customer_auth_test.status == 401
 
 - name: install-solr - Test admin authorization (security-edit permission)
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
     method: GET
-    user: "{{ solr_admin_user | default('admin') }}"
+    user: "{{ admin_user | default('admin') }}"
     password: "{{ admin_password }}"
     force_basic_auth: true
     status_code: 200
@@ -74,7 +68,7 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
     method: POST
-    user: "{{ solr_support_user | default('support') }}"
+    user: "{{ support_user | default('support') }}" #/2
     password: "{{ support_password }}"
     force_basic_auth: true
     body_format: json

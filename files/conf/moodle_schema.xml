@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema name="moodle" version="1.6">
+  
+  <!-- FIELD TYPES -->
+  <types>
+    <!-- String: exact match, not tokenized -->
+    <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true"/>
+    
+    <!-- Boolean -->
+    <fieldType name="boolean" class="solr.BoolField" sortMissingLast="true"/>
+    
+    <!-- Integer types -->
+    <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+    <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+    <fieldType name="pfloat" class="solr.FloatPointField" docValues="true"/>
+    <fieldType name="pdouble" class="solr.DoublePointField" docValues="true"/>
+    
+    <!-- Date type -->
+    <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+    
+    <!-- Text type for German language -->
+    <fieldType name="text_de" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.StopFilterFactory" words="lang/stopwords_de.txt" format="snowball" ignoreCase="true"/>
+        <filter class="solr.GermanNormalizationFilterFactory"/>
+        <filter class="solr.GermanLightStemFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.StopFilterFactory" words="lang/stopwords_de.txt" format="snowball" ignoreCase="true"/>
+        <filter class="solr.GermanNormalizationFilterFactory"/>
+        <filter class="solr.GermanLightStemFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    <!-- Text type for English language -->
+    <fieldType name="text_en" class="solr.TextField" positionIncrementGap="100">
+      <analyzer type="index">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.StopFilterFactory" words="lang/stopwords_en.txt" ignoreCase="true"/>
+        <filter class="solr.EnglishPossessiveFilterFactory"/>
+        <filter class="solr.PorterStemFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+        <filter class="solr.StopFilterFactory" words="lang/stopwords_en.txt" ignoreCase="true"/>
+        <filter class="solr.EnglishPossessiveFilterFactory"/>
+        <filter class="solr.PorterStemFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    <!-- General text type (multilingual) -->
+    <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100" multiValued="true">
+      <analyzer type="index">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+      <analyzer type="query">
+        <tokenizer class="solr.StandardTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+    </fieldType>
+    
+    <!-- Text type for exact phrases -->
+    <fieldType name="text_ws" class="solr.TextField" positionIncrementGap="100">
+      <analyzer>
+        <tokenizer class="solr.WhitespaceTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory"/>
+      </analyzer>
+    </fieldType>
+  </types>
+  
+  <!-- MOODLE CORE FIELDS -->
+  <fields>
+    <!-- Required Solr fields -->
+    <field name="_version_" type="plong" indexed="false" stored="false"/>
+    <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
+    
+    <!-- Moodle required fields -->
+    <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false"/>
+    <field name="title" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    <field name="content" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    <field name="description1" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    <field name="description2" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    
+    <!-- Moodle context fields -->
+    <field name="contextid" type="pint" indexed="true" stored="true" required="true" multiValued="false"/>
+    <field name="courseid" type="pint" indexed="true" stored="true" required="true" multiValued="false"/>
+    <field name="userid" type="pint" indexed="true" stored="true" multiValued="false"/>
+    <field name="owneruserid" type="pint" indexed="true" stored="true" multiValued="false"/>
+    <field name="modified" type="pdate" indexed="true" stored="true" required="true" multiValued="false"/>
+    
+    <!-- Moodle type and area fields -->
+    <field name="type" type="pint" indexed="true" stored="true" required="true" multiValued="false"/>
+    <field name="solrarea" type="string" indexed="true" stored="true" multiValued="false"/>
+    <field name="itemid" type="pint" indexed="true" stored="true" required="true" multiValued="false"/>
+    <field name="areaid" type="string" indexed="true" stored="true" multiValued="false"/>
+    
+    <!-- Additional Moodle fields -->
+    <field name="parentid" type="pint" indexed="true" stored="true" multiValued="false"/>
+    <field name="groupid" type="pint" indexed="true" stored="true" multiValued="false"/>
+    
+    <!-- File and attachment fields -->
+    <field name="filetext" type="text_general" indexed="true" stored="false" multiValued="false"/>
+    
+    <!-- Moodle 4.x additional fields -->
+    <field name="intro" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    <field name="activityname" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    <field name="activitytype" type="string" indexed="true" stored="true" multiValued="false"/>
+    
+    <!-- Course-specific fields -->
+    <field name="coursefullname" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    <field name="courseshortname" type="string" indexed="true" stored="true" multiValued="false"/>
+    
+    <!-- User-related fields -->
+    <field name="userfullname" type="text_general" indexed="true" stored="true" multiValued="false"/>
+    
+    <!-- Dynamic fields for flexibility -->
+    <dynamicField name="*_txt" type="text_general" indexed="true" stored="true"/>
+    <dynamicField name="*_s" type="string" indexed="true" stored="true"/>
+    <dynamicField name="*_i" type="pint" indexed="true" stored="true"/>
+    <dynamicField name="*_l" type="plong" indexed="true" stored="true"/>
+    <dynamicField name="*_f" type="pfloat" indexed="true" stored="true"/>
+    <dynamicField name="*_d" type="pdouble" indexed="true" stored="true"/>
+    <dynamicField name="*_b" type="boolean" indexed="true" stored="true"/>
+    <dynamicField name="*_dt" type="pdate" indexed="true" stored="true"/>
+    
+    <!-- Multi-valued dynamic fields -->
+    <dynamicField name="*_txts" type="text_general" indexed="true" stored="true" multiValued="true"/>
+    <dynamicField name="*_ss" type="string" indexed="true" stored="true" multiValued="true"/>
+    <dynamicField name="*_is" type="pint" indexed="true" stored="true" multiValued="true"/>
+    <dynamicField name="*_ls" type="plong" indexed="true" stored="true" multiValued="true"/>
+    
+    <!-- Catch-all field for full-text search -->
+    <field name="text" type="text_general" indexed="true" stored="false" multiValued="true"/>
+  </fields>
+  
+  <!-- Unique key -->
+  <uniqueKey>id</uniqueKey>
+  
+  <!-- Copy fields for full-text search -->
+  <copyField source="title" dest="text"/>
+  <copyField source="content" dest="text"/>
+  <copyField source="description1" dest="text"/>
+  <copyField source="description2" dest="text"/>
+  <copyField source="intro" dest="text"/>
+  <copyField source="activityname" dest="text"/>
+  <copyField source="coursefullname" dest="text"/>
+  <copyField source="filetext" dest="text"/>
+  
+</schema>

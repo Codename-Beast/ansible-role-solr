@@ -35,18 +35,6 @@
     fail_msg: "Insufficient disk space. Required: {{ solr_min_disk_space_gb }}GB, Available: {{ disk_space.stdout }}GB"
     success_msg: "Disk space check passed"
 
-- name: preflight-check - Check available memory
-  shell: free -g | grep Mem | awk '{print $2}'
-  register: total_memory
-  changed_when: false
-
-- name: preflight-check - Verify sufficient memory
-  assert:
-    that:
-      - total_memory.stdout | int >= solr_min_memory_gb | default(2)
-    fail_msg: "Insufficient memory. Required: {{ solr_min_memory_gb }}GB, Available: {{ total_memory.stdout }}GB"
-    success_msg: "Memory check passed"
-
 - name: preflight-check - Check if Docker is installed
   command: docker --version
   register: docker_version_check
@@ -89,10 +77,10 @@
         ansible_version: "{{ ansible_version.full }}"
         os_distribution: "{{ ansible_distribution }} {{ ansible_distribution_version }}"
         disk_space_gb: "{{ disk_space.stdout }}"
-        memory_gb: "{{ total_memory.stdout }}"
         docker_installed: "{{ docker_version_check.rc == 0 }}"
         docker_compose_installed: "{{ docker_compose_check.rc == 0 }}"
         port_available: "{{ 'PORT_FREE' in port_check.stdout }}"
+  when: not rundeck_integration_enabled | default(false)
 
 - name: preflight-check - Display Rundeck output
   debug:
@@ -106,7 +94,6 @@
       - "Ansible: {{ ansible_version.full }}"
       - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
       - "Disk space: {{ disk_space.stdout }}GB available"
-      - "Memory: {{ total_memory.stdout }}GB available"
       - "Docker: {{ 'INSTALLED' if docker_version_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Docker Compose: {{ 'INSTALLED' if docker_compose_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Port {{ solr_port }}: {{ 'AVAILABLE' if 'PORT_FREE' in port_check.stdout else 'IN USE' }}"

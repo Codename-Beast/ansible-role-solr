@@ -1,0 +1,35 @@
+---
+# Version: 1.0.0
+# Description: Event handlers for Solr installation
+
+- name: restart solr container
+  docker_container:
+    name: "{{ solr_container_name }}"
+    restart: true
+    state: started
+
+- name: reload apache
+  systemd:
+    name: apache2
+    state: reloaded
+  when: solr_webserver == "apache"
+
+- name: reload nginx
+  systemd:
+    name: nginx
+    state: reloaded
+  when: solr_webserver == "nginx"
+
+- name: restart docker
+  systemd:
+    name: docker
+    state: restarted
+    daemon_reload: true
+
+- name: backup solr data
+  shell: |
+    docker exec {{ solr_container_name }} \
+      solr backup -c {{ solr_core_name }} \
+      -d /var/solr/backup \
+      -name backup_$(date +%Y%m%d_%H%M%S)
+  when: solr_backup_enabled | default(true)

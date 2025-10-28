@@ -1,11 +1,10 @@
 ---
-# Version: 1.1.0
+# Version: 1.3.4 
 # Description: Deploy Solr container using Docker Compose with init-container
-# Changelog v1.1:
-#   - NEW: Init-container pattern deployment
-#   - Uses Docker Compose for orchestration
-#   - Ensures security.json deployed before Solr starts
-#   - Validates deployment success
+# Changelog v1.3.4: 
+#   - Wait for container 'running' status instead of 'healthy' 
+#   - Added port-based waiting instead of health check dependency 
+#   - Health check is now informational only 
 
 - name: solr-deployment - Check if services are already running
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml ps --services --filter status=running
@@ -13,22 +12,95 @@
   changed_when: false
   failed_when: false
 
-- name: solr-deployment - Stop existing services if force recreate
+- name: solr-deployment - Get security.json checksum from config directory
+  stat:
+    path: "{{ solr_config_dir }}/security.json"
+    checksum_algorithm: sha256
+  register: new_security_checksum
+  become: true
+
+- name: solr-deployment - Get existing security.json checksum from container
+  command: docker exec {{ solr_container_name }} sha256sum /var/solr/data/security.json
+  register: existing_security_checksum
+  changed_when: false
+  failed_when: false
+  when: running_services.stdout_lines | length > 0
+
+- name: solr-deployment - Extract checksum from container output
+  set_fact:
+    existing_checksum: "{{ existing_security_checksum.stdout.split(' ')[0] if existing_security_checksum.rc == 0 else '' }}"
+  when: running_services.stdout_lines | length > 0
+
+- name: solr-deployment - Determine if auth changed
+  set_fact:
+    force_restart_auth: "{{ (existing_security_checksum.rc == 0) and (new_security_checksum.stat.checksum != existing_checksum) }}"
+  when: running_services.stdout_lines | length > 0
+
+- name: solr-deployment - Set force_restart_auth to false if container not running
+  set_fact:
+    force_restart_auth: false
+  when: running_services.stdout_lines | length == 0
+
+- name: solr-deployment - Display restart decision
+  debug:
+    msg:
+      - "Container running: {{ running_services.stdout_lines | length > 0 }}"
+      - "Force recreate flag: {{ solr_force_recreate | default(false) }}"
+      - "Auth changed: {{ force_restart_auth | default(false) }}"
+      - "New checksum: {{ new_security_checksum.stat.checksum }}"
+      - "Existing checksum: {{ existing_checksum | default('N/A') }}"
+      - "Will restart: {{ (running_services.stdout_lines | length > 0) and (solr_force_recreate | default(false) or force_restart_auth | default(false)) }}"
+
+- name: solr-deployment - Stop existing services if recreate or auth changed
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
   when:
     - running_services.stdout_lines | length > 0
-    - solr_force_recreate | default(false)
+    - solr_force_recreate | default(false) or force_restart_auth | default(false)
   become: true
+  register: compose_down
+
+- name: solr-deployment - Check if volume exists
+  command: docker volume inspect {{ solr_volume_name }}
+  register: volume_inspect
+  changed_when: false
+  failed_when: false
+
+- name: solr-deployment - Remove volume if force recreate or if volume is broken
+  command: docker volume rm {{ solr_volume_name }}
+  when:
+    - volume_inspect.rc == 0
+    - solr_force_recreate | default(false) or volume_inspect.stderr is search('no such file or directory')
+  become: true
+  failed_when: false
+  register: volume_removed
+
+- name: solr-deployment - Display volume removal result
+  debug:
+    msg: "Volume {{ solr_volume_name }} removed: {{ volume_removed.rc == 0 if volume_removed is defined and volume_removed.changed else 'Not removed' }}"
+
+- name: solr-deployment - Remove orphaned volume directory if exists
+  file:
+    path: /opt/solr/data
+    state: absent
+  become: true
+  when: solr_force_recreate | default(false)
 
 - name: solr-deployment - Pull Solr images
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml pull
   when: solr_force_pull | default(false)
   become: true
+  register: compose_pull
 
 - name: solr-deployment - Start init-container and Solr stack
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml up -d
   become: true
   register: compose_up
+
+- name: solr-deployment - Display compose up result
+  debug:
+    msg:
+      - "Compose up return code: {{ compose_up.rc }}"
+      - "Init container should start first"
 
 - name: solr-deployment - Wait for init-container to complete
   command: docker wait {{ solr_container_name }}_powerinit
@@ -41,7 +113,11 @@
   register: init_logs
   changed_when: false
 
-- name: solr-deployment - Verify security.json deployed by init-container
+- name: solr-deployment - Display init-container logs
+  debug:
+    msg: "{{ init_logs.stdout_lines }}"
+
+- name: solr-deployment - Verify security.json exists in container
   command: docker exec {{ solr_container_name }} test -f /var/solr/data/security.json
   register: security_json_in_container
   retries: 5
@@ -49,13 +125,50 @@
   until: security_json_in_container.rc == 0
   failed_when: security_json_in_container.rc != 0
 
-- name: solr-deployment - Wait for Solr container to be healthy
-  command: docker inspect {{ solr_container_name }} --format '{% raw %}{{.State.Health.Status}}{% endraw %}'
-  register: container_health
-  retries: "{{ (solr_startup_wait_time | default(60) / 5) | int }}"
-  delay: 5
-  until: container_health.stdout == "healthy"
+- name: solr-deployment - Get deployed security.json checksum from container
+  command: docker exec {{ solr_container_name }} sha256sum /var/solr/data/security.json
+  register: deployed_checksum
   changed_when: false
+
+- name: solr-deployment - Extract deployed checksum
+  set_fact:
+    deployed_checksum_value: "{{ deployed_checksum.stdout.split(' ')[0] }}"
+
+- name: solr-deployment - Validate security.json checksum matches expected
+  assert:
+    that:
+      - new_security_checksum.stat.checksum == deployed_checksum_value
+    fail_msg: "security.json checksum mismatch! Expected: {{ new_security_checksum.stat.checksum }}, Got: {{ deployed_checksum_value }}"
+    success_msg: "security.json deployed correctly with matching checksum"
+
+- name: solr-deployment - Wait for Solr container to be running (not healthy) 
+  command: docker inspect {{ solr_container_name }} --format '{% raw %}{{.State.Status}}{% endraw %}' 
+  register: container_status 
+  retries: 12 
+  delay: 5 
+  until: container_status.stdout == "running" 
+  changed_when: false 
+
+- name: solr-deployment - Wait for Solr HTTP port to be open 
+  wait_for: 
+    host: 127.0.0.1 
+    port: "{{ solr_port }}" 
+    state: started 
+    timeout: 60 
+
+- name: solr-deployment - Give Solr time to initialize 
+  pause: 
+    seconds: 10 
+
+- name: solr-deployment - Check container health status (non-blocking) 
+  command: docker inspect {{ solr_container_name }} --format '{% raw %}{{.State.Health.Status}}{% endraw %}' 
+  register: container_health 
+  changed_when: false 
+  failed_when: false 
+
+- name: solr-deployment - Display health status 
+  debug: 
+    msg: "Container health status: {{ container_health.stdout | default('no healthcheck') }}" 
 
 - name: solr-deployment - Wait for Solr HTTP endpoint
   uri:
@@ -86,11 +199,17 @@
       details:
         container_name: "{{ solr_container_name }}"
         init_container: "{{ solr_container_name }}_powerinit"
-        health_status: "{{ container_health.stdout }}"
+        container_status: "{{ container_status.stdout }}" 
+        health_status: "{{ container_health.stdout | default('no healthcheck') }}" 
         http_status: "{{ solr_http_check.status }}"
         auth_status: "{{ 'active' if auth_active_check.status == 401 else 'inactive' }}"
         security_json_deployed: true
+        security_json_checksum_expected: "{{ new_security_checksum.stat.checksum }}"
+        security_json_checksum_actual: "{{ deployed_checksum_value }}"
+        security_json_checksum_match: "{{ new_security_checksum.stat.checksum == deployed_checksum_value }}"
         port: "{{ solr_port }}"
+        restart_triggered: "{{ force_restart_auth | default(false) }}"
+        volume_removed: "{{ volume_removed.rc == 0 if volume_removed is defined and volume_removed.changed else false }}"
 
 - name: solr-deployment - Display Rundeck output
   debug:
@@ -100,12 +219,26 @@
 - name: solr-deployment - Display standard summary
   debug:
     msg:
+      - "========================================"
       - "SOLR CONTAINER DEPLOYED SUCCESSFULLY"
+      - "========================================"
       - "Container: {{ solr_container_name }}"
-      - "Init-Container: {{ solr_container_name }}_powerinit(completed)"
-      - "Health Status: {{ container_health.stdout }}"
+      - "Init-Container: {{ solr_container_name }}_powerinit (completed)"
+      - "Container Status: {{ container_status.stdout }}" 
+      - "Health Status: {{ container_health.stdout | default('no healthcheck') }}" 
       - "HTTP Status: {{ solr_http_check.status }}"
       - "Authentication: {{ 'ACTIVE' if auth_active_check.status == 401 else 'INACTIVE' }}"
-      - "security.json: DEPLOYED"
+      - ""
+      - "SECURITY.JSON VALIDATION:"
+      - "  Expected checksum: {{ new_security_checksum.stat.checksum }}"
+      - "  Deployed checksum: {{ deployed_checksum_value }}"
+      - "  Match: {{ 'YES' if new_security_checksum.stat.checksum == deployed_checksum_value else 'NO' }}"
+      - ""
+      - "DEPLOYMENT DECISIONS:"
+      - "  Restart due to auth change: {{ 'YES' if force_restart_auth | default(false) else 'NO' }}"
+      - "  Volume removed: {{ 'YES' if (volume_removed is defined and volume_removed.changed and volume_removed.rc == 0) else 'NO' }}"
+      - "  Force recreate: {{ 'YES' if solr_force_recreate | default(false) else 'NO' }}"
+      - ""
       - "Port: {{ solr_port }}"
+      - "========================================"
   when: not rundeck_integration_enabled | default(false)

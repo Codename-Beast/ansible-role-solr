@@ -1,7 +1,6 @@
 # Solr v1.1 Deployment Guide
 
 **Version:** 1.1.0  
-**Datum:** 2025-01-24  
 **Maintainer:** Bernd Schreistetter
 
 ---
@@ -11,7 +10,7 @@
 ### 1. Role installieren
 
 ```bash
-cd /etc/ansible/roles
+cd /ansible/roles
 tar -xzf install-solr-v1.1.tar.gz
 mv install-solr-v1.1 install-solr
 ```
@@ -19,7 +18,7 @@ mv install-solr-v1.1 install-solr
 ### 2. Playbook erstellen
 
 ```bash
-cat > /etc/ansible/playbooks/install_solr.yml <<'EOF'
+cat > /ansible/playbooks/install_solr.yml <<'EOF'
 ---
 - name: Install Solr with pre-deployment auth
   hosts: solr_servers
@@ -33,8 +32,8 @@ EOF
 
 ```bash
 ansible-playbook \
-  /etc/ansible/playbooks/install_solr.yml \
-  -i /etc/ansible/inventory/solr_hosts \
+  ansible/playbooks/install_solr.yml \
+  -i ansible/inventory/hosts \
   --diff
 ```
 
@@ -46,7 +45,7 @@ curl http://localhost:8983/solr/admin/ping
 # Sollte 401 zurückgeben (Auth aktiv)
 
 # Credentials aus host_vars holen
-cat /etc/ansible/inventory/host_vars/server01 | grep password
+cat /ansible/inventory/host_vars/kunde_hostvar | grep solr_password
 
 # Mit Auth testen
 curl -u admin:PASSWORD http://localhost:8983/solr/admin/info/system
@@ -224,7 +223,7 @@ solr_backup_retention: 14         # Standard: 7 Tage
 
 # Rundeck
 rundeck_integration_enabled: true
-rundeck_api_url: "https://rundeck.example.com"
+rundeck_api_url: "https://rundeck.eledia.de"
 rundeck_api_token: "YOUR_TOKEN"
 rundeck_project_name: "solr_monitoring"
 ```
@@ -256,7 +255,7 @@ solr_customer_password: "customer_pass"
 
 ```bash
 # 1. Ansible host_vars (Primär) #Anpassen!
-/etc/ansible/inventory/host_vars/server01
+/ansible/inventory/host_vars/server01
 
 # 2. Server Backup
 /var/solr/.credentials_backup_EPOCH
@@ -290,7 +289,7 @@ ansible-playbook install_solr.yml --ask-vault-pass
 ```yaml
 # In host_vars/server01
 rundeck_integration_enabled: true
-rundeck_api_url: "https://rundeck.example.com"
+rundeck_api_url: "https://rundeck.eledia.de"
 rundeck_api_token: "TOKEN_FROM_RUNDECK_WEBUI"
 rundeck_project_name: "infrastructure"
 rundeck_webhook_enabled: true
@@ -322,7 +321,7 @@ Nach Deployment werden folgende Jobs registriert:
 /usr/local/bin/solr_rundeck_webhook "webhook_secret" "health"
 
 # Remote (über HTTP - benötigt nginx/Apache Setup)
-curl -X POST https://server01.example.com/webhook/solr \
+curl -X POST https://eledia.de/webhook/solr \
   -H "X-Webhook-Secret: webhook_secret" \
   -d '{"action":"restart"}'
 ```
@@ -384,7 +383,7 @@ curl -X POST https://server01.example.com/webhook/solr \
 
 ```bash
 # Ausführen
-ansible-playbook troubleshoot_solr.yml -i inventory/solr_hosts
+ansible-playbook troubleshoot_solr.yml -i inventory/hosts
 ```
 
 ---

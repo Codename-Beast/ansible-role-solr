@@ -3,38 +3,29 @@
     "blockUnknown": true,
     "class": "solr.BasicAuthPlugin",
     "credentials": {
-      "{{ solr_admin_user | default('admin') }}": "{{ admin_password_hash }}",
-      "{{ solr_support_user | default('support') }}": "{{ support_password_hash }}",
-      "{{ solr_customer_user | default('customer') }}": "{{ customer_password_hash }}"
+      "{{ admin_user | default('admin') }}": "{{ admin_password_hash }}",
+      "{{ support_user | default('support') }}": "{{ support_password_hash }}",
+      "{{ customer_user | default('customer') }}": "{{ customer_password_hash }}"
     },
-    "realm": "{{ solr_auth_realm | default(customer_name | title + ' Eledia') }}",
+    "realm": "{{ solr_auth_realm | default('Solr Eledia') }}",
     "forwardCredentials": {{ solr_forward_credentials | default('false') | lower }}
   },
-  "authorization": {
+   "authorization": {
     "class": "solr.RuleBasedAuthorizationPlugin",
     "permissions": [
-      {
-        "name": "security-edit",
-        "role": "admin"
-      },
-      {
-        "name": "all",
-        "role": "admin"
-      },
-      {
-        "name": "read",
-        "role": ["admin", "support", "customer"]
-      },
-      {
-        "name": "update",
-        "collection": "*",
-        "role": ["admin", "customer"]
-      }
+      { "name": "security-read", "role": "admin" },
+      { "name": "security-edit", "role": "admin" },
+      { "name": "schema-edit", "role": "admin" },
+      { "name": "config-edit", "role": "admin" },
+      { "name": "collection-admin-edit", "role": "admin" },
+      { "name": "all", "role": "admin" },
+      { "name": "read", "role": ["admin", "support", "customer"] },
+      { "name": "update", "collection": "*", "role": ["admin", "customer"] }
     ],
     "user-role": {
-      "{{ solr_admin_user | default('admin') }}": "admin",
-      "{{ solr_support_user | default('support') }}": "support",
-      "{{ solr_customer_user | default('customer') }}": "customer"
+      "admin":   ["admin"],
+      "support": ["support"],
+      "customer":["customer"]
     }
   }
 }

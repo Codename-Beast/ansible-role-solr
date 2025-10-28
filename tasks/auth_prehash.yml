@@ -1,11 +1,6 @@
 ---
-# Version: 1.2.1 - HOTFIX
+# Version: 1.3.2 - FIXED: Inline platform detection 
 # Description: Pre-hash passwords for Solr authentication (SOLR-COMPATIBLE SHA256)
-# Changelog v1.2.1:
-#   - FIXED: Changed from Bcrypt to SHA256 double-hash (Solr-compatible)
-#   - FIXED: Removed htpasswd dependency (now using openssl(Not yet))
-#   - Format: base64(sha256(sha256(salt+password))) base64(salt)
-#   - Reference: https://solr.apache.org/guide/solr/latest/deployment-guide/basic-authentication-plugin.html
 
 - name: install-solr - Check for existing security.json
   stat:
@@ -27,6 +22,17 @@
     - existing_security_json.stat.exists
     - not solr_force_reconfigure_auth | default(false)
 
+- name: install-solr - Create temp directory for binary operations
+  file:
+    path: /tmp/solr_hash_{{ ansible_date_time.epoch }}
+    state: directory
+    mode: '0700'
+  register: temp_dir
+
+- name: install-solr - Set temp directory fact
+  set_fact:
+    hash_temp_dir: "{{ temp_dir.path }}"
+
 - name: install-solr - Resolve or generate admin password
   set_fact:
     admin_password: "{{ solr_admin_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=20')) }}"
@@ -42,56 +48,88 @@
     customer_password: "{{ solr_customer_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=16')) }}"
   no_log: true
 
-- name: install-solr - Generate random salt for admin (32 bytes)
-  shell: openssl rand -base64 32
-  register: admin_salt
-  changed_when: false
-  no_log: true
-
-- name: install-solr - Generate random salt for support (32 bytes)
-  shell: openssl rand -base64 32
-  register: support_salt
-  changed_when: false
-  no_log: true
-
-- name: install-solr - Generate random salt for customer (32 bytes)
-  shell: openssl rand -base64 32
-  register: customer_salt
-  changed_when: false
-  no_log: true
-
-- name: install-solr - Generate SHA256 double-hash for admin
-  shell: |
-    SALT="{{ admin_salt.stdout }}"
-    PASS="{{ admin_password }}"
-    # Step 1: SHA256(salt+password) as binary
-    HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
-    # Step 2: SHA256(hash1) as base64
-    HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
-    # Output: HASH SALT (space-separated)
-    echo "${HASH2} ${SALT}"
+- name: install-solr - Generate SHA256 hash for admin (CROSS-PLATFORM) 
+  shell: 
+    cmd: | 
+      set -e 
+      
+      # Detect base64 command inline 
+      if base64 --help 2>&1 | grep -q 'wrap'; then 
+        BASE64_CMD="base64 -w0" 
+      else 
+        BASE64_CMD="base64" 
+      fi 
+      
+      # Generate 32 random bytes for salt
+      openssl rand 32 > {{ hash_temp_dir }}/admin_salt.bin
+      
+      # Write password as binary
+      printf '%s' "{{ admin_password }}" > {{ hash_temp_dir }}/admin_pass.bin
+      
+      # Binary concatenation: salt + password
+      cat {{ hash_temp_dir }}/admin_salt.bin {{ hash_temp_dir }}/admin_pass.bin > {{ hash_temp_dir }}/admin_combined.bin
+      
+      # Double SHA256 on binary data
+      openssl dgst -sha256 -binary {{ hash_temp_dir }}/admin_combined.bin > {{ hash_temp_dir }}/admin_hash1.bin
+      openssl dgst -sha256 -binary {{ hash_temp_dir }}/admin_hash1.bin > {{ hash_temp_dir }}/admin_hash2.bin
+      
+      # Base64 encode both hash and salt (platform independent) 
+      HASH_B64=$(${BASE64_CMD} < {{ hash_temp_dir }}/admin_hash2.bin | tr -d '\n\r') 
+      SALT_B64=$(${BASE64_CMD} < {{ hash_temp_dir }}/admin_salt.bin | tr -d '\n\r') 
+      
+      # Output format: "HASH SALT" (space-separated)
+      echo "${HASH_B64} ${SALT_B64}"
+    executable: /bin/bash 
   register: admin_hash
   changed_when: false
   no_log: true
 
-- name: install-solr - Generate SHA256 double-hash for support
-  shell: |
-    SALT="{{ support_salt.stdout }}"
-    PASS="{{ support_password }}"
-    HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
-    HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
-    echo "${HASH2} ${SALT}"
+- name: install-solr - Generate SHA256 hash for support (CROSS-PLATFORM) 
+  shell: 
+    cmd: | 
+      set -e 
+      
+      # Detect base64 command inline 
+      if base64 --help 2>&1 | grep -q 'wrap'; then 
+        BASE64_CMD="base64 -w0" 
+      else 
+        BASE64_CMD="base64" 
+      fi 
+      
+      openssl rand 32 > {{ hash_temp_dir }}/support_salt.bin
+      printf '%s' "{{ support_password }}" > {{ hash_temp_dir }}/support_pass.bin
+      cat {{ hash_temp_dir }}/support_salt.bin {{ hash_temp_dir }}/support_pass.bin > {{ hash_temp_dir }}/support_combined.bin
+      openssl dgst -sha256 -binary {{ hash_temp_dir }}/support_combined.bin > {{ hash_temp_dir }}/support_hash1.bin
+      openssl dgst -sha256 -binary {{ hash_temp_dir }}/support_hash1.bin > {{ hash_temp_dir }}/support_hash2.bin
+      HASH_B64=$(${BASE64_CMD} < {{ hash_temp_dir }}/support_hash2.bin | tr -d '\n\r') 
+      SALT_B64=$(${BASE64_CMD} < {{ hash_temp_dir }}/support_salt.bin | tr -d '\n\r') 
+      echo "${HASH_B64} ${SALT_B64}"
+    executable: /bin/bash 
   register: support_hash
   changed_when: false
   no_log: true
 
-- name: install-solr - Generate SHA256 double-hash for customer
-  shell: |
-    SALT="{{ customer_salt.stdout }}"
-    PASS="{{ customer_password }}"
-    HASH1=$(echo -n "${SALT}${PASS}" | openssl dgst -sha256 -binary)
-    HASH2=$(echo -n "${HASH1}" | openssl dgst -sha256 -binary | base64 -w0)
-    echo "${HASH2} ${SALT}"
+- name: install-solr - Generate SHA256 hash for customer (CROSS-PLATFORM) 
+  shell: 
+    cmd: | 
+      set -e 
+      
+      # Detect base64 command inline 
+      if base64 --help 2>&1 | grep -q 'wrap'; then 
+        BASE64_CMD="base64 -w0" 
+      else 
+        BASE64_CMD="base64" 
+      fi 
+      
+      openssl rand 32 > {{ hash_temp_dir }}/customer_salt.bin
+      printf '%s' "{{ customer_password }}" > {{ hash_temp_dir }}/customer_pass.bin
+      cat {{ hash_temp_dir }}/customer_salt.bin {{ hash_temp_dir }}/customer_pass.bin > {{ hash_temp_dir }}/customer_combined.bin
+      openssl dgst -sha256 -binary {{ hash_temp_dir }}/customer_combined.bin > {{ hash_temp_dir }}/customer_hash1.bin
+      openssl dgst -sha256 -binary {{ hash_temp_dir }}/customer_hash1.bin > {{ hash_temp_dir }}/customer_hash2.bin
+      HASH_B64=$(${BASE64_CMD} < {{ hash_temp_dir }}/customer_hash2.bin | tr -d '\n\r') 
+      SALT_B64=$(${BASE64_CMD} < {{ hash_temp_dir }}/customer_salt.bin | tr -d '\n\r') 
+      echo "${HASH_B64} ${SALT_B64}"
+    executable: /bin/bash 
   register: customer_hash
   changed_when: false
   no_log: true
@@ -115,11 +153,17 @@
     fail_msg: "SHA256 hash validation failed - incorrect format (expected: 'HASH SALT')"
     success_msg: "All SHA256 hashes validated successfully"
 
+- name: install-solr - Cleanup temp directory
+  file:
+    path: "{{ hash_temp_dir }}"
+    state: absent
+
 - name: install-solr - Display hash format info
   debug:
     msg:
-      - "HASH FORMAT: Solr-compatible SHA256 double-hash"
-      - "Algorithm: base64(sha256(sha256(salt+password))) base64(salt)"
+      - "HASH FORMAT: Solr-compatible SHA256 double-hash with BINARY concatenation"
+      - "Algorithm: base64(sha256(sha256(salt_bytes+password_bytes))) base64(salt_bytes)"
+      - "Method: Binary concatenation via temp files with inline platform detection" 
       - "Admin hash length: {{ admin_password_hash | length }} chars"
       - "Support hash length: {{ support_password_hash | length }} chars"
       - "Customer hash length: {{ customer_password_hash | length }} chars"
@@ -132,16 +176,18 @@
       timestamp: "{{ ansible_date_time.iso8601 }}"
       message: "Password hashing completed"
       details:
-        method: "sha256_double_hash"
-        format: "base64(sha256(sha256(salt+password))) base64(salt)"
-        tool: "openssl"
+        method: "sha256_double_hash_binary"
+        format: "base64(sha256(sha256(salt_bytes+password_bytes))) base64(salt_bytes)"
+        tool: "openssl with binary concatenation"
+        platform_detection: "inline" 
         salt_size_bytes: 32
         users:
           - "{{ solr_admin_user }}"
           - "{{ solr_support_user }}"
           - "{{ solr_customer_user }}"
         solr_compatible: true
-        version: "1.2.1"
+        version: "1.3.2" 
+  when: rundeck_integration_enabled | default(false)
 
 - name: install-solr - Display prehash summary
   debug:
@@ -151,9 +197,10 @@
 - name: install-solr - Display standard summary
   debug:
     msg:
-      - "SHA256 DOUBLE-HASH PASSWORD HASHING COMPLETED"
-      - "Algorithm: base64(sha256(sha256(salt+password))) base64(salt)"
-      - "Tool: OpenSSL"
+      - "SHA256 DOUBLE-HASH PASSWORD HASHING COMPLETED (BINARY METHOD)"
+      - "Algorithm: base64(sha256(sha256(salt_bytes+password_bytes))) base64(salt_bytes)"
+      - "Tool: OpenSSL with binary file concatenation"
+      - "Platform: Auto-detected inline per command" 
       - "Salt size: 32 bytes per user"
       - "Format: HASH SALT (space-separated base64)"
       - "Validation: PASSED"

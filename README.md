@@ -5,7 +5,6 @@
 **Kompatibilität:** Ansible 2.12.0 - 2.15.x  
 **Solr-Version:** 9.9.0  
 **Moodle-Kompatibilität:** 4.1, 4.2, 4.3, 4.4, 5.0.x
-**Tested:** None 
 
 ---
 
