@@ -88,6 +88,10 @@ services:
         echo '  - Deploying stopwords_en.txt -> /var/solr/data/configs/';
         cp /config/stopwords_en.txt /var/solr/data/configs/stopwords_en.txt;
       fi;
+      if [ -f /config/stopwords.txt ]; then
+        echo '  - Deploying stopwords.txt -> /var/solr/data/configs/';
+        cp /config/stopwords.txt /var/solr/data/configs/stopwords.txt;
+      fi;
       if [ -f /config/synonyms.txt ]; then
         echo '  - Deploying synonyms.txt -> /var/solr/data/configs/';
         cp /config/synonyms.txt /var/solr/data/configs/synonyms.txt;
