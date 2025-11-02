@@ -47,7 +47,7 @@
     mode: '0600'
   become: true
 
-- name: install-solr - Create Rundeck-compatible output
+- name: install-solr - Create Rundeck output
   set_fact:
     compose_generation_result:
       status: "success"

@@ -1,40 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <config>
+  <!-- Solr 9.x: nutze ClassicIndexSchemaFactory, damit schema.xml verwendet wird -->
+  <schemaFactory class="ClassicIndexSchemaFactory"/>
+
+  <!-- Lucene/Solr Version -->
   <luceneMatchVersion>9.0.0</luceneMatchVersion>
-  
+
   <!-- Data Directory -->
   <dataDir>${solr.data.dir:}</dataDir>
-  
+
   <!-- Index Config -->
   <indexConfig>
     <lockType>${solr.lock.type:native}</lockType>
     <ramBufferSizeMB>100</ramBufferSizeMB>
     <maxBufferedDocs>1000</maxBufferedDocs>
     <useCompoundFile>false</useCompoundFile>
-    
+
     <mergePolicyFactory class="org.apache.solr.index.TieredMergePolicyFactory">
       <int name="maxMergeAtOnce">10</int>
       <int name="segmentsPerTier">10</int>
     </mergePolicyFactory>
   </indexConfig>
-  
+
   <!-- Update Handler -->
   <updateHandler class="solr.DirectUpdateHandler2">
     <updateLog>
       <str name="dir">${solr.ulog.dir:}</str>
       <int name="numVersionBuckets">${solr.ulog.numVersionBuckets:65536}</int>
     </updateLog>
-    
+
     <autoCommit>
       <maxTime>${solr.autoCommit.maxTime:15000}</maxTime>
       <openSearcher>false</openSearcher>
     </autoCommit>
-    
+
     <autoSoftCommit>
       <maxTime>${solr.autoSoftCommit.maxTime:1000}</maxTime>
     </autoSoftCommit>
   </updateHandler>
-  
+
   <!-- Query Settings -->
   <query>
     <maxBooleanClauses>${solr.max.booleanClauses:1024}</maxBooleanClauses>
@@ -45,13 +49,14 @@
     <queryResultWindowSize>20</queryResultWindowSize>
     <queryResultMaxDocsCached>200</queryResultMaxDocsCached>
   </query>
-  
+
   <!-- Request Dispatcher -->
   <requestDispatcher>
+    <!-- enableRemoteStreaming ist in 9.x deprec. – kann drin bleiben, wird ignoriert -->
     <requestParsers enableRemoteStreaming="true" multipartUploadLimitInKB="2048000" formdataUploadLimitInKB="2048" addHttpRequestToContext="false"/>
     <httpCaching never304="true"/>
   </requestDispatcher>
-  
+
   <!-- Request Handlers -->
   <requestHandler name="/select" class="solr.SearchHandler">
     <lst name="defaults">
@@ -61,7 +66,7 @@
       <str name="wt">json</str>
     </lst>
   </requestHandler>
-  
+
   <requestHandler name="/query" class="solr.SearchHandler">
     <lst name="defaults">
       <str name="echoParams">explicit</str>
@@ -70,11 +75,9 @@
       <str name="df">text</str>
     </lst>
   </requestHandler>
-  
+
   <requestHandler name="/update" class="solr.UpdateRequestHandler"/>
-  
-  <requestHandler name="/admin/" class="solr.admin.AdminHandlers"/>
-  
+
   <requestHandler name="/admin/ping" class="solr.PingRequestHandler">
     <lst name="invariants">
       <str name="q">solrpingquery</str>
@@ -83,11 +86,10 @@
       <str name="echoParams">all</str>
     </lst>
   </requestHandler>
-  
-  <!-- Admin Handlers -->
+
   <requestHandler name="/replication" class="solr.ReplicationHandler"/>
-  
-  <!-- Search Components -->
+
+  <!-- Spellcheck (optional) -->
   <searchComponent name="spellcheck" class="solr.SpellCheckComponent">
     <str name="queryAnalyzerFieldType">text_general</str>
     <lst name="spellchecker">
@@ -103,7 +105,7 @@
       <float name="maxQueryFrequency">0.01</float>
     </lst>
   </searchComponent>
-  
+
   <requestHandler name="/spell" class="solr.SearchHandler" startup="lazy">
     <lst name="defaults">
       <str name="spellcheck.dictionary">default</str>
@@ -121,5 +123,4 @@
       <str>spellcheck</str>
     </arr>
   </requestHandler>
-  
 </config>

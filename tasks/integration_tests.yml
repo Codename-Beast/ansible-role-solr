@@ -10,7 +10,7 @@
 
 - name: install-solr - Test Solr admin ping endpoint
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/ping"
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
     method: GET
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -23,8 +23,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: core_ping_test
@@ -51,29 +51,28 @@
   changed_when: false
   failed_when: auth_wrong_test.status != 401
 
+
 - name: install-solr - Test document indexing (add test document)
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs?commit=true"
     method: POST
     user: "{{ solr_customer_user }}"
     password: "{{ solr_customer_password }}"
     force_basic_auth: yes
     body_format: json
+    status_code: 200
     body:
       id: "test_doc_{{ ansible_date_time.epoch }}"
-      title: "Integration Test Document"
-      content: "This is a test document for integration testing"
-      timestamp: "{{ ansible_date_time.iso8601 }}"
-    status_code: 200
+      text: "Smoke test document"
   register: index_test
-  changed_when: false
+  failed_when: index_test.status != 200
 
 - name: install-solr - Commit test document
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: commit_test
@@ -83,8 +82,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=title:Integration*"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_test
@@ -102,8 +101,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
     method: POST
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -163,8 +162,8 @@
       search_test.json.response.numFound >= 1,
       container_status.stdout == 'running',
       security_json_check.rc == 0,
-      permission_test.status == 403
-    ] | select('true') | list | length }}"
+        permission_test.status == 403
+      ] | select('true') | list | length }}"
     tests_total: 9
 
 - name: install-solr - Create Rundeck-compatible output

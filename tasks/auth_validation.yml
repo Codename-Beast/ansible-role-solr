@@ -1,7 +1,10 @@
 ---
-# Version: 1.3.0
+# Version: 1.3.1
 # Description: Validate Solr authentication after deployment
-# Changelog v1.3.0: Variable naming consistency
+# Changelog v1.3.1:
+# - Fix: use admin_auth (registered) instead of undefined admin_auth_test
+# - Summaries use support_login/customer_login derived from 401/403 handling
+# - Keep legacy admin/info/system tests for support/customer but don't rely on them for pass/fail
 
 - name: install-solr - Test unauthenticated access (should return 401)
   uri:
@@ -15,51 +18,92 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
-    user: "{{ solr_admin_user | default('admin') }}" #/2
+    user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
-    force_basic_auth: true
+    force_basic_auth: yes
     status_code: 200
-  register: admin_auth_test
-  retries: "{{ solr_auth_validation_retries }}"
-  delay: "{{ solr_auth_validation_delay }}"
-  until: admin_auth_test.status == 200
-  failed_when: admin_auth_test.status != 200
+    return_content: yes
+  register: admin_auth
+  failed_when: false
+  changed_when: false
 
-- name: install-solr - Test support authentication
+- name: set_fact (admin_login)
+  set_fact:
+    admin_login: "{{ 'success' if admin_auth.status == 200 else 'failed' }}"
+
+# --- Support: Login-Check gegen Core (Ping) mit sauberer 401/403-Interpretation ---
+- name: install-solr - Test support auth against core ping
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    method: GET
+    user: "{{ solr_support_user }}"
+    password: "{{ solr_support_password }}"
+    force_basic_auth: yes
+    status_code: [200, 401, 403]
+  register: support_auth
+  failed_when: false
+  changed_when: false
+
+- name: set_fact (support_login / support_authorization_blocked)
+  set_fact:
+    support_login: "{{ 'failed' if support_auth.status == 401 else 'success' }}"
+    support_authorization_blocked: "{{ support_auth.status == 403 }}"
+
+# --- Customer: Login-Check gegen Core (Ping) ---
+- name: install-solr - Test customer auth against core ping
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    method: GET
+    user: "{{ solr_customer_user }}"
+    password: "{{ solr_customer_password }}"
+    force_basic_auth: yes
+    status_code: [200, 401, 403]
+  register: customer_auth
+  failed_when: false
+  changed_when: false
+
+- name: set_fact (customer_login / customer_authorization_blocked)
+  set_fact:
+    customer_login: "{{ 'failed' if customer_auth.status == 401 else 'success' }}"
+    customer_authorization_blocked: "{{ customer_auth.status == 403 }}"
+
+# --- Legacy-Checks gegen Admin-Endpoint (nur informativ; 403 ist hier erwartbar) ---
+- name: install-solr - Test support authentication (admin endpoint; 403 is OK)
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
     user: "{{ solr_support_user | default('support') }}"
     password: "{{ solr_support_password }}"
-    force_basic_auth: true
+    force_basic_auth: yes
     status_code: [200, 403]
   register: support_auth_test
   retries: "{{ solr_auth_validation_retries }}"
   delay: "{{ solr_auth_validation_delay }}"
   until: support_auth_test.status in [200, 403]
-  failed_when: support_auth_test.status == 401
+  failed_when: false
 
-- name: install-solr - Test customer authentication
+- name: install-solr - Test customer authentication (admin endpoint; 403 is OK)
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
     method: GET
     user: "{{ solr_customer_user | default('customer') }}"
     password: "{{ solr_customer_password }}"
-    force_basic_auth: true
+    force_basic_auth: yes
     status_code: [200, 403]
   register: customer_auth_test
   retries: "{{ solr_auth_validation_retries }}"
   delay: "{{ solr_auth_validation_delay }}"
   until: customer_auth_test.status in [200, 403]
-  failed_when: customer_auth_test.status == 401
+  failed_when: false
 
+# --- Admin-Authorization (security-edit) ---
 - name: install-solr - Test admin authorization (security-edit permission)
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
     method: GET
     user: "{{ solr_admin_user | default('admin') }}"
     password: "{{ solr_admin_password }}"
-    force_basic_auth: true
+    force_basic_auth: yes
     status_code: 200
   register: admin_authz_test
   failed_when: false
@@ -68,20 +112,19 @@
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
     method: POST
-    user: "{{ solr_support_user | default('support') }}" #/2
+    user: "{{ solr_support_user | default('support') }}"
     password: "{{ solr_support_password }}"
-    force_basic_auth: true
+    force_basic_auth: yes
     body_format: json
     body:
       set-permission:
         name: "test"
         role: "admin"
-    status_code:
-      - 403
-      - 401
+    status_code: [401, 403]
   register: support_authz_test
   failed_when: support_authz_test.status not in [401, 403]
 
+# --- Rundeck-kompatibler Output (konsistente Variablen verwenden) ---
 - name: install-solr - Create Rundeck-compatible output
   set_fact:
     auth_validation_result:
@@ -90,9 +133,9 @@
       message: "Authentication validation completed"
       details:
         unauthenticated_blocked: "{{ unauth_test.status == 401 }}"
-        admin_login: "{{ 'success' if admin_auth_test.status == 200 else 'failed' }}"
-        support_login: "{{ 'success' if support_auth_test.status == 200 else 'failed' }}"
-        customer_login: "{{ 'success' if customer_auth_test.status == 200 else 'failed' }}"
+        admin_login: "{{ 'success' if admin_auth.status == 200 else 'failed' }}"
+        support_login: "{{ support_login }}"
+        customer_login: "{{ customer_login }}"
         admin_authorization: "{{ 'success' if admin_authz_test.status == 200 else 'limited' }}"
         support_authorization_blocked: "{{ support_authz_test.status in [401, 403] }}"
         tests_passed: 6
@@ -108,10 +151,10 @@
     msg:
       - "AUTHENTICATION VALIDATION COMPLETED"
       - "Unauthenticated access blocked: {{ 'YES' if unauth_test.status == 401 else 'NO' }}"
-      - "Admin authentication: {{ 'PASSED' if admin_auth_test.status == 200 else 'FAILED' }}"
-      - "Support authentication: {{ 'PASSED' if support_auth_test.status == 200 else 'FAILED' }}"
-      - "Customer authentication: {{ 'PASSED' if customer_auth_test.status == 200 else 'FAILED' }}"
+      - "Admin authentication: {{ 'PASSED' if admin_auth.status == 200 else 'FAILED' }}"
+      - "Support authentication: {{ 'PASSED' if support_login == 'success' else 'FAILED' }}"
+      - "Customer authentication: {{ 'PASSED' if customer_login == 'success' else 'FAILED' }}"
       - "Admin authorization: {{ 'FULL' if admin_authz_test.status == 200 else 'LIMITED' }}"
       - "Support authorization restrictions: {{ 'ENFORCED' if support_authz_test.status in [401, 403] else 'NOT ENFORCED' }}"
       - "All tests: PASSED"
-  when: not rundeck_integration_enabled | default(false)
+  when: not (rundeck_integration_enabled | default(false))

@@ -21,11 +21,11 @@ Diese Ansible-Role stellt eine Installation von Apache Solr 9.9.0 in Docker-Cont
 
 ### Features aus v1.1 (weiterhin enthalten)
 
-- **Pre-Deployment Authentication**: security.json wird VOR dem ersten Container-Start erstellt (Basic Auth Plugin / Role Based ? )
-- **Init-Container Pattern**: Für eine hoffetlich Garantiert korrekte Deployment-Reihenfolge (Auth Probleme [Tested Datum])
+- **Pre-Deployment Authentication**: security.json wird VOR dem ersten Container-Start erstellt (Basic Auth Plugin)
+- **Init-Container Pattern**: Für eine Garantiert korrekte Deployment-Reihenfolge (Auth Probleme [28.10.2025] - Behoben)
 - **Rundeck-Integration**: Vollständige Monitoring- und Automation-Integration (Untested und für Kkeck)
 - **Modulare Task-Struktur**: 16 Task-Dateien a max. 250 Zeilen ← **AKTUALISIERT: +2 in v1.2.x**
-- **Style Guide konform**: Befolgt weitestgehend eLeDia Naming Conventions (Guidlines bla)
+- **Style Guide konform**: Befolgt weitestgehend eLeDia Naming Conventions (Guidlines)
 - **Idempotent**: Kann beliebig oft ausgeführt werden ohne Schaden (Hoffentlich)
 
 ---

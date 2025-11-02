@@ -30,48 +30,39 @@ solr_auth_enabled: true
 solr_auth_type: "basic"
 solr_auth_realm: "Solr Eledia"
 solr_forward_credentials: false
-
 # ============================================================================
 # HASH CONFIGURATION
 # ============================================================================
 solr_hash_salt_bytes: 32  # SHA256 requires 32 bytes
 solr_hash_algorithm: "sha256"
-
 # ============================================================================
 # RETRY & TIMEOUT CONFIGURATION
 # ============================================================================
 # Container deployment
-solr_container_start_retries: 12
+solr_container_start_retries: 5
 solr_container_start_delay: 5  # seconds
-
 # Authentication validation
-solr_auth_validation_retries: 10
+solr_auth_validation_retries: 5
 solr_auth_validation_delay: 3  # seconds
-
 # Core creation
 solr_core_creation_retries: 5
 solr_core_creation_delay: 3  # seconds
-
 # Health checks
 solr_health_check_timeout: 30
 solr_startup_wait_time: 60
 solr_init_container_timeout: 60
 solr_init_container_retries: 5
-
 # ============================================================================
 # DOCKER CONFIGURATION
 # ============================================================================
 solr_version: "9.9.0"
 solr_major_version: "{{ solr_version.split('.')[0] }}"
-
 solr_container_name: "solr_{{ customer_name | default('default_eledia') }}"
 solr_volume_name: "solr_data_{{ customer_name | default('default_eledia') }}"
 solr_network_name: "solr_network"
 solr_create_systemd_service: false
-
 solr_port: 8983
 solr_jmx_port: 18983
-
 # ============================================================================
 # DIRECTORY CONFIGURATION
 # ============================================================================
@@ -80,36 +71,30 @@ solr_config_dir: "{{ solr_compose_dir }}/config"
 solr_data_dir: "/var/solr/data"
 solr_backup_dir: "/var/solr/backup"
 solr_log_dir: "/var/log/eledia/solr"
-
 # ============================================================================
 # CORE CONFIGURATION
 # ============================================================================
 solr_core_name: "{{ customer_name | default('default_eledia') }}_core"
 solr_core_config: "moodle_configs"
-
 # ============================================================================
 # MEMORY CONFIGURATION
 # ============================================================================
-solr_heap_size: "1g"
-solr_memory_limit: "1g"
+solr_heap_size: "2g"
+solr_memory_limit: "2g"
 solr_memory_swap: "2g"
-
 solr_cpu_quota: 100000
 solr_cpu_period: 100000
-
 # ============================================================================
 # PROXY CONFIGURATION
 # ============================================================================
-solr_proxy_enabled: true
+solr_proxy_enabled: false
 solr_proxy_path: "/solr-admin"
 solr_webserver: "apache"
-
 # ============================================================================
 # SSL CONFIGURATION
 # ============================================================================
-solr_ssl_enabled: true
+solr_ssl_enabled: false
 solr_ssl_cert_path: "/etc/letsencrypt/live/{{ moodle_app_domain | default('localhost') }}"
-
 # ============================================================================
 # SOLR SETTINGS
 # ============================================================================
@@ -117,7 +102,6 @@ solr_max_boolean_clauses: 1024
 solr_auto_commit_time: 15000  # milliseconds
 solr_auto_soft_commit_time: 1000  # milliseconds
 solr_log_level: "INFO"
-
 # ============================================================================
 # MOODLE CONFIGURATION
 # ============================================================================
@@ -156,42 +140,35 @@ solr_moodle_performance:
 solr_use_moodle_schema: true
 solr_moodle_test_docs: true
 solr_moodle_versions: ["4.1", "4.2", "4.3", "4.4", "5.0.x"]
-
 # ============================================================================
 # BACKUP CONFIGURATION
 # ============================================================================
 solr_backup_enabled: false
 solr_backup_retention: 7  # days
-solr_backup_credentials: true
-
+solr_backup_credentials: false
 # ============================================================================
 # DEPLOYMENT FLAGS
 # ============================================================================
 solr_force_recreate: false
 solr_force_pull: false
-solr_force_reconfigure_auth: false
+solr_force_reconfigure_auth: true
 solr_validate_deployment: true
-
 solr_start_command: "solr-foreground"
-
 # ============================================================================
 # SYSTEM REQUIREMENTS
 # ============================================================================
 solr_min_disk_space_gb: 5
 solr_min_memory_gb: 2
-
 # ============================================================================
 # DOCKER API
 # ============================================================================
 docker_api_version: "1.41"
 docker_timeout: 60
 docker_compose_version: "2.0"
-
 # ============================================================================
 # AUTOMATIC CUSTOMER NAME
 # ============================================================================
-customer_name: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else 'default' }}"
-
+customer_name: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else 'default_core' }}"
 # ============================================================================
 # MOODLE PATHS
 # ============================================================================
@@ -202,7 +179,6 @@ moodle_solr_username: "{{ solr_customer_user }}"
 moodle_env: "public_html"
 moodle_eledia_path: "/home/vhosts/moodle"
 moodle_config_path: "{{ moodle_eledia_path }}/{{ moodle_app_domain }}/{{ moodle_env }}/config.php"
-
 # ============================================================================
 # RUNDECK INTEGRATION
 # ============================================================================
@@ -213,7 +189,6 @@ rundeck_api_version: "40"
 rundeck_project_name: ""
 rundeck_webhook_enabled: false
 rundeck_webhook_secret: ""
-
 # ============================================================================
 # NOTIFICATION
 # ============================================================================
