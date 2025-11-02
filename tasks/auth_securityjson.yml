@@ -1,6 +1,9 @@
 ---
-# Version: 1.1.0
+# Version: 1.2.0
 # Description: Create security.json from pre-hashed passwords
+# Changelog v1.2:
+#   - REMOVED: Auth validation (moved to auth_validation.yml after deployment)
+#   - FIXED: No longer tries to validate auth before container is running
 # Changelog v1.1:
 #   - NEW: Creates security.json BEFORE container deployment
 #   - Uses pre-computed bcrypt hashes from auth_prehash.yml
@@ -54,53 +57,6 @@
     src: "{{ solr_config_dir }}/security.json"
   register: security_json_content
   become: true
-
-
-# - name: install-solr - Restart solr container if auth changed or recreate requested
-#   docker_container:
-#     name: "{{ solr_container_name }}"
-#     state: started
-#     restart: yes
-#   when: security_json_created.changed and container_exists 
-
-- name: auth - Read current authorization
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/authorization"
-    method: GET
-    user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
-    force_basic_auth: yes
-    status_code: 200
-    return_content: yes
-  register: solr_authz
-  changed_when: false
-
-- name: auth - Ensure 'read' permission includes admin/support/customer
-  vars:
-    want_roles: ['admin','support','customer']
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/authorization"
-    method: POST
-    user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
-    force_basic_auth: yes
-    status_code: 200
-    body_format: json
-    body:
-      set-permission:
-        name: read
-        role: "{{ want_roles }}"
-  when: >
-    solr_authz.json.authorization is not defined
-    or
-    (
-      solr_authz.json.authorization.permissions
-      | selectattr('name','equalto','read')
-      | map(attribute='role')
-      | list
-      | first | default([])
-      | difference(want_roles)
-    ) | length > 0
 
 - name: install-solr - Parse security.json
   set_fact:

@@ -1,9 +1,13 @@
 ---
-# Version: 1.3.4 
+# Version: 1.4.0
 # Description: Deploy Solr container using Docker Compose with init-container
-# Changelog v1.3.4: 
-#   - Wait for container 'running' status instead of 'healthy' 
-#   - Added port-based waiting instead of health check dependency 
+# Changelog v1.4.0:
+#   - ADDED: Checksum-based config change detection for ALL config files
+#   - OPTIMIZED: Only restart if any config changed
+#   - IMPROVED: Multi-file checksum comparison
+# Changelog v1.3.4:
+#   - Wait for container 'running' status instead of 'healthy'
+#   - Added port-based waiting instead of health check dependency
 #   - Health check is now informational only 
 
 - name: solr-deployment - Check if services are already running
@@ -12,33 +16,45 @@
   changed_when: false
   failed_when: false
 
-- name: solr-deployment - Get security.json checksum from config directory
+- name: solr-deployment - Calculate checksums for all new config files
   stat:
-    path: "{{ solr_config_dir }}/security.json"
+    path: "{{ solr_config_dir }}/{{ item.name }}"
     checksum_algorithm: sha256
-  register: new_security_checksum
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: new_config_checksums
   become: true
 
-- name: solr-deployment - Get existing security.json checksum from container
-  command: docker exec {{ solr_container_name }} sha256sum /var/solr/data/security.json
-  register: existing_security_checksum
+- name: solr-deployment - Get existing config checksums from container
+  shell: |
+    if [ -f "{{ item.item.dest_path }}/{{ item.item.name }}" ]; then
+      sha256sum {{ item.item.dest_path }}/{{ item.item.name }} | awk '{print $1}'
+    else
+      echo "not_found"
+    fi
+  args:
+    executable: /bin/bash
+  loop: "{{ new_config_checksums.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  register: existing_config_checksums
   changed_when: false
   failed_when: false
   when: running_services.stdout_lines | length > 0
+  delegate_to: localhost
+  become: true
+  vars:
+    ansible_connection: local
 
-- name: solr-deployment - Extract checksum from container output
+- name: solr-deployment - Compare checksums to detect config changes
   set_fact:
-    existing_checksum: "{{ existing_security_checksum.stdout.split(' ')[0] if existing_security_checksum.rc == 0 else '' }}"
+    config_changed: "{{ new_config_checksums.results | zip(existing_config_checksums.results | default([])) | selectattr('0.stat.checksum', 'ne', '1.stdout') | list | length > 0 }}"
   when: running_services.stdout_lines | length > 0
 
-- name: solr-deployment - Determine if auth changed
+- name: solr-deployment - Set config_changed to false if container not running
   set_fact:
-    force_restart_auth: "{{ (existing_security_checksum.rc == 0) and (new_security_checksum.stat.checksum != existing_checksum) }}"
-  when: running_services.stdout_lines | length > 0
-
-- name: solr-deployment - Set force_restart_auth to false if container not running
-  set_fact:
-    force_restart_auth: false
+    config_changed: false
   when: running_services.stdout_lines | length == 0
 
 - name: solr-deployment - Display restart decision
@@ -46,16 +62,15 @@
     msg:
       - "Container running: {{ running_services.stdout_lines | length > 0 }}"
       - "Force recreate flag: {{ solr_force_recreate | default(false) }}"
-      - "Auth changed: {{ force_restart_auth | default(false) }}"
-      - "New checksum: {{ new_security_checksum.stat.checksum }}"
-      - "Existing checksum: {{ existing_checksum | default('N/A') }}"
-      - "Will restart: {{ (running_services.stdout_lines | length > 0) and (solr_force_recreate | default(false) or force_restart_auth | default(false)) }}"
+      - "Config changed: {{ config_changed | default(false) }}"
+      - "Config files tracked: {{ solr_config_files | length }}"
+      - "Will restart: {{ (running_services.stdout_lines | length > 0) and (solr_force_recreate | default(false) or config_changed | default(false)) }}"
 
-- name: solr-deployment - Stop existing services if recreate or auth changed
+- name: solr-deployment - Stop existing services if recreate or config changed
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
   when:
     - running_services.stdout_lines | length > 0
-    - solr_force_recreate | default(false) or force_restart_auth | default(false)
+    - solr_force_recreate | default(false) or config_changed | default(false)
   become: true
   register: compose_down
 
@@ -137,8 +152,8 @@
 - name: solr-deployment - Validate security.json checksum matches expected
   assert:
     that:
-      - new_security_checksum.stat.checksum == deployed_checksum_value
-    fail_msg: "security.json checksum mismatch! Expected: {{ new_security_checksum.stat.checksum }}, Got: {{ deployed_checksum_value }}"
+      - new_config_checksums.results[0].stat.checksum == deployed_checksum_value
+    fail_msg: "security.json checksum mismatch! Expected: {{ new_config_checksums.results[0].stat.checksum }}, Got: {{ deployed_checksum_value }}"
     success_msg: "security.json deployed correctly with matching checksum"
 
 - name: solr-deployment - Wait for Solr container to be running (not healthy) 
@@ -195,20 +210,22 @@
     container_deployment_result:
       status: "success"
       timestamp: "{{ ansible_date_time.iso8601 }}"
-      message: "Solr container deployed with authentication"
+      message: "Solr container deployed with all configurations"
       details:
         container_name: "{{ solr_container_name }}"
         init_container: "{{ solr_container_name }}_powerinit"
-        container_status: "{{ container_status.stdout }}" 
-        health_status: "{{ container_health.stdout | default('no healthcheck') }}" 
+        container_status: "{{ container_status.stdout }}"
+        health_status: "{{ container_health.stdout | default('no healthcheck') }}"
         http_status: "{{ solr_http_check.status }}"
         auth_status: "{{ 'active' if auth_active_check.status == 401 else 'inactive' }}"
         security_json_deployed: true
-        security_json_checksum_expected: "{{ new_security_checksum.stat.checksum }}"
+        security_json_checksum_expected: "{{ new_config_checksums.results[0].stat.checksum }}"
         security_json_checksum_actual: "{{ deployed_checksum_value }}"
-        security_json_checksum_match: "{{ new_security_checksum.stat.checksum == deployed_checksum_value }}"
+        security_json_checksum_match: "{{ new_config_checksums.results[0].stat.checksum == deployed_checksum_value }}"
+        config_files_deployed: "{{ solr_config_files | length }}"
+        config_files_list: "{{ solr_config_files | map(attribute='name') | list }}"
         port: "{{ solr_port }}"
-        restart_triggered: "{{ force_restart_auth | default(false) }}"
+        restart_triggered: "{{ config_changed | default(false) }}"
         volume_removed: "{{ volume_removed.rc == 0 if volume_removed is defined and volume_removed.changed else false }}"
 
 - name: solr-deployment - Display Rundeck output
@@ -224,18 +241,22 @@
       - "========================================"
       - "Container: {{ solr_container_name }}"
       - "Init-Container: {{ solr_container_name }}_powerinit (completed)"
-      - "Container Status: {{ container_status.stdout }}" 
-      - "Health Status: {{ container_health.stdout | default('no healthcheck') }}" 
+      - "Container Status: {{ container_status.stdout }}"
+      - "Health Status: {{ container_health.stdout | default('no healthcheck') }}"
       - "HTTP Status: {{ solr_http_check.status }}"
       - "Authentication: {{ 'ACTIVE' if auth_active_check.status == 401 else 'INACTIVE' }}"
       - ""
+      - "CONFIG FILES DEPLOYED:"
+      - "  Total files: {{ solr_config_files | length }}"
+      - "  Files: {{ solr_config_files | map(attribute='name') | join(', ') }}"
+      - ""
       - "SECURITY.JSON VALIDATION:"
-      - "  Expected checksum: {{ new_security_checksum.stat.checksum }}"
+      - "  Expected checksum: {{ new_config_checksums.results[0].stat.checksum }}"
       - "  Deployed checksum: {{ deployed_checksum_value }}"
-      - "  Match: {{ 'YES' if new_security_checksum.stat.checksum == deployed_checksum_value else 'NO' }}"
+      - "  Match: {{ 'YES' if new_config_checksums.results[0].stat.checksum == deployed_checksum_value else 'NO' }}"
       - ""
       - "DEPLOYMENT DECISIONS:"
-      - "  Restart due to auth change: {{ 'YES' if force_restart_auth | default(false) else 'NO' }}"
+      - "  Restart due to config change: {{ 'YES' if config_changed | default(false) else 'NO' }}"
       - "  Volume removed: {{ 'YES' if (volume_removed is defined and volume_removed.changed and volume_removed.rc == 0) else 'NO' }}"
       - "  Force recreate: {{ 'YES' if solr_force_recreate | default(false) else 'NO' }}"
       - ""

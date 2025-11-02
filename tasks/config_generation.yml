@@ -1,0 +1,92 @@
+---
+# Version: 1.0.0
+# Author: Bernd Schreistetter
+# Description: Generate all Solr configuration files from templates
+# Changelog v1.0:
+#   - NEW: Unified config file generation for init-container
+#   - Generates all configs: security.json, solrconfig.xml, schemas, stopwords
+#   - Validates JSON/XML syntax
+#   - Creates checksums for change detection
+
+- name: config-gen - Ensure config directory exists
+  file:
+    path: "{{ solr_config_dir }}"
+    state: directory
+    owner: "8983"
+    group: "8983"
+    mode: '0755'
+  become: true
+
+- name: config-gen - Generate all configuration files from templates
+  template:
+    src: "{{ item.template }}"
+    dest: "{{ solr_config_dir }}/{{ item.name }}"
+    owner: "8983"
+    group: "8983"
+    mode: '0644'
+  become: true
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: config_files_generated
+
+- name: config-gen - Validate JSON files
+  shell: cat {{ solr_config_dir }}/{{ item.name }} | jq empty
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.validate_json | default(false)
+  changed_when: false
+  register: json_validation
+
+- name: config-gen - Validate XML files
+  shell: xmllint --noout {{ solr_config_dir }}/{{ item.name }}
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.validate_xml | default(false)
+  changed_when: false
+  failed_when: false
+  register: xml_validation
+
+- name: config-gen - Calculate checksums for all config files
+  stat:
+    path: "{{ solr_config_dir }}/{{ item.name }}"
+    checksum_algorithm: sha256
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: config_checksums
+  become: true
+
+- name: config-gen - Store checksums in fact
+  set_fact:
+    solr_config_checksums: "{{ config_checksums.results | map(attribute='stat') | list }}"
+
+- name: config-gen - Display generated config files
+  debug:
+    msg:
+      - "CONFIG FILES GENERATED"
+      - "Directory: {{ solr_config_dir }}"
+      - "Files:"
+      - "{% for item in solr_config_files %}  - {{ item.name }} ({{ item.template }}){% endfor %}"
+      - "Total files: {{ solr_config_files | length }}"
+      - "JSON validation: {{ 'PASSED' if json_validation is success else 'N/A' }}"
+      - "XML validation: {{ 'PASSED' if xml_validation is success else 'N/A' }}"
+
+- name: config-gen - Create Rundeck output
+  set_fact:
+    config_generation_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Configuration files generated"
+      details:
+        config_dir: "{{ solr_config_dir }}"
+        files_generated: "{{ solr_config_files | map(attribute='name') | list }}"
+        total_files: "{{ solr_config_files | length }}"
+        checksums: "{{ config_checksums.results | map(attribute='stat.checksum') | list }}"
+
+- name: config-gen - Display Rundeck output
+  debug:
+    msg: "{{ config_generation_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)

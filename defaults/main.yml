@@ -1,6 +1,11 @@
 ---
-# Version: 1.4.0
+# Version: 1.5.0
 # Description: Default variables for Solr installation
+# Changelog v1.5.0:
+#   - ADDED: Config file management for init-container
+#   - ADDED: Core name sanitization (max 10 chars)
+#   - ADDED: Checksum-based config updates
+#   - ADDED: Config backup settings
 # Changelog v1.4.0:
 #   - FIXED: Variable naming consistency (removed confusing mappings)
 #   - FIXED: Hardcoded values moved to defaults
@@ -70,11 +75,50 @@ solr_compose_dir: "/opt/solr"
 solr_config_dir: "{{ solr_compose_dir }}/config"
 solr_data_dir: "/var/solr/data"
 solr_backup_dir: "/var/solr/backup"
+solr_backup_configs_dir: "{{ solr_backup_dir }}/configs"
 solr_log_dir: "/var/log/eledia/solr"
+
+# Config files to be deployed by init-container
+solr_config_files:
+  - name: "security.json"
+    template: "security.json.j2"
+    dest_path: "/var/solr/data"
+    validate_json: true
+  - name: "solrconfig.xml"
+    template: "solrconfig.xml.j2"
+    dest_path: "/var/solr/data/configs"
+    validate_xml: true
+  - name: "stopwords_de.txt"
+    template: "stopwords_de.txt.j2"
+    dest_path: "/var/solr/data/configs"
+    validate_json: false
+  - name: "stopwords_en.txt"
+    template: "stopwords_en.txt.j2"
+    dest_path: "/var/solr/data/configs"
+    validate_json: false
+  - name: "synonyms.txt"
+    template: "synonyms.txt.j2"
+    dest_path: "/var/solr/data/configs"
+    validate_json: false
+  - name: "protwords.txt"
+    template: "protwords.txt.j2"
+    dest_path: "/var/solr/data/configs"
+    validate_json: false
+  - name: "moodle_schema.xml"
+    template: "moodle_schema.xml.j2"
+    dest_path: "/var/solr/data/configs"
+    validate_xml: true
+
+# Config backup settings
+solr_backup_configs_enabled: true
+solr_backup_configs_before_update: true
 # ============================================================================
 # CORE CONFIGURATION
 # ============================================================================
-solr_core_name: "{{ customer_name | default('default_eledia') }}_core"
+# Core name sanitization (max 10 chars for Solr compatibility)
+solr_core_name_raw: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else customer_name | default('default') }}"
+solr_core_name_sanitized: "{{ solr_core_name_raw[:10] | regex_replace('[^a-zA-Z0-9_]', '_') }}"
+solr_core_name: "{{ solr_core_name_sanitized }}_core"
 solr_core_config: "moodle_configs"
 # ============================================================================
 # MEMORY CONFIGURATION
