@@ -138,18 +138,41 @@
   register: hash_temp_dir
   when: not skip_auth
 
+- name: auth-mgmt - Check if passwords are defined
+  debug:
+    msg: "WARNING: Password for {{ item.name }} not defined, generating random password"
+  when:
+    - not skip_auth
+    - item.password is not defined or item.password | length == 0
+  loop:
+    - { name: "admin", password: "{{ solr_admin_password | default('') }}" }
+    - { name: "support", password: "{{ solr_support_password | default('') }}" }
+    - { name: "customer", password: "{{ solr_customer_password | default('') }}" }
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: auth-mgmt - Create password storage directory
+  file:
+    path: "{{ solr_config_dir }}/.passwords"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  become: true
+  when: not skip_auth
+
 - name: auth-mgmt - Resolve or generate passwords
   set_fact:
     auth_users_with_passwords:
       - name: admin
         username: "{{ solr_admin_user | default('admin') }}"
-        password: "{{ solr_admin_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=20')) }}"
+        password: "{{ solr_admin_password | default(lookup('password', solr_config_dir + '/.passwords/admin chars=ascii_letters,digits length=20')) }}"
       - name: support
         username: "{{ solr_support_user | default('support') }}"
-        password: "{{ solr_support_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=16')) }}"
+        password: "{{ solr_support_password | default(lookup('password', solr_config_dir + '/.passwords/support chars=ascii_letters,digits length=16')) }}"
       - name: customer
         username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=16')) }}"
+        password: "{{ solr_customer_password | default(lookup('password', solr_config_dir + '/.passwords/customer chars=ascii_letters,digits length=16')) }}"
   no_log: true
   when: not skip_auth
 

@@ -58,7 +58,7 @@
 
 - name: proxy_config - Create Solr proxy configuration for Apache
   template:
-    src: apache_solr_proxy.conf.j2
+    src: solr_proxy.conf.j2
     dest: "/etc/apache2/sites-available/solr-{{ customer_name }}.conf"
     owner: root
     group: root

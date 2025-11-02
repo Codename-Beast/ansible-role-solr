@@ -43,12 +43,12 @@
     user: "{{ item.username }}"
     password: "{{ item.password }}"
     force_basic_auth: yes
-    status_code: [200, 401, 403]
+    status_code: 200
   loop: "{{ test_users }}"
   loop_control:
     label: "{{ item.name }}"
   register: user_auth_tests
-  failed_when: false
+  failed_when: user_auth_tests.status | default(0) != 200
 
 - name: auth-val - Test admin authorization
   uri:
@@ -82,8 +82,8 @@
     auth_test_summary:
       unauthenticated_blocked: "{{ unauth_test.status == 401 }}"
       admin_login: "{{ 'success' if admin_auth.status == 200 else 'failed' }}"
-      support_login: "{{ 'success' if user_auth_tests.results[0].status != 401 else 'failed' }}"
-      customer_login: "{{ 'success' if user_auth_tests.results[1].status != 401 else 'failed' }}"
+      support_login: "{{ 'success' if user_auth_tests.results[0].status == 200 else 'failed' }}"
+      customer_login: "{{ 'success' if user_auth_tests.results[1].status == 200 else 'failed' }}"
       admin_authorization: "{{ 'full' if admin_authz_test.status == 200 else 'limited' }}"
       support_auth_blocked: "{{ support_authz_test.status in [401, 403] }}"
 

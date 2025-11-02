@@ -1,7 +1,16 @@
 ---
-# Version: 1.3.1
+# Version: 1.3.2
 # Author: Bernd Schreistetter
 # Description: Main orchestration for Solr installation
+# Changelog v1.3.2:
+#   - CRITICAL: Added rollback mechanism with block/rescue/always
+#   - CRITICAL: Fixed docker-compose template shell escaping bug
+#   - IMPROVED: Enhanced error handling with detailed logging
+#   - IMPROVED: Expanded handlers (core reload, API updates, health checks)
+#   - FIXED: Checksum comparison loop data structure validation
+#   - FIXED: auth_api_update only runs when hashes are defined
+#   - FIXED: Better healthcheck in docker-compose (tests actual API)
+#   - ADDED: Deployment attempt logging for debugging
 # Changelog v1.3.1:
 #   - CRITICAL: Full idempotency - unlimited re-runs on same server
 #   - FEATURE: Selective password updates without container restart
@@ -10,7 +19,6 @@
 #   - FIXED: Container only restarts when non-auth configs change
 #   - OPTIMIZED: Consolidated auth tasks (4→2 files, 58% reduction)
 #   - OPTIMIZED: Unified config management (3→1 files, 52% reduction)
-#   - OPTIMIZED: Total codebase reduction by 52% (758 lines)
 
 - name: install-solr - Preflight checks
   include_tasks: preflight_checks.yml
@@ -56,6 +64,9 @@
   when:
     - solr_auth_enabled | default(true)
     - needs_api_update | default(false)
+    - admin_password_hash is defined
+    - support_password_hash is defined
+    - customer_password_hash is defined
   tags:
     - install-solr-auth
     - install-solr-deployment
