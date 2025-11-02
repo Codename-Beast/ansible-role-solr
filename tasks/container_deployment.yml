@@ -1,14 +1,11 @@
 ---
-# Version: 1.4.0
-# Description: Deploy Solr container using Docker Compose with init-container
-# Changelog v1.4.0:
-#   - ADDED: Checksum-based config change detection for ALL config files
-#   - OPTIMIZED: Only restart if any config changed
-#   - IMPROVED: Multi-file checksum comparison
-# Changelog v1.3.4:
-#   - Wait for container 'running' status instead of 'healthy'
-#   - Added port-based waiting instead of health check dependency
-#   - Health check is now informational only 
+# Version: 1.3.1
+# Description: Deploy Solr container with full idempotency
+# Changelog v1.3.1:
+#   - FIXED: True idempotency - only restart if configs actually changed
+#   - FIXED: Skip deployment if container running and configs match
+#   - ADDED: Separate start vs restart logic
+#   - OPTIMIZED: Minimal disruption on re-runs 
 
 - name: solr-deployment - Check if services are already running
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml ps --services --filter status=running
@@ -26,7 +23,12 @@
   register: new_config_checksums
   become: true
 
-- name: solr-deployment - Get existing config checksums from container
+- name: solr-deployment - Separate security.json from other configs
+  set_fact:
+    security_json_checksum: "{{ new_config_checksums.results | selectattr('item.name', 'equalto', 'security.json') | map(attribute='stat.checksum') | first }}"
+    other_config_checksums: "{{ new_config_checksums.results | rejectattr('item.name', 'equalto', 'security.json') | list }}"
+
+- name: solr-deployment - Get existing config checksums from container (excluding security.json)
   shell: |
     docker exec {{ solr_container_name }} sh -c "
     if [ -f '{{ item.item.dest_path }}/{{ item.item.name }}' ]; then
@@ -35,42 +37,93 @@
       echo 'not_found'
     fi
     "
-  loop: "{{ new_config_checksums.results }}"
+  loop: "{{ other_config_checksums }}"
   loop_control:
     label: "{{ item.item.name }}"
-  register: existing_config_checksums
+  register: existing_other_config_checksums
   changed_when: false
   failed_when: false
   when: running_services.stdout_lines | length > 0
 
-- name: solr-deployment - Initialize config_changed flag
+- name: solr-deployment - Get existing security.json checksum from container
+  shell: |
+    docker exec {{ solr_container_name }} sh -c "
+    if [ -f '/var/solr/data/security.json' ]; then
+      sha256sum /var/solr/data/security.json | awk '{print \$1}'
+    else
+      echo 'not_found'
+    fi
+    "
+  register: existing_security_json_checksum
+  changed_when: false
+  failed_when: false
+  when: running_services.stdout_lines | length > 0
+
+- name: solr-deployment - Initialize config change flags
   set_fact:
     config_changed: false
+    security_json_changed: false
+    other_configs_changed: false
 
-- name: solr-deployment - Detect config changes by comparing checksums
+- name: solr-deployment - Detect security.json changes
   set_fact:
-    config_changed: true
+    security_json_changed: true
   when:
     - running_services.stdout_lines | length > 0
+    - existing_security_json_checksum is defined
+    - security_json_checksum != (existing_security_json_checksum.stdout | trim)
+
+- name: solr-deployment - Detect other config changes by comparing checksums
+  set_fact:
+    other_configs_changed: true
+  when:
+    - running_services.stdout_lines | length > 0
+    - existing_other_config_checksums is defined
     - item.0.stat.checksum != item.1.stdout | trim
-  loop: "{{ new_config_checksums.results | zip(existing_config_checksums.results | default([])) | list }}"
+  loop: "{{ other_config_checksums | zip(existing_other_config_checksums.results | default([])) | list }}"
   loop_control:
     label: "{{ item.0.item.name }}"
 
-- name: solr-deployment - Display restart decision
+- name: solr-deployment - Set overall config_changed flag
+  set_fact:
+    config_changed: "{{ security_json_changed or other_configs_changed }}"
+    security_json_only_changed: "{{ security_json_changed and not other_configs_changed }}"
+
+- name: solr-deployment - Determine deployment action needed
+  set_fact:
+    needs_restart: "{{ (running_services.stdout_lines | length > 0) and (solr_force_recreate | default(false) or other_configs_changed | default(false)) }}"
+    needs_start: "{{ running_services.stdout_lines | length == 0 }}"
+    can_skip: "{{ (running_services.stdout_lines | length > 0) and not config_changed and not solr_force_recreate | default(false) }}"
+    needs_api_update: "{{ security_json_only_changed | default(false) and (running_services.stdout_lines | length > 0) }}"
+
+- name: solr-deployment - Display deployment decision
   debug:
     msg:
-      - "Container running: {{ running_services.stdout_lines | length > 0 }}"
-      - "Force recreate flag: {{ solr_force_recreate | default(false) }}"
-      - "Config changed: {{ config_changed | default(false) }}"
-      - "Config files tracked: {{ solr_config_files | length }}"
-      - "Will restart: {{ (running_services.stdout_lines | length > 0) and (solr_force_recreate | default(false) or config_changed | default(false)) }}"
+      - "========================================"
+      - "DEPLOYMENT DECISION"
+      - "========================================"
+      - "Container status:"
+      - "  Running: {{ running_services.stdout_lines | length > 0 }}"
+      - "  Config changed: {{ config_changed }}"
+      - "  Security.json only: {{ security_json_only_changed | default(false) }}"
+      - "  Other configs changed: {{ other_configs_changed | default(false) }}"
+      - "  Force recreate: {{ solr_force_recreate | default(false) }}"
+      - ""
+      - "Action:"
+      - "  Will restart: {{ needs_restart }}"
+      - "  Will start: {{ needs_start }}"
+      - "  Will skip: {{ can_skip }}"
+      - "  Will API update: {{ needs_api_update }}"
+      - "========================================"
 
-- name: solr-deployment - Stop existing services if recreate or config changed
+- name: solr-deployment - Skip deployment (already running, no changes)
+  debug:
+    msg: "Container running and configs unchanged - SKIPPING deployment"
+  when: can_skip
+
+- name: solr-deployment - Stop services for restart (only if needed)
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
-  when:
-    - running_services.stdout_lines | length > 0
-    - solr_force_recreate | default(false) or config_changed | default(false)
+  when: needs_restart
   become: true
   register: compose_down
 
@@ -111,27 +164,33 @@
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml up -d
   become: true
   register: compose_up
+  when: not can_skip
 
 - name: solr-deployment - Display compose up result
   debug:
     msg:
       - "Compose up return code: {{ compose_up.rc }}"
       - "Init container should start first"
+      - "Action: {{ 'Restarted' if needs_restart else 'Started' if needs_start else 'Skipped' }}"
+  when: not can_skip
 
 - name: solr-deployment - Wait for init-container to complete
   command: docker wait {{ solr_container_name }}_powerinit
   register: init_container_wait
   failed_when: init_container_wait.stdout != '0'
   timeout: "{{ solr_init_container_timeout | default(60) }}"
+  when: not can_skip
 
 - name: solr-deployment - Check init-container logs
   command: docker logs {{ solr_container_name }}_powerinit
   register: init_logs
   changed_when: false
+  when: not can_skip
 
 - name: solr-deployment - Display init-container logs
   debug:
     msg: "{{ init_logs.stdout_lines }}"
+  when: not can_skip
 
 - name: solr-deployment - Verify security.json exists in container
   command: docker exec {{ solr_container_name }} test -f /var/solr/data/security.json
@@ -140,15 +199,17 @@
   delay: 3
   until: security_json_in_container.rc == 0
   failed_when: security_json_in_container.rc != 0
+  when: not can_skip
 
 - name: solr-deployment - Get deployed security.json checksum from container
   command: docker exec {{ solr_container_name }} sha256sum /var/solr/data/security.json
   register: deployed_checksum
   changed_when: false
+  when: not can_skip
 
 - name: solr-deployment - Extract deployed checksum
   set_fact:
-    deployed_checksum_value: "{{ deployed_checksum.stdout.split(' ')[0] }}"
+    deployed_checksum_value: "{{ deployed_checksum.stdout.split(' ')[0] if deployed_checksum.stdout is defined else 'skipped' }}"
 
 - name: solr-deployment - Validate security.json checksum matches expected
   assert:
@@ -156,6 +217,7 @@
       - new_config_checksums.results[0].stat.checksum == deployed_checksum_value
     fail_msg: "security.json checksum mismatch! Expected: {{ new_config_checksums.results[0].stat.checksum }}, Got: {{ deployed_checksum_value }}"
     success_msg: "security.json deployed correctly with matching checksum"
+  when: not can_skip
 
 - name: solr-deployment - Wait for Solr container to be running (not healthy)
   docker_container_info:
