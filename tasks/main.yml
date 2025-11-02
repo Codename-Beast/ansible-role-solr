@@ -55,7 +55,7 @@
     - install-solr-deployment
 
 - name: install-solr - Auth validation tests
-  include_tasks: auth_validation_optimized.yml
+  include_tasks: auth_validation.yml
   when: solr_auth_enabled | default(true)
   tags:
     - install-solr-auth
