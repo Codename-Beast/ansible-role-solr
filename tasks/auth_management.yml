@@ -110,7 +110,7 @@
 
 - name: auth-mgmt - Determine skip_auth flag
   set_fact:
-    skip_auth: "{{ existing_security_json.stat.exists and (hash_verification.results | selectattr('stdout', 'equalto', 'mismatch') | list | length == 0) }}"
+    skip_auth: "{{ existing_security_json.stat.exists and hash_verification is defined and (hash_verification.results | selectattr('stdout', 'equalto', 'mismatch') | list | length == 0) }}"
 
 - name: auth-mgmt - Display detection result
   debug:

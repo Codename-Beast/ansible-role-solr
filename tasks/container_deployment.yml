@@ -43,15 +43,19 @@
   failed_when: false
   when: running_services.stdout_lines | length > 0
 
-- name: solr-deployment - Compare checksums to detect config changes
-  set_fact:
-    config_changed: "{{ new_config_checksums.results | zip(existing_config_checksums.results | default([])) | selectattr('0.stat.checksum', 'ne', '1.stdout') | list | length > 0 }}"
-  when: running_services.stdout_lines | length > 0
-
-- name: solr-deployment - Set config_changed to false if container not running
+- name: solr-deployment - Initialize config_changed flag
   set_fact:
     config_changed: false
-  when: running_services.stdout_lines | length == 0
+
+- name: solr-deployment - Detect config changes by comparing checksums
+  set_fact:
+    config_changed: true
+  when:
+    - running_services.stdout_lines | length > 0
+    - item.0.stat.checksum != item.1.stdout | trim
+  loop: "{{ new_config_checksums.results | zip(existing_config_checksums.results | default([])) | list }}"
+  loop_control:
+    label: "{{ item.0.item.name }}"
 
 - name: solr-deployment - Display restart decision
   debug:
@@ -71,23 +75,24 @@
   register: compose_down
 
 - name: solr-deployment - Check if volume exists
-  command: docker volume inspect {{ solr_volume_name }}
+  docker_volume_info:
+    name: "{{ solr_volume_name }}"
   register: volume_inspect
-  changed_when: false
   failed_when: false
 
-- name: solr-deployment - Remove volume if force recreate or if volume is broken
-  command: docker volume rm {{ solr_volume_name }}
+- name: solr-deployment - Remove volume if force recreate
+  docker_volume:
+    name: "{{ solr_volume_name }}"
+    state: absent
   when:
-    - volume_inspect.rc == 0
-    - solr_force_recreate | default(false) or volume_inspect.stderr is search('no such file or directory')
+    - volume_inspect.volume is defined
+    - solr_force_recreate | default(false)
   become: true
-  failed_when: false
   register: volume_removed
 
 - name: solr-deployment - Display volume removal result
   debug:
-    msg: "Volume {{ solr_volume_name }} removed: {{ volume_removed.rc == 0 if volume_removed is defined and volume_removed.changed else 'Not removed' }}"
+    msg: "Volume {{ solr_volume_name }} removed: {{ 'YES' if volume_removed is defined and volume_removed.changed else 'Not removed' }}"
 
 - name: solr-deployment - Remove orphaned volume directory if exists
   file:
@@ -152,13 +157,14 @@
     fail_msg: "security.json checksum mismatch! Expected: {{ new_config_checksums.results[0].stat.checksum }}, Got: {{ deployed_checksum_value }}"
     success_msg: "security.json deployed correctly with matching checksum"
 
-- name: solr-deployment - Wait for Solr container to be running (not healthy) 
-  command: docker inspect {{ solr_container_name }} --format '{% raw %}{{.State.Status}}{% endraw %}' 
-  register: container_status 
-  retries: "{{ solr_container_start_retries }}" 
-  delay: 5 
-  until: container_status.stdout == "running" 
-  changed_when: false 
+- name: solr-deployment - Wait for Solr container to be running (not healthy)
+  docker_container_info:
+    name: "{{ solr_container_name }}"
+  register: container_info
+  retries: "{{ solr_container_start_retries }}"
+  delay: 5
+  until: container_info.container.State.Status == "running"
+  failed_when: container_info.container.State.Status != "running" 
 
 - name: solr-deployment - Wait for Solr HTTP port to be open 
   wait_for: 
@@ -171,15 +177,15 @@
   pause: 
     seconds: 10 
 
-- name: solr-deployment - Check container health status (non-blocking) 
-  command: docker inspect {{ solr_container_name }} --format '{% raw %}{{.State.Health.Status}}{% endraw %}' 
-  register: container_health 
-  changed_when: false 
-  failed_when: false 
+- name: solr-deployment - Check container health status (non-blocking)
+  docker_container_info:
+    name: "{{ solr_container_name }}"
+  register: container_health_info
+  failed_when: false
 
-- name: solr-deployment - Display health status 
-  debug: 
-    msg: "Container health status: {{ container_health.stdout | default('no healthcheck') }}" 
+- name: solr-deployment - Display health status
+  debug:
+    msg: "Container health status: {{ container_health_info.container.State.Health.Status | default('no healthcheck') }}" 
 
 - name: solr-deployment - Wait for Solr HTTP endpoint
   uri:
@@ -210,8 +216,8 @@
       details:
         container_name: "{{ solr_container_name }}"
         init_container: "{{ solr_container_name }}_powerinit"
-        container_status: "{{ container_status.stdout }}"
-        health_status: "{{ container_health.stdout | default('no healthcheck') }}"
+        container_status: "{{ container_info.container.State.Status }}"
+        health_status: "{{ container_health_info.container.State.Health.Status | default('no healthcheck') }}"
         http_status: "{{ solr_http_check.status }}"
         auth_status: "{{ 'active' if auth_active_check.status == 401 else 'inactive' }}"
         security_json_deployed: true
@@ -222,7 +228,7 @@
         config_files_list: "{{ solr_config_files | map(attribute='name') | list }}"
         port: "{{ solr_port }}"
         restart_triggered: "{{ config_changed | default(false) }}"
-        volume_removed: "{{ volume_removed.rc == 0 if volume_removed is defined and volume_removed.changed else false }}"
+        volume_removed: "{{ volume_removed.changed if volume_removed is defined else false }}"
 
 - name: solr-deployment - Display Rundeck output
   debug:
@@ -237,8 +243,8 @@
       - "========================================"
       - "Container: {{ solr_container_name }}"
       - "Init-Container: {{ solr_container_name }}_powerinit (completed)"
-      - "Container Status: {{ container_status.stdout }}"
-      - "Health Status: {{ container_health.stdout | default('no healthcheck') }}"
+      - "Container Status: {{ container_info.container.State.Status }}"
+      - "Health Status: {{ container_health_info.container.State.Health.Status | default('no healthcheck') }}"
       - "HTTP Status: {{ solr_http_check.status }}"
       - "Authentication: {{ 'ACTIVE' if auth_active_check.status == 401 else 'INACTIVE' }}"
       - ""
@@ -253,7 +259,7 @@
       - ""
       - "DEPLOYMENT DECISIONS:"
       - "  Restart due to config change: {{ 'YES' if config_changed | default(false) else 'NO' }}"
-      - "  Volume removed: {{ 'YES' if (volume_removed is defined and volume_removed.changed and volume_removed.rc == 0) else 'NO' }}"
+      - "  Volume removed: {{ 'YES' if (volume_removed is defined and volume_removed.changed) else 'NO' }}"
       - "  Force recreate: {{ 'YES' if solr_force_recreate | default(false) else 'NO' }}"
       - ""
       - "Port: {{ solr_port }}"
