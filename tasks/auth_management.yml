@@ -151,7 +151,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: auth-mgmt - Create password storage directory
+- name: auth-mgmt - Create password storage directory on target host
   file:
     path: "{{ solr_config_dir }}/.passwords"
     state: directory
@@ -161,18 +161,27 @@
   become: true
   when: not skip_auth
 
+- name: auth-mgmt - Create password storage directory on control node
+  file:
+    path: "/tmp/ansible-solr-passwords/{{ inventory_hostname }}"
+    state: directory
+    mode: '0700'
+  delegate_to: localhost
+  run_once: false
+  when: not skip_auth
+
 - name: auth-mgmt - Resolve or generate passwords
   set_fact:
     auth_users_with_passwords:
       - name: admin
         username: "{{ solr_admin_user | default('admin') }}"
-        password: "{{ solr_admin_password | default(lookup('password', solr_config_dir + '/.passwords/admin chars=ascii_letters,digits length=20')) }}"
+        password: "{{ solr_admin_password | default(lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/admin chars=ascii_letters,digits length=20')) }}"
       - name: support
         username: "{{ solr_support_user | default('support') }}"
-        password: "{{ solr_support_password | default(lookup('password', solr_config_dir + '/.passwords/support chars=ascii_letters,digits length=16')) }}"
+        password: "{{ solr_support_password | default(lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/support chars=ascii_letters,digits length=16')) }}"
       - name: customer
         username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password | default(lookup('password', solr_config_dir + '/.passwords/customer chars=ascii_letters,digits length=16')) }}"
+        password: "{{ solr_customer_password | default(lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/customer chars=ascii_letters,digits length=16')) }}"
   no_log: true
   when: not skip_auth
 

@@ -22,9 +22,9 @@
       { "name": "update",  "collection": "{{ solr_core_name }}", "role": ["admin", "customer"] }
     ],
     "user-role": {
-      "admin":   ["admin"],
-      "support": ["support"],
-      "customer":["customer"]
+      "{{ solr_admin_user | default('admin') }}":   ["admin"],
+      "{{ solr_support_user | default('support') }}": ["support"],
+      "{{ solr_customer_user | default('customer') }}":["customer"]
     }
   }
 }
