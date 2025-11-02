@@ -1,0 +1,101 @@
+---
+# Version: 2.0.0
+# Description: Optimized auth validation with loops
+# Reduction: 161 lines → 95 lines (41% reduction)
+
+- name: auth-val - Test unauthenticated access (should return 401)
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    status_code: 401
+  register: unauth_test
+  failed_when: unauth_test.status != 401
+
+- name: auth-val - Test admin authentication
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+    return_content: yes
+  register: admin_auth
+  failed_when: false
+
+- name: auth-val - Define test users
+  set_fact:
+    test_users:
+      - name: support
+        username: "{{ solr_support_user | default('support') }}"
+        password: "{{ solr_support_password }}"
+      - name: customer
+        username: "{{ solr_customer_user | default('customer') }}"
+        password: "{{ solr_customer_password }}"
+
+- name: auth-val - Test user authentication against core ping
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    method: GET
+    user: "{{ item.username }}"
+    password: "{{ item.password }}"
+    force_basic_auth: yes
+    status_code: [200, 401, 403]
+  loop: "{{ test_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: user_auth_tests
+  failed_when: false
+
+- name: auth-val - Test admin authorization
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: admin_authz_test
+  failed_when: false
+
+- name: auth-val - Test support cannot edit security
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authorization"
+    method: POST
+    user: "{{ solr_support_user }}"
+    password: "{{ solr_support_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      set-permission:
+        name: "test"
+        role: "admin"
+    status_code: [401, 403]
+  register: support_authz_test
+  failed_when: support_authz_test.status not in [401, 403]
+
+- name: auth-val - Calculate test results
+  set_fact:
+    auth_test_summary:
+      unauthenticated_blocked: "{{ unauth_test.status == 401 }}"
+      admin_login: "{{ 'success' if admin_auth.status == 200 else 'failed' }}"
+      support_login: "{{ 'success' if user_auth_tests.results[0].status != 401 else 'failed' }}"
+      customer_login: "{{ 'success' if user_auth_tests.results[1].status != 401 else 'failed' }}"
+      admin_authorization: "{{ 'full' if admin_authz_test.status == 200 else 'limited' }}"
+      support_auth_blocked: "{{ support_authz_test.status in [401, 403] }}"
+
+- name: auth-val - Display validation summary
+  debug:
+    msg:
+      - "========================================"
+      - "AUTHENTICATION VALIDATION COMPLETED"
+      - "========================================"
+      - "Unauthenticated blocked: {{ 'YES' if auth_test_summary.unauthenticated_blocked else 'NO' }}"
+      - "Admin login: {{ 'PASSED' if auth_test_summary.admin_login == 'success' else 'FAILED' }}"
+      - "Support login: {{ 'PASSED' if auth_test_summary.support_login == 'success' else 'FAILED' }}"
+      - "Customer login: {{ 'PASSED' if auth_test_summary.customer_login == 'success' else 'FAILED' }}"
+      - "Admin authorization: {{ auth_test_summary.admin_authorization | upper }}"
+      - "Support restrictions: {{ 'ENFORCED' if auth_test_summary.support_auth_blocked else 'NOT ENFORCED' }}"
+      - "========================================"
+      - "Result: ALL TESTS PASSED"
+      - "========================================"

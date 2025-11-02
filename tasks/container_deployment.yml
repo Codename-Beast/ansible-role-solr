@@ -28,13 +28,13 @@
 
 - name: solr-deployment - Get existing config checksums from container
   shell: |
-    if [ -f "{{ item.item.dest_path }}/{{ item.item.name }}" ]; then
-      sha256sum {{ item.item.dest_path }}/{{ item.item.name }} | awk '{print $1}'
+    docker exec {{ solr_container_name }} sh -c "
+    if [ -f '{{ item.item.dest_path }}/{{ item.item.name }}' ]; then
+      sha256sum {{ item.item.dest_path }}/{{ item.item.name }} | awk '{print \$1}'
     else
-      echo "not_found"
+      echo 'not_found'
     fi
-  args:
-    executable: /bin/bash
+    "
   loop: "{{ new_config_checksums.results }}"
   loop_control:
     label: "{{ item.item.name }}"
@@ -42,10 +42,6 @@
   changed_when: false
   failed_when: false
   when: running_services.stdout_lines | length > 0
-  delegate_to: localhost
-  become: true
-  vars:
-    ansible_connection: local
 
 - name: solr-deployment - Compare checksums to detect config changes
   set_fact:
