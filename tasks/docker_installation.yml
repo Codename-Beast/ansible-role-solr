@@ -137,6 +137,6 @@
       - "Docker service: {{ 'ACTIVE' if docker_service.status.ActiveState == 'active' else 'INACTIVE' }}"
       - "Docker service enabled: {{ 'YES' if docker_service.status.UnitFileState == 'enabled' else 'NO' }}"
       - "Solr image: solr:{{ solr_version }}"
-      - "Image pulled: {{ 'YES' if docker_pull.changed else 'NO (already present or not forced)' }}"
+      - "Image pulled: {{ 'YES' if docker_pull is defined and docker_pull.changed else 'NO (already present or not forced)' }}"
       - "NOTE: If user was added to docker group, logout/login may be required"
   when: not rundeck_integration_enabled | default(false)
