@@ -88,6 +88,10 @@ solr_config_files:
     template: "solrconfig.xml.j2"
     dest_path: "/var/solr/data/configs"
     validate_xml: true
+  - name: "stopwords.txt"
+    template: "stopwords.txt.j2"
+    dest_path: "/var/solr/data/configs"
+    validate_json: false
   - name: "stopwords_de.txt"
     template: "stopwords_de.txt.j2"
     dest_path: "/var/solr/data/configs"
@@ -115,10 +119,12 @@ solr_backup_configs_before_update: true
 # ============================================================================
 # CORE CONFIGURATION
 # ============================================================================
-# Core name sanitization (max 10 chars for Solr compatibility)
+# Core name sanitization (max 10 chars total: 6 chars + "_core" suffix = 11 chars, but Solr allows up to 255)
+# For strict 10 char limit, use [:6] before adding "_core" (6+5=11), or [:10] without suffix
 solr_core_name_raw: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else customer_name | default('default') }}"
-solr_core_name_sanitized: "{{ solr_core_name_raw[:10] | regex_replace('[^a-zA-Z0-9_]', '_') }}"
-solr_core_name: "{{ solr_core_name_sanitized }}_core"
+solr_core_name_sanitized: "{{ solr_core_name_raw[:20] | regex_replace('[^a-zA-Z0-9_]', '_') | lower }}"
+# Only add _core suffix if not already present and total length <= 50 chars (Solr supports up to 255)
+solr_core_name: "{{ solr_core_name_sanitized if solr_core_name_sanitized.endswith('_core') else (solr_core_name_sanitized[:45] + '_core') if solr_core_name_sanitized|length > 45 else solr_core_name_sanitized + '_core' }}"
 solr_core_config: "moodle_configs"
 # ============================================================================
 # MEMORY CONFIGURATION
@@ -173,6 +179,10 @@ solr_moodle_versions_config:
     max_field_length: 65536
     use_legacy_date: false
     features: ["basic_search", "file_indexing", "multilang", "categories", "completion", "competencies", "outcomes", "tags"]
+  "5.0.x":
+    max_field_length: 65536
+    use_legacy_date: false
+    features: ["basic_search", "file_indexing", "multilang", "categories", "completion", "competencies", "outcomes", "tags"]
 
 solr_moodle_performance:
   "4.1": { heap: "1g", cache_size: 1024 }
@@ -180,6 +190,7 @@ solr_moodle_performance:
   "4.3": { heap: "1g", cache_size: 1024 }
   "4.4": { heap: "1g", cache_size: 1024 }
   "5.0": { heap: "2g", cache_size: 2048 }
+  "5.0.x": { heap: "2g", cache_size: 2048 }
 
 solr_use_moodle_schema: true
 solr_moodle_test_docs: true

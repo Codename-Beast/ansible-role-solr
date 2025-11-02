@@ -282,4 +282,26 @@
       - "  Search by type: {{ 'PASSED (' + (search_type.json.response.numFound | string) + ' results)' if search_type.json.response.numFound >= 1 else 'FAILED' }}"
   when: not rundeck_integration_enabled | default(false)
 
-  ##Cleanup Maybe? Timeissue
+# ============================================================================
+# CLEANUP: Remove test documents from index
+# ============================================================================
+
+- name: moodle-test - Delete all test documents (cleanup)
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    method: POST
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      delete:
+        query: "id:forum_post_* OR id:wiki_page_* OR id:course_* OR id:assignment_* OR id:page_*"
+    status_code: 200
+  register: cleanup_result
+  changed_when: false
+  failed_when: false
+
+- name: moodle-test - Verify cleanup
+  debug:
+    msg: "Test documents cleanup: {{ 'COMPLETED' if cleanup_result.status | default(0) == 200 else 'FAILED (non-critical)' }}"

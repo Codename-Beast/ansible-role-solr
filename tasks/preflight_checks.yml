@@ -56,9 +56,10 @@
     success_msg: "Required variables check passed"
 
 - name: preflight-check - Check for port conflicts
-  shell: netstat -tuln | grep :{{ solr_port }} || echo "PORT_FREE"
+  shell: ss -ltn | grep :{{ solr_port }} || echo "PORT_FREE"
   register: port_check
   changed_when: false
+  failed_when: false
 
 - name: preflight-check - Warn if port is in use
   debug:

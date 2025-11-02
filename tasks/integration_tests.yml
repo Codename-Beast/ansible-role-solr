@@ -62,10 +62,15 @@
     body_format: json
     status_code: 200
     body:
-      id: "test_doc_{{ ansible_date_time.epoch }}"
-      text: "Smoke test document"
+      id: "integration_test_{{ ansible_date_time.epoch }}"
+      title: "Integration Test Document"
+      text: "Smoke test document for integration testing"
   register: index_test
   failed_when: index_test.status != 200
+
+- name: install-solr - Store test document ID for cleanup
+  set_fact:
+    test_doc_id: "integration_test_{{ ansible_date_time.epoch }}"
 
 - name: install-solr - Commit test document
   uri:
@@ -97,7 +102,7 @@
     fail_msg: "Search test failed - no results found"
     success_msg: "Search test passed - documents found"
 
-- name: install-solr - Delete test document
+- name: install-solr - Delete test document (cleanup)
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
     method: POST
@@ -107,10 +112,11 @@
     body_format: json
     body:
       delete:
-        query: "title:Integration*"
+        id: "{{ test_doc_id }}"
     status_code: 200
   register: delete_test
   changed_when: false
+  failed_when: false
 
 - name: install-solr - Check Docker container health
   command: docker inspect --format='{{`{{.State.Health.Status}}`}}' {{ solr_container_name }}

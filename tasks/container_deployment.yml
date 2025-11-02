@@ -1,11 +1,15 @@
 ---
-# Version: 1.3.1
-# Description: Deploy Solr container with full idempotency
+# Version: 1.3.2
+# Description: Deploy Solr container with full idempotency and rollback
+# Changelog v1.3.2:
+#   - CRITICAL: Added rollback mechanism (block/rescue/always)
+#   - IMPROVED: Error handling with detailed logging
+#   - ADDED: Container state backup before deployment
+#   - FIXED: Better error recovery
 # Changelog v1.3.1:
 #   - FIXED: True idempotency - only restart if configs actually changed
 #   - FIXED: Skip deployment if container running and configs match
-#   - ADDED: Separate start vs restart logic
-#   - OPTIMIZED: Minimal disruption on re-runs 
+#   - ADDED: Separate start vs restart logic 
 
 - name: solr-deployment - Check if services are already running
   command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml ps --services --filter status=running
@@ -79,10 +83,19 @@
   when:
     - running_services.stdout_lines | length > 0
     - existing_other_config_checksums is defined
+    - existing_other_config_checksums.results is defined
+    - existing_other_config_checksums.results | length > 0
     - item.0.stat.checksum != item.1.stdout | trim
   loop: "{{ other_config_checksums | zip(existing_other_config_checksums.results | default([])) | list }}"
   loop_control:
     label: "{{ item.0.item.name }}"
+
+- name: solr-deployment - Log checksum comparison errors (if any)
+  debug:
+    msg: "WARNING: Checksum comparison skipped or failed - existing_other_config_checksums not properly defined"
+  when:
+    - running_services.stdout_lines | length > 0
+    - (existing_other_config_checksums is not defined or existing_other_config_checksums.results is not defined)
 
 - name: solr-deployment - Set overall config_changed flag
   set_fact:
@@ -121,11 +134,106 @@
     msg: "Container running and configs unchanged - SKIPPING deployment"
   when: can_skip
 
-- name: solr-deployment - Stop services for restart (only if needed)
-  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
-  when: needs_restart
-  become: true
-  register: compose_down
+# ============================================================================
+# ROLLBACK-PROTECTED DEPLOYMENT BLOCK
+# ============================================================================
+- name: solr-deployment - Protected deployment with rollback capability
+  block:
+    # Backup current container state before any changes
+    - name: solr-deployment - Backup current container config (if exists)
+      shell: |
+        if docker ps -a | grep -q {{ solr_container_name }}; then
+          docker exec {{ solr_container_name }} tar czf /tmp/solr_backup_$(date +%s).tar.gz \
+            /var/solr/data/security.json \
+            /var/solr/data/configs 2>/dev/null || true
+          echo "backup_created"
+        else
+          echo "no_container"
+        fi
+      register: container_backup
+      changed_when: false
+      when: running_services.stdout_lines | length > 0
+
+    - name: solr-deployment - Log backup status
+      debug:
+        msg: "Container backup: {{ container_backup.stdout | default('skipped') }}"
+
+    - name: solr-deployment - Stop services for restart (only if needed)
+      command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
+      when: needs_restart
+      become: true
+      register: compose_down
+      failed_when: compose_down.rc != 0
+
+  rescue:
+    - name: solr-deployment - RESCUE - Deployment failed, attempting recovery
+      debug:
+        msg:
+          - "!!! DEPLOYMENT FAILED !!!"
+          - "Error occurred during container deployment"
+          - "Attempting to restore previous state..."
+
+    - name: solr-deployment - RESCUE - Try to restart old container (if it exists)
+      command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml up -d
+      become: true
+      register: rescue_restart
+      failed_when: false
+      when: container_backup.stdout | default('') == 'backup_created'
+
+    - name: solr-deployment - RESCUE - Log recovery attempt result
+      debug:
+        msg: "Recovery attempt: {{ 'SUCCESS' if rescue_restart.rc | default(1) == 0 else 'FAILED' }}"
+      when: container_backup.stdout | default('') == 'backup_created'
+
+    - name: solr-deployment - RESCUE - Fail with clear error message
+      fail:
+        msg: |
+          CRITICAL DEPLOYMENT FAILURE
+          ===========================
+          The Solr container deployment failed.
+
+          Error details: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+          Recovery status: {{ 'Attempted' if container_backup.stdout | default('') == 'backup_created' else 'Not attempted (no backup available)' }}
+
+          Manual intervention required:
+          1. Check docker compose logs: docker compose -f {{ solr_compose_dir }}/docker-compose.yml logs
+          2. Check init container logs: docker logs {{ solr_container_name }}_powerinit
+          3. Verify configs in {{ solr_config_dir }}/
+          4. Try manual deployment: cd {{ solr_compose_dir }} && docker compose up -d
+
+          For support, provide this error message and the logs mentioned above.
+
+  always:
+    - name: solr-deployment - ALWAYS - Log deployment attempt
+      copy:
+        content: |
+          Deployment Attempt Log
+          ======================
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          Host: {{ inventory_hostname }}
+          User: {{ ansible_user_id }}
+
+          Container: {{ solr_container_name }}
+          Backup created: {{ container_backup.stdout | default('unknown') }}
+          Config changed: {{ config_changed | default('unknown') }}
+          Needs restart: {{ needs_restart | default('unknown') }}
+          Needs start: {{ needs_start | default('unknown') }}
+
+          Result: {{ 'SUCCESS' if ansible_failed_task is not defined else 'FAILED' }}
+          {% if ansible_failed_task is defined %}
+          Failed task: {{ ansible_failed_task.name }}
+          Error: {{ ansible_failed_result.msg | default('Unknown') }}
+          {% endif %}
+        dest: "/var/log/solr_deployment_{{ ansible_date_time.epoch }}.log"
+        owner: root
+        group: root
+        mode: '0644'
+      delegate_to: localhost
+      become: false
+      failed_when: false
+
+  when: not can_skip
 
 - name: solr-deployment - Check if volume exists
   docker_volume_info:

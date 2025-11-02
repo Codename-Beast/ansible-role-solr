@@ -15,9 +15,31 @@
       - ca-certificates
       - gnupg
       - lsb-release
+      - jq                    # For JSON validation
+      - libxml2-utils         # For XML validation (xmllint)
     state: present
     update_cache: yes
     cache_valid_time: 3600
+  become: true
+
+- name: install-solr - Create solr group with GID 8983
+  group:
+    name: solr
+    gid: 8983
+    system: yes
+    state: present
+  become: true
+
+- name: install-solr - Create solr system user with UID 8983
+  user:
+    name: solr
+    uid: 8983
+    group: solr
+    system: yes
+    create_home: no
+    shell: /usr/sbin/nologin
+    comment: "Solr System User for Container"
+    state: present
   become: true
 
 - name: install-solr - Create base directory structure
@@ -38,11 +60,10 @@
   file:
     path: "{{ solr_log_dir }}"
     state: directory
-    owner: "8983"
-    group: "8983"
+    owner: solr
+    group: solr
     mode: '0755'
   become: true
-  ignore_errors: yes  # User 8983 might not exist yet
 
 - name: install-solr - Check if Solr volume already exists
   command: docker volume ls -q -f name={{ solr_volume_name }}
