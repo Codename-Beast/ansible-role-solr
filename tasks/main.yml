@@ -1,7 +1,13 @@
 ---
-# Version: 1.1.0
+# Version: 1.2.0
 # Author: Bernd Schreistetter
-# Description: Main orchestration for Solr installation with pre-deployment auth
+# Description: Main orchestration for Solr installation with pre-deployment config
+# Changelog v1.2:
+#   - OPTIMIZED: Unified config generation (all configs in one step)
+#   - FIXED: Auth validation now runs AFTER container deployment
+#   - ADDED: Init-container deploys ALL configs (security, schemas, stopwords)
+#   - ADDED: Config backup and validation
+#   - ADDED: Core name sanitization (max 10 chars)
 # Changelog v1.1:
 #   - CRITICAL: Auth tasks moved BEFORE container deployment
 #   - Added pre-hash authentication (security.json before first start)
@@ -40,20 +46,12 @@
   tags:
     - install-solr-auth
 
-# Only update security.json when required
-- name: solr-auth create security.json
-  include_tasks: auth_securityjson.yml
-  when:
-    - solr_auth_enabled | default(true)
-    - not skip_auth | default(false)
+# Generate ALL config files (security.json, schemas, stopwords, etc.)
+- name: install-solr - Generate all configuration files
+  include_tasks: config_generation.yml
   tags:
+    - install-solr-config
     - install-solr-auth
-
-- name: install-solr - Prepare Moodle schema
-  include_tasks: moodle_schema_preparation.yml
-  when: solr_use_moodle_schema | default(true)
-  tags:
-    - install-solr-moodle
 
 - name: install-solr - Generate Docker Compose configuration
   include_tasks: compose_generation.yml
