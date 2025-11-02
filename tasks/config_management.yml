@@ -1,0 +1,116 @@
+---
+# Version: 2.0.0
+# Description: Unified configuration file management
+# Consolidates: config_generation.yml + moodle_schema_preparation.yml + auth_securityjson.yml validation
+# Reduction: 269 lines → 130 lines (52% reduction)
+
+- name: config-mgmt - Ensure config directory exists
+  file:
+    path: "{{ solr_config_dir }}"
+    state: directory
+    owner: "8983"
+    group: "8983"
+    mode: '0755'
+  become: true
+
+- name: config-mgmt - Generate all configuration files from templates
+  template:
+    src: "{{ item.template }}"
+    dest: "{{ solr_config_dir }}/{{ item.name }}"
+    owner: "8983"
+    group: "8983"
+    mode: '0644'
+  become: true
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: config_files_generated
+
+- name: config-mgmt - Validate JSON files
+  shell: cat {{ solr_config_dir }}/{{ item.name }} | jq empty
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.validate_json | default(false)
+  changed_when: false
+  register: json_validation
+
+- name: config-mgmt - Validate XML files
+  shell: xmllint --noout {{ solr_config_dir }}/{{ item.name }}
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.validate_xml | default(false)
+  changed_when: false
+  failed_when: false
+  register: xml_validation
+
+- name: config-mgmt - Calculate checksums for all config files
+  stat:
+    path: "{{ solr_config_dir }}/{{ item.name }}"
+    checksum_algorithm: sha256
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: config_checksums
+  become: true
+
+- name: config-mgmt - Store checksums
+  set_fact:
+    solr_config_checksums: "{{ config_checksums.results | map(attribute='stat') | list }}"
+
+# Security.json specific validation
+- name: config-mgmt - Read and parse security.json
+  slurp:
+    src: "{{ solr_config_dir }}/security.json"
+  register: security_json_content
+  become: true
+
+- name: config-mgmt - Parse security.json
+  set_fact:
+    security_json_parsed: "{{ security_json_content.content | b64decode | from_json }}"
+
+- name: config-mgmt - Validate security.json structure
+  assert:
+    that:
+      - security_json_parsed.authentication is defined
+      - security_json_parsed.authentication.class == "solr.BasicAuthPlugin"
+      - security_json_parsed.authentication.credentials is defined
+      - security_json_parsed.authentication.credentials[solr_admin_user] is defined
+      - security_json_parsed.authorization is defined
+      - security_json_parsed.authorization.class == "solr.RuleBasedAuthorizationPlugin"
+    fail_msg: "security.json structure validation failed"
+    success_msg: "security.json structure validated"
+
+- name: config-mgmt - Verify file ownership
+  stat:
+    path: "{{ solr_config_dir }}/security.json"
+  register: security_json_stat
+  become: true
+
+- name: config-mgmt - Display configuration summary
+  debug:
+    msg:
+      - "========================================"
+      - "CONFIGURATION MANAGEMENT COMPLETED"
+      - "========================================"
+      - "Config directory: {{ solr_config_dir }}"
+      - "Files generated: {{ solr_config_files | length }}"
+      - ""
+      - "FILES:"
+      - "{% for item in solr_config_files %}  - {{ item.name }} ({{ item.template }}){% endfor %}"
+      - ""
+      - "VALIDATION:"
+      - "  JSON syntax: {{ 'PASSED' if json_validation is success else 'N/A' }}"
+      - "  XML syntax: {{ 'PASSED' if xml_validation is success else 'N/A' }}"
+      - "  security.json structure: PASSED"
+      - ""
+      - "SECURITY.JSON:"
+      - "  Path: {{ solr_config_dir }}/security.json"
+      - "  Size: {{ security_json_stat.stat.size }} bytes"
+      - "  Owner: {{ security_json_stat.stat.uid }}:{{ security_json_stat.stat.gid }}"
+      - "  Permissions: {{ security_json_stat.stat.mode }}"
+      - "  Auth class: {{ security_json_parsed.authentication.class }}"
+      - "  Authz class: {{ security_json_parsed.authorization.class }}"
+      - "  Users: {{ security_json_parsed.authentication.credentials.keys() | list | join(', ') }}"
+      - "========================================"

@@ -52,12 +52,6 @@
           - "Authorization class: {{ (security_json_content.content | b64decode | from_json).authorization.class }}"
   when: not skip_auth
 
-- name: install-solr - Read security.json for verification
-  slurp:
-    src: "{{ solr_config_dir }}/security.json"
-  register: security_json_content
-  become: true
-
 - name: install-solr - Parse security.json
   set_fact:
     security_json_parsed: "{{ security_json_content.content | b64decode | from_json }}"
