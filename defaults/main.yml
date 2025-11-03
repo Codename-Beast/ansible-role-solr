@@ -52,11 +52,28 @@ solr_auth_validation_delay: 3  # seconds
 # Core creation
 solr_core_creation_retries: 5
 solr_core_creation_delay: 3  # seconds
-# Health checks
+# Health checks (legacy - Ansible/Docker timeouts)
 solr_health_check_timeout: 30
 solr_startup_wait_time: 60
 solr_init_container_timeout: 60
 solr_init_container_retries: 5
+# ============================================================================
+# SOLR INTERNAL HEALTH CHECK CONFIGURATION (Solr 9.9.0 built-in)
+# ============================================================================
+# Enable/disable Solr's internal health check handler
+# Endpoints: /admin/health (detailed) and /admin/healthcheck (simple)
+solr_health_check_enabled: true
+
+# Health check mode: basic, standard, comprehensive
+# - basic:        Disk space only (minimal overhead)
+# - standard:     Disk + Memory + Index health (RECOMMENDED)
+# - comprehensive: All checks + Cache statistics + detailed metrics
+solr_health_check_mode: "standard"
+
+# Health check thresholds
+solr_health_disk_threshold: 10       # Warn if less than X% disk space free
+solr_health_memory_threshold: 90     # Warn if more than X% heap memory used
+solr_health_cache_threshold: 75      # Warn if cache hit ratio below X% (comprehensive mode only)
 # ============================================================================
 # DOCKER CONFIGURATION
 # ============================================================================

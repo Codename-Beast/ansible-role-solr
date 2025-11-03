@@ -172,6 +172,63 @@ solr_auto_soft_commit_time: 1000         # ms
 solr_webserver: "nginx"                  # or "apache"
 solr_proxy_path: "/solr"
 solr_ssl_enabled: true
+
+# Solr Internal Health Checks (NEW in v1.3.2)
+solr_health_check_enabled: true          # Enable Solr's built-in health check handler
+solr_health_check_mode: "standard"       # Mode: basic, standard, comprehensive
+solr_health_disk_threshold: 10           # Warn if < X% disk space free
+solr_health_memory_threshold: 90         # Warn if > X% heap memory used
+solr_health_cache_threshold: 75          # Warn if cache hit ratio < X% (comprehensive only)
+```
+
+#### Solr Internal Health Check Modes
+
+Solr 9.9.0 provides built-in health check handlers accessible via API endpoints.
+
+| Mode | Checks | Endpoints | Overhead | Use Case |
+|------|--------|-----------|----------|----------|
+| **basic** | Disk space only | `/admin/healthcheck` | Minimal | Quick status checks |
+| **standard** | Disk + Memory + Index | `/admin/health` | **Low** | **Production (recommended)** |
+| **comprehensive** | All + Cache + Metrics | `/admin/health` | Medium | Critical systems, debugging |
+
+**Health Check Endpoints:**
+
+```bash
+# Simple health check (basic)
+curl -u admin:password "http://localhost:8983/solr/admin/healthcheck"
+
+# Detailed health check (standard/comprehensive)
+curl -u admin:password "http://localhost:8983/solr/admin/health"
+```
+
+**Response includes:**
+- Disk space availability (% free)
+- JVM heap memory usage (% used)
+- Index health and optimization status
+- Cache hit ratios (comprehensive mode)
+- Detailed metrics (comprehensive mode)
+
+**Example configurations:**
+
+```yaml
+# Development: Minimal overhead
+solr_health_check_mode: "basic"
+
+# Production: Balanced monitoring (default)
+solr_health_check_mode: "standard"
+solr_health_disk_threshold: 10      # Alert if < 10% free
+solr_health_memory_threshold: 90    # Alert if > 90% used
+
+# Critical systems: Comprehensive monitoring
+solr_health_check_mode: "comprehensive"
+solr_health_disk_threshold: 15
+solr_health_memory_threshold: 85
+solr_health_cache_threshold: 75
+```
+
+**Disable health checks** (not recommended):
+```yaml
+solr_health_check_enabled: false
 ```
 
 ---
