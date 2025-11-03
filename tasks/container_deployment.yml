@@ -317,7 +317,8 @@
 
 - name: solr-deployment - Extract deployed checksum
   set_fact:
-    deployed_checksum_value: "{{ deployed_checksum.stdout.split(' ')[0] if deployed_checksum.stdout is defined else 'skipped' }}"
+    deployed_checksum_value: "{{ deployed_checksum.stdout.split(' ')[0] if deployed_checksum is defined and deployed_checksum.stdout is defined else 'skipped' }}"
+  when: not can_skip
 
 - name: solr-deployment - Validate security.json checksum matches expected
   assert:
