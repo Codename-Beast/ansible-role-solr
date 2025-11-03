@@ -47,16 +47,16 @@ services:
 
       # Backup existing configs (if they exist and differ)
       echo '[3/6] Backing up existing configs...';
-      TIMESTAMP=$(date +%Y%m%d_%H%M%S);
+      TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
       if [ -f /var/solr/data/security.json ]; then
         echo '  - Backing up security.json';
-        cp /var/solr/data/security.json /var/solr/backup/configs/security.json.$TIMESTAMP 2>/dev/null || true;
+        cp /var/solr/data/security.json /var/solr/backup/configs/security.json.$$TIMESTAMP 2>/dev/null || true;
       fi;
       for file in /var/solr/data/configs/*; do
-        if [ -f "$file" ]; then
-          BASENAME=$(basename "$file");
-          echo "  - Backing up $BASENAME";
-          cp "$file" "/var/solr/backup/configs/${BASENAME}.${TIMESTAMP}" 2>/dev/null || true;
+        if [ -f "$$file" ]; then
+          BASENAME=$$(basename "$$file");
+          echo "  - Backing up $$BASENAME";
+          cp "$$file" "/var/solr/backup/configs/$${BASENAME}.$${TIMESTAMP}" 2>/dev/null || true;
         fi;
       done;
 
