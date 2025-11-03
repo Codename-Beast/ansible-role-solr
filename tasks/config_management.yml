@@ -1,8 +1,12 @@
 ---
-# Version: 1.3.1
+# Version: 1.3.4
 # Description: Unified configuration file management
 # Consolidates: config_generation.yml + moodle_schema_preparation.yml + auth_securityjson.yml validation
 # Reduction: 269 lines → 130 lines (52% reduction)
+# Changelog v1.3.4:
+#   - REMOVED: JSON/XML validation (moved to init-container)
+#   - REASON: Avoid duplicate validation (Ansible + init-container)
+#   - BENEFIT: Faster execution, single source of truth for validation
 # Changelog v1.3.1:
 #   - FIXED: Full idempotency support for unlimited re-runs
 #   - OPTIMIZED: Loop-based config file generation
@@ -29,23 +33,8 @@
     label: "{{ item.name }}"
   register: config_files_generated
 
-- name: config-mgmt - Validate JSON files
-  shell: cat {{ solr_config_dir }}/{{ item.name }} | jq empty
-  loop: "{{ solr_config_files }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: item.validate_json | default(false)
-  changed_when: false
-  register: json_validation
-
-- name: config-mgmt - Validate XML files
-  shell: xmllint --noout {{ solr_config_dir }}/{{ item.name }}
-  loop: "{{ solr_config_files }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: item.validate_xml | default(false)
-  changed_when: false
-  register: xml_validation
+# NOTE: Validation moved to init-container (jq + xmllint)
+# Init-container validates before deploying to avoid duplicate validation
 
 - name: config-mgmt - Calculate checksums for all config files
   stat:
@@ -103,8 +92,7 @@
       - "{% for item in solr_config_files %}  - {{ item.name }} ({{ item.template }}){% endfor %}"
       - ""
       - "VALIDATION:"
-      - "  JSON syntax: {{ 'PASSED' if json_validation is success else 'N/A' }}"
-      - "  XML syntax: {{ 'PASSED' if xml_validation is success else 'N/A' }}"
+      - "  Config syntax: Will be validated by init-container"
       - "  security.json structure: PASSED"
       - ""
       - "SECURITY.JSON:"
