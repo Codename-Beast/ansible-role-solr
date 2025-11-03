@@ -1,21 +1,47 @@
 ---
-# Version: 1.3.1
+# Version: 1.3.2
 # Description: Persist Solr credentials with idempotency and selective updates
+# Changelog v1.3.2:
+#   - FIXED: Support for dynamic inventory (inventory_dir may be undefined)
 # Changelog v1.3.1:
 #   - FIXED: No more duplicate entries in host_vars (proper marker usage)
 #   - FIXED: Idempotent backup (no timestamp in filename)
 #   - ADDED: Selective updates (only changed values)
 #   - OPTIMIZED: Can run unlimited times without side effects
 
+- name: auth-persist - Determine host_vars directory
+  set_fact:
+    host_vars_dir: >-
+      {{
+        inventory_dir | default(playbook_dir + '/host_vars_generated')
+        if (inventory_dir is defined and inventory_dir | length > 0 and inventory_dir != '/')
+        else playbook_dir + '/host_vars_generated'
+      }}
+  delegate_to: localhost
+
+- name: auth-persist - Check if host_vars directory is usable
+  set_fact:
+    can_persist_to_inventory: "{{ host_vars_dir != playbook_dir + '/host_vars_generated' }}"
+  delegate_to: localhost
+
+- name: auth-persist - Warn if using fallback directory
+  debug:
+    msg:
+      - "WARNING: inventory_dir is not available (dynamic inventory or localhost)"
+      - "Using fallback directory: {{ host_vars_dir }}"
+      - "Credentials will be saved but may not persist across runs"
+  when: not can_persist_to_inventory
+  delegate_to: localhost
+
 - name: auth-persist - Read current host_vars if exists
   stat:
-    path: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
+    path: "{{ host_vars_dir }}/{{ inventory_hostname }}"
   register: host_vars_file
   delegate_to: localhost
 
 - name: auth-persist - Create host_vars directory if needed
   file:
-    path: "{{ inventory_dir }}/host_vars"
+    path: "{{ host_vars_dir }}"
     state: directory
     mode: '0755'
   delegate_to: localhost
@@ -24,7 +50,7 @@
 
 - name: auth-persist - Update credentials in host_vars (idempotent)
   blockinfile:
-    path: "{{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
+    path: "{{ host_vars_dir }}/{{ inventory_hostname }}"
     create: yes
     marker: "# {mark} ANSIBLE MANAGED BLOCK - SOLR CREDENTIALS"
     marker_begin: "BEGIN"
@@ -52,68 +78,12 @@
   delegate_to: localhost
   run_once: true
 
-- name: auth-persist - Create or update credential backup (idempotent)
-  copy:
-    content: |
-      # Solr Credentials Backup
-      # Customer: {{ customer_name | default('default') }}
-      # Host: {{ inventory_hostname }}
-      # Last updated: {{ ansible_date_time.iso8601 }}
-      #
-      # KEEP THIS FILE SECURE - Contains plaintext passwords
+# SECURITY: Credential backup removed - passwords are only stored on Control Node
+# in $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/
+# and in container as hashes in /var/solr/data/security.json
 
-      Admin User: {{ solr_admin_user | default('admin') }}
-      Admin Password: {{ solr_admin_password }}
-
-      Support User: {{ solr_support_user | default('support') }}
-      Support Password: {{ solr_support_password }}
-
-      Customer User: {{ solr_customer_user | default('customer') }}
-      Customer Password: {{ solr_customer_password }}
-
-      Solr Port: {{ solr_port }}
-      Container: {{ solr_container_name }}
-      Core Name: {{ solr_core_name }}
-    dest: "/var/solr/.credentials_backup"
-    owner: "8983"
-    group: "8983"
-    mode: '0400'
-    backup: yes
-  become: true
-  when: solr_backup_credentials | default(true)
-
-- name: auth-persist - Update Rundeck credential file (idempotent)
-  copy:
-    content: |
-      {
-        "host": "{{ inventory_hostname }}",
-        "customer": "{{ customer_name | default('default') }}",
-        "solr_port": {{ solr_port }},
-        "solr_container": "{{ solr_container_name }}",
-        "core_name": "{{ solr_core_name }}",
-        "credentials": {
-          "admin": {
-            "username": "{{ solr_admin_user | default('admin') }}",
-            "password": "{{ solr_admin_password }}"
-          },
-          "support": {
-            "username": "{{ solr_support_user | default('support') }}",
-            "password": "{{ solr_support_password }}"
-          },
-          "customer": {
-            "username": "{{ solr_customer_user | default('customer') }}",
-            "password": "{{ solr_customer_password }}"
-          }
-        },
-        "last_updated": "{{ ansible_date_time.iso8601 }}",
-        "version": "1.3.1"
-      }
-    dest: "/var/solr/.rundeck_credentials.json"
-    owner: "8983"
-    group: "8983"
-    mode: '0400'
-  become: true
-  when: rundeck_integration_enabled | default(false)
+# SECURITY: Rundeck credential file removed - if Rundeck integration needed,
+# configure Rundeck to read from Control Node: $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/
 
 - name: auth-persist - Display persistence summary
   debug:
@@ -121,9 +91,9 @@
       - "========================================"
       - "CREDENTIALS PERSISTED (IDEMPOTENT)"
       - "========================================"
-      - "Host vars: {{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
-      - "Backup: /var/solr/.credentials_backup (with .backup~ on changes)"
-      - "Rundeck: {{ 'ENABLED' if rundeck_integration_enabled | default(false) else 'DISABLED' }}"
+      - "Host vars: {{ host_vars_dir }}/{{ inventory_hostname }}"
+      - "Control Node: $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/"
+      - "Container: /var/solr/data/security.json (hashes only)"
       - ""
       - "IDEMPOTENCY:"
       - "  - Multiple runs: No duplicates"
@@ -132,6 +102,9 @@
       - ""
       - "SECURITY:"
       - "  - Host_vars mode: 0600"
-      - "  - Backup mode: 0400"
+      - "  - Control Node passwords: mode 0600"
+      - "  - Container: Hashes only (SHA256 double-hash)"
       - "  - Encryption: ansible-vault encrypt host_vars/{{ inventory_hostname }}"
+      - ""
+      - "NOTE: Passwords NOT stored on target host (outside container)"
       - "========================================"

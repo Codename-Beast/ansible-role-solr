@@ -157,58 +157,26 @@
     <defaultQuery>*:*</defaultQuery>
   </admin>
 
-{% if solr_health_check_enabled | default(true) %}
   <!-- ====================================================================== -->
-  <!-- SOLR INTERNAL HEALTH CHECK HANDLER                                    -->
+  <!-- SOLR 9.9.0 INTERNAL HEALTH CHECK HANDLER                              -->
   <!-- ====================================================================== -->
   <!--
-    Solr 9.9.0 built-in health check handler
-    Endpoint: /admin/health
+    Solr 9.9.0 HealthCheckHandler is an IMPLICIT handler - it's available
+    by default without configuration in solrconfig.xml.
 
-    Provides detailed health information:
-    - Disk space availability
-    - Memory usage and heap statistics
-    - Index health and optimization status
-    - Cache hit ratios
-    - Request handler statistics
+    Available endpoints:
+    - /admin/health - Detailed health check with status information
 
-    Modes:
-    - basic: Minimal checks (disk space only)
-    - standard: Disk + memory + index (RECOMMENDED)
-    - comprehensive: All checks including cache statistics
+    Usage with request parameters (examples):
+    - /admin/health?requireHealthyCores=true
+    - /admin/health?maxGenerationLag=100
+
+    The handler is already configured and available. No explicit configuration
+    needed in solrconfig.xml. See Solr 9.9.0 documentation for all available
+    request parameters.
+
+    For BasicAuth: The endpoint is allowed without authentication in security.json
+    (see: permissions for /admin/health with role: null)
   -->
-  <healthCheckHandler name="/admin/health" class="solr.HealthCheckHandler">
-    <lst name="defaults">
-      <!-- Health check mode: basic, standard, comprehensive -->
-      <str name="healthCheckMode">{{ solr_health_check_mode | default('standard') }}</str>
-
-{% if solr_health_check_mode | default('standard') in ['standard', 'comprehensive'] %}
-      <!-- Disk space threshold (warn if less than X% free) -->
-      <int name="diskSpaceThresholdPercent">{{ solr_health_disk_threshold | default(10) }}</int>
-
-      <!-- Memory heap threshold (warn if more than X% used) -->
-      <int name="memoryHeapThresholdPercent">{{ solr_health_memory_threshold | default(90) }}</int>
-{% endif %}
-
-{% if solr_health_check_mode | default('standard') == 'comprehensive' %}
-      <!-- Cache hit ratio threshold (warn if below X%) -->
-      <int name="cacheHitRatioThresholdPercent">{{ solr_health_cache_threshold | default(75) }}</int>
-
-      <!-- Include detailed metrics in response -->
-      <bool name="includeMetrics">true</bool>
-
-      <!-- Check index optimization status -->
-      <bool name="checkIndexOptimization">true</bool>
-{% endif %}
-    </lst>
-  </healthCheckHandler>
-
-  <!-- Health Check Ping Handler (Simple health endpoint) -->
-  <healthCheckHandler name="/admin/healthcheck" class="solr.HealthCheckHandler">
-    <lst name="defaults">
-      <str name="healthCheckMode">basic</str>
-    </lst>
-  </healthCheckHandler>
-{% endif %}
 
 </config>

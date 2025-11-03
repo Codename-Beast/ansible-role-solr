@@ -20,6 +20,14 @@
     success_msg: "Password hashes available for API update"
   when: needs_api_update | default(false)
 
+- name: auth-api-update - Read old passwords from storage for authentication
+  set_fact:
+    old_admin_password: "{{ lookup('file', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/admin', errors='ignore') | default(solr_admin_password) }}"
+    old_support_password: "{{ lookup('file', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/support', errors='ignore') | default(solr_support_password) }}"
+    old_customer_password: "{{ lookup('file', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/customer', errors='ignore') | default(solr_customer_password) }}"
+  when: needs_api_update | default(false)
+  no_log: true
+
 - name: auth-api-update - Check if API update is needed
   debug:
     msg:
@@ -30,6 +38,7 @@
       - "Other configs changed: {{ other_configs_changed | default(false) }}"
       - "API update needed: {{ needs_api_update | default(false) }}"
       - "Method: Live update via Solr Authentication API"
+      - "Using OLD password for authentication, updating to NEW password"
       - "========================================"
   when: needs_api_update | default(false)
 
@@ -52,48 +61,51 @@
     url: "http://localhost:{{ solr_port }}/solr/admin/authentication"
     method: POST
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ old_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
       set-user:
-        "{{ solr_admin_user }}": "{{ admin_password_hash }}"
+        "{{ solr_admin_user }}": "{{ solr_admin_password }}"
     status_code: 200
   when: needs_api_update | default(false)
   register: admin_update
   failed_when: false
+  no_log: true
 
 - name: auth-api-update - Update support user credentials via API
   uri:
     url: "http://localhost:{{ solr_port }}/solr/admin/authentication"
     method: POST
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ old_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
       set-user:
-        "{{ solr_support_user }}": "{{ support_password_hash }}"
+        "{{ solr_support_user }}": "{{ solr_support_password }}"
     status_code: 200
   when: needs_api_update | default(false)
   register: support_update
   failed_when: false
+  no_log: true
 
 - name: auth-api-update - Update customer user credentials via API
   uri:
     url: "http://localhost:{{ solr_port }}/solr/admin/authentication"
     method: POST
     user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
+    password: "{{ old_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
       set-user:
-        "{{ solr_customer_user }}": "{{ customer_password_hash }}"
+        "{{ solr_customer_user }}": "{{ solr_customer_password }}"
     status_code: 200
   when: needs_api_update | default(false)
   register: customer_update
   failed_when: false
+  no_log: true
 
 - name: auth-api-update - Verify all credentials updated successfully
   assert:

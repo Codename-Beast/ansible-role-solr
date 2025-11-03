@@ -45,7 +45,6 @@
     label: "{{ item.name }}"
   when: item.validate_xml | default(false)
   changed_when: false
-  failed_when: false
   register: xml_validation
 
 - name: config-mgmt - Calculate checksums for all config files

@@ -79,8 +79,8 @@ solr_health_cache_threshold: 75      # Warn if cache hit ratio below X% (compreh
 # ============================================================================
 solr_version: "9.9.0"
 solr_major_version: "{{ solr_version.split('.')[0] }}"
-solr_container_name: "solr_{{ customer_name | default('default_eledia') }}"
-solr_volume_name: "solr_data_{{ customer_name | default('default_eledia') }}"
+solr_container_name: "solr_{{ customer_name | default('default') }}"
+solr_volume_name: "solr_data_{{ customer_name | default('default') }}"
 solr_network_name: "solr_network"
 solr_create_systemd_service: false
 solr_port: 8983
@@ -136,19 +136,18 @@ solr_backup_configs_before_update: true
 # ============================================================================
 # CORE CONFIGURATION
 # ============================================================================
-# Core name sanitization (max 10 chars total: 6 chars + "_core" suffix = 11 chars, but Solr allows up to 255)
-# For strict 10 char limit, use [:6] before adding "_core" (6+5=11), or [:10] without suffix
+# Core name sanitization (max 50 chars including "_core" suffix, Solr allows up to 255)
+# Logic: Take first 45 chars of domain/customer_name, sanitize, add "_core" suffix
 solr_core_name_raw: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else customer_name | default('default') }}"
-solr_core_name_sanitized: "{{ solr_core_name_raw[:20] | regex_replace('[^a-zA-Z0-9_]', '_') | lower }}"
-# Only add _core suffix if not already present and total length <= 50 chars (Solr supports up to 255)
-solr_core_name: "{{ solr_core_name_sanitized if solr_core_name_sanitized.endswith('_core') else (solr_core_name_sanitized[:45] + '_core') if solr_core_name_sanitized|length > 45 else solr_core_name_sanitized + '_core' }}"
+solr_core_name_base: "{{ solr_core_name_raw[:45] | regex_replace('[^a-zA-Z0-9_]', '_') | lower }}"
+solr_core_name: "{{ solr_core_name_base }}_core"
 solr_core_config: "moodle_configs"
 # ============================================================================
 # MEMORY CONFIGURATION
 # ============================================================================
 solr_heap_size: "2g"
-solr_memory_limit: "2g"
-solr_memory_swap: "2g"
+solr_memory_limit: "4g"  # Must be >= heap + 50% for non-heap memory (metaspace, buffers, threads)
+solr_memory_swap: "4g"
 solr_cpu_quota: 100000
 solr_cpu_period: 100000
 # ============================================================================

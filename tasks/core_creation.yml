@@ -199,21 +199,24 @@
 
 # ---------------- Fallback: lay down core in volume (incl. schema.xml) ----------------
 
-- name: install-solr  Fallback lay down core instance into volume
+- name: install-solr - Fallback lay down core instance into volume (with correct UID)
   community.docker.docker_container:
     name: "solr_busybox_{{ ansible_date_time.epoch }}"
     image: busybox
     state: started
     detach: false
     cleanup: true
+    user: "8983:8983"
     volumes:
       - "{{ solr_volume_name }}:/data"
       - "/tmp/solr_conf_{{ solr_core_config }}:/tmp/conf:ro"
     command: >
-      sh -lc "
+      sh -c "
       mkdir -p /data/{{ solr_core_name }}/conf &&
       cp -r /tmp/conf/* /data/{{ solr_core_name }}/conf/ &&
       printf 'name={{ solr_core_name }}\nconfigSet={{ solr_core_config }}\n' > /data/{{ solr_core_name }}/core.properties &&
+      chmod 0644 /data/{{ solr_core_name }}/core.properties &&
+      chmod 0755 /data/{{ solr_core_name }}/conf &&
       ls -la /data/{{ solr_core_name }}/conf"
   register: copy_conf
   when: not core_instance_present and not (core_creation is defined and core_creation.status == 200)
