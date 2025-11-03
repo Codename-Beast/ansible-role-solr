@@ -66,7 +66,7 @@
     body_format: json
     body:
       set-user:
-        "{{ solr_admin_user }}": "{{ admin_password_hash }}"
+        "{{ solr_admin_user }}": "{{ solr_admin_password }}"
     status_code: 200
   when: needs_api_update | default(false)
   register: admin_update
@@ -83,7 +83,7 @@
     body_format: json
     body:
       set-user:
-        "{{ solr_support_user }}": "{{ support_password_hash }}"
+        "{{ solr_support_user }}": "{{ solr_support_password }}"
     status_code: 200
   when: needs_api_update | default(false)
   register: support_update
@@ -100,7 +100,7 @@
     body_format: json
     body:
       set-user:
-        "{{ solr_customer_user }}": "{{ customer_password_hash }}"
+        "{{ solr_customer_user }}": "{{ solr_customer_password }}"
     status_code: 200
   when: needs_api_update | default(false)
   register: customer_update

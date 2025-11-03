@@ -213,16 +213,6 @@
       loop_control:
         label: "{{ item.name }}"
 
-    - name: auth-mgmt - Create password storage directory on target host
-  file:
-    path: "{{ solr_config_dir }}/.passwords"
-    state: directory
-    owner: root
-    group: root
-    mode: '0700'
-  become: true
-  when: not skip_auth
-
 - name: auth-mgmt - Create password storage directory on control node
   file:
     path: "{{ lookup('env', 'HOME') }}/.ansible-solr-passwords/{{ inventory_hostname }}"

@@ -78,68 +78,12 @@
   delegate_to: localhost
   run_once: true
 
-- name: auth-persist - Create or update credential backup (idempotent)
-  copy:
-    content: |
-      # Solr Credentials Backup
-      # Customer: {{ customer_name | default('default') }}
-      # Host: {{ inventory_hostname }}
-      # Last updated: {{ ansible_date_time.iso8601 }}
-      #
-      # KEEP THIS FILE SECURE - Contains plaintext passwords
+# SECURITY: Credential backup removed - passwords are only stored on Control Node
+# in $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/
+# and in container as hashes in /var/solr/data/security.json
 
-      Admin User: {{ solr_admin_user | default('admin') }}
-      Admin Password: {{ solr_admin_password }}
-
-      Support User: {{ solr_support_user | default('support') }}
-      Support Password: {{ solr_support_password }}
-
-      Customer User: {{ solr_customer_user | default('customer') }}
-      Customer Password: {{ solr_customer_password }}
-
-      Solr Port: {{ solr_port }}
-      Container: {{ solr_container_name }}
-      Core Name: {{ solr_core_name }}
-    dest: "/var/solr/.credentials_backup"
-    owner: "8983"
-    group: "8983"
-    mode: '0400'
-    backup: yes
-  become: true
-  when: solr_backup_credentials | default(true)
-
-- name: auth-persist - Update Rundeck credential file (idempotent)
-  copy:
-    content: |
-      {
-        "host": "{{ inventory_hostname }}",
-        "customer": "{{ customer_name | default('default') }}",
-        "solr_port": {{ solr_port }},
-        "solr_container": "{{ solr_container_name }}",
-        "core_name": "{{ solr_core_name }}",
-        "credentials": {
-          "admin": {
-            "username": "{{ solr_admin_user | default('admin') }}",
-            "password": "{{ solr_admin_password }}"
-          },
-          "support": {
-            "username": "{{ solr_support_user | default('support') }}",
-            "password": "{{ solr_support_password }}"
-          },
-          "customer": {
-            "username": "{{ solr_customer_user | default('customer') }}",
-            "password": "{{ solr_customer_password }}"
-          }
-        },
-        "last_updated": "{{ ansible_date_time.iso8601 }}",
-        "version": "1.3.1"
-      }
-    dest: "/var/solr/.rundeck_credentials.json"
-    owner: "8983"
-    group: "8983"
-    mode: '0400'
-  become: true
-  when: rundeck_integration_enabled | default(false)
+# SECURITY: Rundeck credential file removed - if Rundeck integration needed,
+# configure Rundeck to read from Control Node: $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/
 
 - name: auth-persist - Display persistence summary
   debug:
@@ -147,9 +91,9 @@
       - "========================================"
       - "CREDENTIALS PERSISTED (IDEMPOTENT)"
       - "========================================"
-      - "Host vars: {{ inventory_dir }}/host_vars/{{ inventory_hostname }}"
-      - "Backup: /var/solr/.credentials_backup (with .backup~ on changes)"
-      - "Rundeck: {{ 'ENABLED' if rundeck_integration_enabled | default(false) else 'DISABLED' }}"
+      - "Host vars: {{ host_vars_dir }}/{{ inventory_hostname }}"
+      - "Control Node: $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/"
+      - "Container: /var/solr/data/security.json (hashes only)"
       - ""
       - "IDEMPOTENCY:"
       - "  - Multiple runs: No duplicates"
@@ -158,6 +102,9 @@
       - ""
       - "SECURITY:"
       - "  - Host_vars mode: 0600"
-      - "  - Backup mode: 0400"
+      - "  - Control Node passwords: mode 0600"
+      - "  - Container: Hashes only (SHA256 double-hash)"
       - "  - Encryption: ansible-vault encrypt host_vars/{{ inventory_hostname }}"
+      - ""
+      - "NOTE: Passwords NOT stored on target host (outside container)"
       - "========================================"

@@ -252,7 +252,7 @@
   when: not can_skip
 
 - name: solr-deployment - Check if volume exists
-  docker_volume_info:
+  community.docker.docker_volume_info:
     name: "{{ solr_volume_name }}"
   register: volume_inspect
   failed_when: false
