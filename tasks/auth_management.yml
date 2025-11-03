@@ -175,13 +175,13 @@
     auth_users_with_passwords:
       - name: admin
         username: "{{ solr_admin_user | default('admin') }}"
-        password: "{{ solr_admin_password | default(lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/admin chars=ascii_letters,digits length=20')) }}"
+        password: "{{ solr_admin_password if (solr_admin_password is defined and solr_admin_password | length > 0) else lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/admin chars=ascii_letters,digits length=20') }}"
       - name: support
         username: "{{ solr_support_user | default('support') }}"
-        password: "{{ solr_support_password | default(lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/support chars=ascii_letters,digits length=16')) }}"
+        password: "{{ solr_support_password if (solr_support_password is defined and solr_support_password | length > 0) else lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/support chars=ascii_letters,digits length=16') }}"
       - name: customer
         username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password | default(lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/customer chars=ascii_letters,digits length=16')) }}"
+        password: "{{ solr_customer_password if (solr_customer_password is defined and solr_customer_password | length > 0) else lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/customer chars=ascii_letters,digits length=16') }}"
   no_log: true
   when: not skip_auth
 
