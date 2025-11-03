@@ -156,11 +156,13 @@
         - verify_temp_dir.path is defined
       failed_when: false
 
-  when: existing_security_json.stat.exists
+  when:
+    - existing_security_json.stat.exists
+    - security_json_parsed is defined
 
 - name: auth-mgmt - Determine skip_auth flag
   set_fact:
-    skip_auth: "{{ existing_security_json.stat.exists and hash_verification is defined and (hash_verification.results | selectattr('stdout', 'equalto', 'mismatch') | list | length == 0) }}"
+    skip_auth: "{{ not (solr_force_reconfigure_auth | default(false)) and existing_security_json.stat.exists and hash_verification is defined and (hash_verification.results | selectattr('stdout', 'equalto', 'mismatch') | list | length == 0) }}"
 
 - name: auth-mgmt - Display detection result
   debug:
@@ -213,27 +215,60 @@
       loop_control:
         label: "{{ item.name }}"
 
-- name: auth-mgmt - Create password storage directory on control node
-  file:
-    path: "{{ lookup('env', 'HOME') }}/.ansible-solr-passwords/{{ inventory_hostname }}"
-    state: directory
-    mode: '0700'
-  delegate_to: localhost
-  run_once: false
+# ============================================================================
+# PART 2B: PASSWORD RESOLUTION - Load from host_vars or generate
+# ============================================================================
+
+- name: auth-mgmt - Check if passwords are defined in host_vars
+  set_fact:
+    passwords_from_hostvars:
+      admin_defined: "{{ solr_admin_password is defined and solr_admin_password | length > 0 }}"
+      support_defined: "{{ solr_support_password is defined and solr_support_password | length > 0 }}"
+      customer_defined: "{{ solr_customer_password is defined and solr_customer_password | length > 0 }}"
   when: not skip_auth
 
-- name: auth-mgmt - Resolve or generate passwords
+- name: auth-mgmt - Display password source
+  debug:
+    msg:
+      - "Password sources:"
+      - "  Admin: {{ 'host_vars' if (passwords_from_hostvars.admin_defined | default(false)) else 'UNDEFINED - will fail' }}"
+      - "  Support: {{ 'host_vars' if (passwords_from_hostvars.support_defined | default(false)) else 'UNDEFINED - will fail' }}"
+      - "  Customer: {{ 'host_vars' if (passwords_from_hostvars.customer_defined | default(false)) else 'UNDEFINED - will fail' }}"
+  when: not skip_auth
+
+- name: auth-mgmt - Validate all passwords are defined in host_vars
+  assert:
+    that:
+      - passwords_from_hostvars.admin_defined | default(false)
+      - passwords_from_hostvars.support_defined | default(false)
+      - passwords_from_hostvars.customer_defined | default(false)
+    fail_msg: |
+      CRITICAL: Passwords must be defined in host_vars!
+
+      Missing passwords:
+        Admin: {{ 'OK' if (passwords_from_hostvars.admin_defined | default(false)) else 'MISSING' }}
+        Support: {{ 'OK' if (passwords_from_hostvars.support_defined | default(false)) else 'MISSING' }}
+        Customer: {{ 'OK' if (passwords_from_hostvars.customer_defined | default(false)) else 'MISSING' }}
+
+      Please define passwords in host_vars/{{ inventory_hostname }}:
+        solr_admin_password: "your_secure_password"
+        solr_support_password: "your_secure_password"
+        solr_customer_password: "your_secure_password"
+    success_msg: "All passwords loaded from host_vars"
+  when: not skip_auth
+
+- name: auth-mgmt - Build auth_users_with_passwords list
   set_fact:
     auth_users_with_passwords:
       - name: admin
         username: "{{ solr_admin_user | default('admin') }}"
-        password: "{{ solr_admin_password if (solr_admin_password is defined and solr_admin_password | length > 0) else lookup('password', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/admin chars=ascii_letters,digits length=20') }}"
+        password: "{{ solr_admin_password }}"
       - name: support
         username: "{{ solr_support_user | default('support') }}"
-        password: "{{ solr_support_password if (solr_support_password is defined and solr_support_password | length > 0) else lookup('password', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/support chars=ascii_letters,digits length=16') }}"
+        password: "{{ solr_support_password }}"
       - name: customer
         username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password if (solr_customer_password is defined and solr_customer_password | length > 0) else lookup('password', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/customer chars=ascii_letters,digits length=16') }}"
+        password: "{{ solr_customer_password }}"
   no_log: true
   when: not skip_auth
 
