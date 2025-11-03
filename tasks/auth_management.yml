@@ -124,6 +124,19 @@
       - "Skip auth regeneration: {{ skip_auth }}"
 
 # ============================================================================
+# CRITICAL FIX: Extract existing hashes when skip_auth=true
+# ============================================================================
+# When hashes match (skip_auth=true), we still need to set the hash variables
+# because security.json template requires them. Without this, template rendering fails.
+
+- name: auth-mgmt - Extract existing password hashes from security.json
+  set_fact:
+    admin_password_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user | default('admin')] }}"
+    support_password_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user | default('support')] }}"
+    customer_password_hash: "{{ security_json_parsed.authentication.credentials[solr_customer_user | default('customer')] }}"
+  when: skip_auth and existing_security_json.stat.exists
+
+# ============================================================================
 # PART 2: HASHING - Generate new hashes if needed
 # ============================================================================
 

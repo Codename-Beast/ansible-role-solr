@@ -139,7 +139,9 @@ services:
       - {{ solr_network_name }}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -s http://localhost:8983/solr/admin/info/system?wt=json | grep -q '\"status\":0' || exit 1"]
+      # Uses /admin/ping which is allowed without authentication (see security.json)
+      # This ensures health checks work even with BasicAuth enabled
+      test: ["CMD-SHELL", "curl -f http://localhost:8983/solr/admin/ping?wt=json || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
