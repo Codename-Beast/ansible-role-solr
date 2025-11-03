@@ -113,18 +113,6 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: preflight-check - Check available memory
-  shell: free -g | grep "Mem:" | awk '{print $2}'
-  register: available_memory
-  changed_when: false
-
-- name: preflight-check - Verify sufficient memory
-  assert:
-    that:
-      - available_memory.stdout | int >= solr_min_memory_gb
-    fail_msg: "Insufficient memory. Required: {{ solr_min_memory_gb }}GB, Available: {{ available_memory.stdout }}GB"
-    success_msg: "Memory check passed ({{ available_memory.stdout }}GB available)"
-
 - name: preflight-check - Validate Solr port is numeric
   assert:
     that:

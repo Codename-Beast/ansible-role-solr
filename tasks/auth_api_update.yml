@@ -20,125 +20,24 @@
     success_msg: "Password hashes available for API update"
   when: needs_api_update | default(false)
 
-- name: auth-api-update - Read old passwords from storage for authentication
+# SECURITY: API Update disabled - no password storage on Control Node
+# When passwords change, container will be restarted instead
+# This ensures consistent state without needing old password storage
+
+- name: auth-api-update - Disable API update (use container restart instead)
+  debug:
+    msg: |
+      API password updates are disabled for security reasons.
+      Container will be restarted with new passwords.
+      This provides better security (no password files on Control Node).
+  when: needs_api_update | default(false)
+
+- name: auth-api-update - Force container restart for password changes
   set_fact:
-    old_admin_password: "{{ lookup('file', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/admin', errors='ignore') | default(solr_admin_password) }}"
-    old_support_password: "{{ lookup('file', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/support', errors='ignore') | default(solr_support_password) }}"
-    old_customer_password: "{{ lookup('file', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/customer', errors='ignore') | default(solr_customer_password) }}"
-  when: needs_api_update | default(false)
-  no_log: true
-
-- name: auth-api-update - Check if API update is needed
-  debug:
-    msg:
-      - "========================================"
-      - "AUTHENTICATION API UPDATE"
-      - "========================================"
-      - "Security.json changed: {{ security_json_changed | default(false) }}"
-      - "Other configs changed: {{ other_configs_changed | default(false) }}"
-      - "API update needed: {{ needs_api_update | default(false) }}"
-      - "Method: Live update via Solr Authentication API"
-      - "Using OLD password for authentication, updating to NEW password"
-      - "========================================"
+    needs_restart: true
+    can_skip: false
+    needs_api_update: false
   when: needs_api_update | default(false)
 
-- name: auth-api-update - Copy new security.json to container
-  command: >
-    docker cp {{ solr_config_dir }}/security.json
-    {{ solr_container_name }}:/var/solr/data/security.json
-  when: needs_api_update | default(false)
-  register: security_json_copied
-
-- name: auth-api-update - Set ownership for security.json in container
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    user: "0"
-    command: "chown 8983:8983 /var/solr/data/security.json"
-  when: needs_api_update | default(false)
-
-- name: auth-api-update - Update admin user credentials via API
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/authentication"
-    method: POST
-    user: "{{ solr_admin_user }}"
-    password: "{{ old_admin_password }}"
-    force_basic_auth: yes
-    body_format: json
-    body:
-      set-user:
-        "{{ solr_admin_user }}": "{{ solr_admin_password }}"
-    status_code: 200
-  when: needs_api_update | default(false)
-  register: admin_update
-  failed_when: false
-  no_log: true
-
-- name: auth-api-update - Update support user credentials via API
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/authentication"
-    method: POST
-    user: "{{ solr_admin_user }}"
-    password: "{{ old_admin_password }}"
-    force_basic_auth: yes
-    body_format: json
-    body:
-      set-user:
-        "{{ solr_support_user }}": "{{ solr_support_password }}"
-    status_code: 200
-  when: needs_api_update | default(false)
-  register: support_update
-  failed_when: false
-  no_log: true
-
-- name: auth-api-update - Update customer user credentials via API
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/authentication"
-    method: POST
-    user: "{{ solr_admin_user }}"
-    password: "{{ old_admin_password }}"
-    force_basic_auth: yes
-    body_format: json
-    body:
-      set-user:
-        "{{ solr_customer_user }}": "{{ solr_customer_password }}"
-    status_code: 200
-  when: needs_api_update | default(false)
-  register: customer_update
-  failed_when: false
-  no_log: true
-
-- name: auth-api-update - Verify all credentials updated successfully
-  assert:
-    that:
-      - admin_update.status == 200 or admin_update is skipped
-      - support_update.status == 200 or support_update is skipped
-      - customer_update.status == 200 or customer_update is skipped
-    fail_msg: "Failed to update credentials via API"
-    success_msg: "All credentials updated successfully via API"
-  when: needs_api_update | default(false)
-
-- name: auth-api-update - Test updated credentials
-  uri:
-    url: "http://localhost:{{ solr_port }}/solr/admin/info/system"
-    method: GET
-    user: "{{ solr_admin_user }}"
-    password: "{{ solr_admin_password }}"
-    force_basic_auth: yes
-    status_code: 200
-  when: needs_api_update | default(false)
-  register: credentials_test
-
-- name: auth-api-update - Display API update summary
-  debug:
-    msg:
-      - "========================================"
-      - "API UPDATE COMPLETED"
-      - "========================================"
-      - "Container restart: NOT REQUIRED"
-      - "Downtime: ZERO"
-      - "Admin user: {{ 'UPDATED' if admin_update.changed else 'UNCHANGED' }}"
-      - "Support user: {{ 'UPDATED' if support_update.changed else 'UNCHANGED' }}"
-      - "Customer user: {{ 'UPDATED' if customer_update.changed else 'UNCHANGED' }}"
-      - "Verification: {{ 'PASSED' if credentials_test.status == 200 else 'FAILED' }}"
-      - "========================================"
-  when: needs_api_update | default(false)
+# API Update tasks removed - password changes now trigger container restart
+# This is more secure as it doesn't require storing old passwords

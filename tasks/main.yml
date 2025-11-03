@@ -77,9 +77,25 @@
   tags:
     - install-solr-auth
 
+- name: install-solr - Validate passwords before persistence
+  assert:
+    that:
+      - solr_admin_password is defined and solr_admin_password | length > 0
+      - solr_support_password is defined and solr_support_password | length > 0
+      - solr_customer_password is defined and solr_customer_password | length > 0
+    fail_msg: |
+      Cannot persist undefined or empty passwords to host_vars.
+      This indicates a bug in auth_management.yml.
+    success_msg: "All passwords validated before persistence"
+  when: solr_auth_enabled | default(true)
+  tags:
+    - install-solr-auth
+
 - name: install-solr - Auth persist credentials
   include_tasks: auth_persistence.yml
-  when: solr_auth_enabled | default(true)
+  when:
+    - solr_auth_enabled | default(true)
+    - not skip_auth | default(false)
   tags:
     - install-solr-auth
 
