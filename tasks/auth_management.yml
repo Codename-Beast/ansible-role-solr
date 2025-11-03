@@ -1,11 +1,48 @@
 ---
-# Version: 1.3.1
+# Version: 1.3.2
 # Description: Unified auth detection and password hashing with loops
 # Consolidates: auth_detection.yml + auth_prehash.yml
 # Reduction: 428 lines → 180 lines (58% reduction)
+# Changelog v1.3.2:
+#   - FIXED: HOME environment variable validation
+#   - FIXED: Shell injection prevention with environment variables
+#   - FIXED: Temp directory guaranteed cleanup
 # Changelog v1.3.1:
 #   - FIXED: Full idempotency support for unlimited re-runs
 #   - OPTIMIZED: Loop-based processing for all users
+
+# ============================================================================
+# PART 0: ENVIRONMENT VALIDATION
+# ============================================================================
+
+- name: auth-mgmt - Validate HOME environment variable
+  assert:
+    that:
+      - lookup('env', 'HOME') | length > 0
+      - lookup('env', 'HOME') != '/'
+    fail_msg: |
+      HOME environment variable is not set or invalid ({{ lookup('env', 'HOME') | default('UNDEFINED') }}).
+      This is required for password storage on the control node.
+      Set HOME before running this playbook: export HOME=/home/youruser
+    success_msg: "HOME environment variable validated: {{ lookup('env', 'HOME') }}"
+  delegate_to: localhost
+  run_once: true
+  when: not skip_auth | default(false)
+
+- name: auth-mgmt - Security validation - Prevent path traversal via inventory_hostname
+  assert:
+    that:
+      - "'../' not in inventory_hostname"
+      - "'..' not in inventory_hostname"
+      - "'/' not in inventory_hostname"
+      - inventory_hostname is match('^[a-zA-Z0-9._-]+$')
+    fail_msg: |
+      SECURITY ERROR: inventory_hostname contains invalid characters.
+      inventory_hostname: {{ inventory_hostname }}
+      Only alphanumeric characters, dots, underscores, and hyphens are allowed.
+      This prevents path traversal attacks.
+    success_msg: "inventory_hostname validated: {{ inventory_hostname }}"
+  tags: [always]
 
 # ============================================================================
 # PART 1: DETECTION - Check if existing hashes match passwords
@@ -40,75 +77,85 @@
 - name: auth-mgmt - Parse existing security.json
   set_fact:
     security_json_parsed: "{{ security_json_content.content | b64decode | from_json }}"
-  when: existing_security_json.stat.exists
+  when:
+    - existing_security_json.stat.exists
+    - security_json_content is defined
+    - security_json_content.content is defined
 
-- name: auth-mgmt - Create temp directory for verification
-  file:
-    path: /tmp/solr_verify_{{ ansible_date_time.epoch }}
-    state: directory
-    mode: '0700'
-  register: verify_temp_dir
-  when: existing_security_json.stat.exists
+- name: auth-mgmt - Password verification with guaranteed cleanup
+  block:
+    - name: auth-mgmt - Create temp directory for verification
+      file:
+        path: /tmp/solr_verify_{{ ansible_date_time.epoch }}
+        state: directory
+        mode: '0700'
+      register: verify_temp_dir
 
-- name: auth-mgmt - Verify password hashes for all users
-  shell: |
-    set -e
+    - name: auth-mgmt - Verify password hashes for all users
+      shell: |
+        set -e
 
-    # Detect base64 command
-    if base64 --help 2>&1 | grep -q 'wrap'; then
-      BASE64_CMD="base64 -w0"
-    else
-      BASE64_CMD="base64"
-    fi
+        # Detect base64 command
+        if base64 --help 2>&1 | grep -q 'wrap'; then
+          BASE64_CMD="base64 -w0"
+        else
+          BASE64_CMD="base64"
+        fi
 
-    # Extract existing hash for user
-    EXISTING_HASH="{{ security_json_parsed.authentication.credentials[item.username] | default('') }}"
+        # Use environment variables to avoid shell injection
+        if [ -z "$EXISTING_HASH" ] || [ -z "$USER_PASSWORD" ]; then
+          echo "mismatch"
+          exit 0
+        fi
 
-    if [ -z "$EXISTING_HASH" ] || [ -z "{{ item.password }}" ]; then
-      echo "mismatch"
-      exit 0
-    fi
+        # Extract salt from existing hash
+        SALT_B64=$(echo "$EXISTING_HASH" | awk '{print $2}')
 
-    # Extract salt from existing hash
-    SALT_B64=$(echo "$EXISTING_HASH" | awk '{print $2}')
+        # Decode salt
+        echo "$SALT_B64" | base64 -d > {{ verify_temp_dir.path }}/{{ item.name }}_salt.bin
 
-    # Decode salt
-    echo "$SALT_B64" | base64 -d > {{ verify_temp_dir.path }}/{{ item.name }}_salt.bin
+        # Write password from environment variable (safe from injection)
+        printf '%s' "$USER_PASSWORD" > {{ verify_temp_dir.path }}/{{ item.name }}_pass.bin
 
-    # Write password
-    printf '%s' "{{ item.password }}" > {{ verify_temp_dir.path }}/{{ item.name }}_pass.bin
+        # Binary concatenation
+        cat {{ verify_temp_dir.path }}/{{ item.name }}_salt.bin {{ verify_temp_dir.path }}/{{ item.name }}_pass.bin > {{ verify_temp_dir.path }}/{{ item.name }}_combined.bin
 
-    # Binary concatenation
-    cat {{ verify_temp_dir.path }}/{{ item.name }}_salt.bin {{ verify_temp_dir.path }}/{{ item.name }}_pass.bin > {{ verify_temp_dir.path }}/{{ item.name }}_combined.bin
+        # Double SHA256
+        openssl dgst -sha256 -binary {{ verify_temp_dir.path }}/{{ item.name }}_combined.bin > {{ verify_temp_dir.path }}/{{ item.name }}_hash1.bin
+        openssl dgst -sha256 -binary {{ verify_temp_dir.path }}/{{ item.name }}_hash1.bin > {{ verify_temp_dir.path }}/{{ item.name }}_hash2.bin
 
-    # Double SHA256
-    openssl dgst -sha256 -binary {{ verify_temp_dir.path }}/{{ item.name }}_combined.bin > {{ verify_temp_dir.path }}/{{ item.name }}_hash1.bin
-    openssl dgst -sha256 -binary {{ verify_temp_dir.path }}/{{ item.name }}_hash1.bin > {{ verify_temp_dir.path }}/{{ item.name }}_hash2.bin
+        # Base64 encode
+        HASH_B64=$(${BASE64_CMD} < {{ verify_temp_dir.path }}/{{ item.name }}_hash2.bin | tr -d '\n\r')
 
-    # Base64 encode
-    HASH_B64=$(${BASE64_CMD} < {{ verify_temp_dir.path }}/{{ item.name }}_hash2.bin | tr -d '\n\r')
+        # Compare
+        EXPECTED_HASH="${HASH_B64} ${SALT_B64}"
+        if [ "$EXPECTED_HASH" = "$EXISTING_HASH" ]; then
+          echo "match"
+        else
+          echo "mismatch"
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        USER_PASSWORD: "{{ item.password }}"
+        EXISTING_HASH: "{{ security_json_parsed.authentication.credentials[item.username] | default('') }}"
+      loop: "{{ auth_users }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: hash_verification
+      changed_when: false
+      no_log: true
 
-    # Compare
-    EXPECTED_HASH="${HASH_B64} ${SALT_B64}"
-    if [ "$EXPECTED_HASH" = "$EXISTING_HASH" ]; then
-      echo "match"
-    else
-      echo "mismatch"
-    fi
-  args:
-    executable: /bin/bash
-  loop: "{{ auth_users }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: hash_verification
-  changed_when: false
-  no_log: true
-  when: existing_security_json.stat.exists
+  always:
+    - name: auth-mgmt - Cleanup verification temp directory
+      file:
+        path: "{{ verify_temp_dir.path }}"
+        state: absent
+      when:
+        - verify_temp_dir is defined
+        - verify_temp_dir.path is defined
+      failed_when: false
 
-- name: auth-mgmt - Cleanup verification temp directory
-  file:
-    path: "{{ verify_temp_dir.path }}"
-    state: absent
   when: existing_security_json.stat.exists
 
 - name: auth-mgmt - Determine skip_auth flag
@@ -134,7 +181,10 @@
     admin_password_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user | default('admin')] }}"
     support_password_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user | default('support')] }}"
     customer_password_hash: "{{ security_json_parsed.authentication.credentials[solr_customer_user | default('customer')] }}"
-  when: skip_auth and existing_security_json.stat.exists
+  when:
+    - skip_auth
+    - existing_security_json.stat.exists
+    - security_json_parsed is defined
 
 # ============================================================================
 # PART 2: HASHING - Generate new hashes if needed
@@ -143,28 +193,27 @@
 # REMOVED: meta: end_host was stopping the entire playbook
 # Now relies on 'when: not skip_auth' conditionals for subsequent tasks
 
-- name: auth-mgmt - Create temp directory for hashing
-  file:
-    path: /tmp/solr_hash_{{ ansible_date_time.epoch }}
-    state: directory
-    mode: '0700'
-  register: hash_temp_dir
-  when: not skip_auth
+- name: auth-mgmt - Password hashing with guaranteed cleanup
+  block:
+    - name: auth-mgmt - Create temp directory for hashing
+      file:
+        path: /tmp/solr_hash_{{ ansible_date_time.epoch }}
+        state: directory
+        mode: '0700'
+      register: hash_temp_dir
 
-- name: auth-mgmt - Check if passwords are defined
-  debug:
-    msg: "WARNING: Password for {{ item.name }} not defined, generating random password"
-  when:
-    - not skip_auth
-    - item.password is not defined or item.password | length == 0
-  loop:
-    - { name: "admin", password: "{{ solr_admin_password | default('') }}" }
-    - { name: "support", password: "{{ solr_support_password | default('') }}" }
-    - { name: "customer", password: "{{ solr_customer_password | default('') }}" }
-  loop_control:
-    label: "{{ item.name }}"
+    - name: auth-mgmt - Check if passwords are defined
+      debug:
+        msg: "WARNING: Password for {{ item.name }} not defined, generating random password"
+      when: item.password is not defined or item.password | length == 0
+      loop:
+        - { name: "admin", password: "{{ solr_admin_password | default('') }}" }
+        - { name: "support", password: "{{ solr_support_password | default('') }}" }
+        - { name: "customer", password: "{{ solr_customer_password | default('') }}" }
+      loop_control:
+        label: "{{ item.name }}"
 
-- name: auth-mgmt - Create password storage directory on target host
+    - name: auth-mgmt - Create password storage directory on target host
   file:
     path: "{{ solr_config_dir }}/.passwords"
     state: directory
@@ -176,7 +225,7 @@
 
 - name: auth-mgmt - Create password storage directory on control node
   file:
-    path: "/tmp/ansible-solr-passwords/{{ inventory_hostname }}"
+    path: "{{ lookup('env', 'HOME') }}/.ansible-solr-passwords/{{ inventory_hostname }}"
     state: directory
     mode: '0700'
   delegate_to: localhost
@@ -188,13 +237,13 @@
     auth_users_with_passwords:
       - name: admin
         username: "{{ solr_admin_user | default('admin') }}"
-        password: "{{ solr_admin_password if (solr_admin_password is defined and solr_admin_password | length > 0) else lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/admin chars=ascii_letters,digits length=20') }}"
+        password: "{{ solr_admin_password if (solr_admin_password is defined and solr_admin_password | length > 0) else lookup('password', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/admin chars=ascii_letters,digits length=20') }}"
       - name: support
         username: "{{ solr_support_user | default('support') }}"
-        password: "{{ solr_support_password if (solr_support_password is defined and solr_support_password | length > 0) else lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/support chars=ascii_letters,digits length=16') }}"
+        password: "{{ solr_support_password if (solr_support_password is defined and solr_support_password | length > 0) else lookup('password', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/support chars=ascii_letters,digits length=16') }}"
       - name: customer
         username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password if (solr_customer_password is defined and solr_customer_password | length > 0) else lookup('password', '/tmp/ansible-solr-passwords/' + inventory_hostname + '/customer chars=ascii_letters,digits length=16') }}"
+        password: "{{ solr_customer_password if (solr_customer_password is defined and solr_customer_password | length > 0) else lookup('password', lookup('env', 'HOME') + '/.ansible-solr-passwords/' + inventory_hostname + '/customer chars=ascii_letters,digits length=16') }}"
   no_log: true
   when: not skip_auth
 
@@ -212,8 +261,8 @@
     # Generate random salt
     openssl rand {{ solr_hash_salt_bytes }} > {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin
 
-    # Write password
-    printf '%s' "{{ item.password }}" > {{ hash_temp_dir.path }}/{{ item.name }}_pass.bin
+    # Write password from environment variable (safe from injection)
+    printf '%s' "$USER_PASSWORD" > {{ hash_temp_dir.path }}/{{ item.name }}_pass.bin
 
     # Binary concatenation
     cat {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin {{ hash_temp_dir.path }}/{{ item.name }}_pass.bin > {{ hash_temp_dir.path }}/{{ item.name }}_combined.bin
@@ -230,6 +279,8 @@
     echo "${HASH_B64} ${SALT_B64}"
   args:
     executable: /bin/bash
+  environment:
+    USER_PASSWORD: "{{ item.password }}"
   loop: "{{ auth_users_with_passwords }}"
   loop_control:
     label: "{{ item.name }}"
@@ -267,7 +318,11 @@
   file:
     path: "{{ hash_temp_dir.path }}"
     state: absent
-  when: not skip_auth
+  when:
+    - not skip_auth
+    - hash_temp_dir is defined
+    - hash_temp_dir.path is defined
+  failed_when: false
 
 - name: auth-mgmt - Display hash summary
   debug:

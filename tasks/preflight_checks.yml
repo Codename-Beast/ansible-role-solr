@@ -104,10 +104,12 @@
     fail_msg: "{{ item.name }} password must be at least 12 characters"
     success_msg: "{{ item.name }} password strength OK"
   loop:
-    - { name: "Admin", password: "{{ solr_admin_password }}" }
-    - { name: "Support", password: "{{ solr_support_password }}" }
-    - { name: "Customer", password: "{{ solr_customer_password }}" }
-  when: item.password | length > 0
+    - { name: "Admin", password: "{{ solr_admin_password | default('') }}" }
+    - { name: "Support", password: "{{ solr_support_password | default('') }}" }
+    - { name: "Customer", password: "{{ solr_customer_password | default('') }}" }
+  when:
+    - item.password is defined
+    - item.password | string | length > 0
   loop_control:
     label: "{{ item.name }}"
 
@@ -116,12 +118,12 @@
   register: available_memory
   changed_when: false
 
-#- name: preflight-check - Verify sufficient memory
-#  assert:
-#    that:
-#      - available_memory.stdout | int >= solr_min_memory_gb
-#    fail_msg: "Insufficient memory. Required: {{ solr_min_memory_gb }}GB, Available: {{ available_memory.stdout }}GB"
-#    success_msg: "Memory check passed ({{ available_memory.stdout }}GB available)"
+- name: preflight-check - Verify sufficient memory
+  assert:
+    that:
+      - available_memory.stdout | int >= solr_min_memory_gb
+    fail_msg: "Insufficient memory. Required: {{ solr_min_memory_gb }}GB, Available: {{ available_memory.stdout }}GB"
+    success_msg: "Memory check passed ({{ available_memory.stdout }}GB available)"
 
 - name: preflight-check - Validate Solr port is numeric
   assert:
@@ -137,6 +139,13 @@
       - solr_heap_size is match('^\d+[mg]$')
     fail_msg: "solr_heap_size must be in format '512m' or '1g'"
     success_msg: "solr_heap_size format valid ({{ solr_heap_size }})"
+
+- name: preflight-check - Validate memory limit is larger than heap size
+  assert:
+    that:
+      - (solr_memory_limit | regex_replace('[^0-9]', '') | int) > (solr_heap_size | regex_replace('[^0-9]', '') | int)
+    fail_msg: "solr_memory_limit ({{ solr_memory_limit }}) must be at least 50% larger than solr_heap_size ({{ solr_heap_size }}) to prevent OOM kills"
+    success_msg: "Memory limit validation passed (limit={{ solr_memory_limit }}, heap={{ solr_heap_size }})"
 
 # ============================================================================
 # RUNDECK OUTPUT

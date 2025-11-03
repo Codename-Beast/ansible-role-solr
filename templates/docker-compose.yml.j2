@@ -29,6 +29,15 @@ services:
       # Install required tools
       echo '[1/6] Installing validation tools...';
       apk add --no-cache jq libxml2-utils 2>&1 | grep -v 'fetch' || true;
+      echo '[1.5/6] Verifying tools are available...';
+      if ! command -v jq >/dev/null || ! command -v xmllint >/dev/null; then
+        echo 'ERROR: Validation tools not available after installation';
+        echo 'jq available: '$(command -v jq || echo 'NO');
+        echo 'xmllint available: '$(command -v xmllint || echo 'NO');
+        echo 'Possible causes: network timeout, repository unavailable, DNS failure';
+        exit 1;
+      fi;
+      echo 'Validation tools installed successfully';
 
       # Create required directories
       echo '[2/6] Creating directories...';

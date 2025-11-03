@@ -77,6 +77,18 @@
     - existing_security_json_checksum is defined
     - security_json_checksum != (existing_security_json_checksum.stdout | trim)
 
+- name: solr-deployment - Validate checksum list lengths match before zip
+  assert:
+    that:
+      - other_config_checksums | length == existing_other_config_checksums.results | length
+    fail_msg: "Config checksum list length mismatch: new={{ other_config_checksums | length }}, existing={{ existing_other_config_checksums.results | length }}"
+    success_msg: "Checksum list lengths match"
+  when:
+    - running_services.stdout_lines | length > 0
+    - existing_other_config_checksums is defined
+    - existing_other_config_checksums.results is defined
+    - existing_other_config_checksums.results | length > 0
+
 - name: solr-deployment - Detect other config changes by comparing checksums
   set_fact:
     other_configs_changed: true
@@ -143,15 +155,19 @@
     - name: solr-deployment - Backup current container config (if exists)
       shell: |
         if docker ps -a | grep -q {{ solr_container_name }}; then
-          docker exec {{ solr_container_name }} tar czf /tmp/solr_backup_$(date +%s).tar.gz \
-            /var/solr/data/security.json \
-            /var/solr/data/configs 2>/dev/null || true
-          echo "backup_created"
+          if docker exec {{ solr_container_name }} tar czf /tmp/solr_backup_$(date +%s).tar.gz \
+              /var/solr/data/security.json \
+              /var/solr/data/configs 2>&1; then
+            echo "backup_created"
+          else
+            echo "backup_failed"
+          fi
         else
           echo "no_container"
         fi
       register: container_backup
       changed_when: false
+      failed_when: container_backup.stdout is defined and 'backup_failed' in container_backup.stdout
       when: running_services.stdout_lines | length > 0
 
     - name: solr-deployment - Log backup status

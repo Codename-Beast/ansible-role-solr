@@ -146,8 +146,8 @@ solr_core_config: "moodle_configs"
 # MEMORY CONFIGURATION
 # ============================================================================
 solr_heap_size: "2g"
-solr_memory_limit: "2g"
-solr_memory_swap: "2g"
+solr_memory_limit: "4g"  # Must be >= heap + 50% for non-heap memory (metaspace, buffers, threads)
+solr_memory_swap: "4g"
 solr_cpu_quota: 100000
 solr_cpu_period: 100000
 # ============================================================================
