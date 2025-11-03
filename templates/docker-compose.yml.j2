@@ -38,7 +38,7 @@ services:
     volumes:
       - {{ solr_volume_name }}:/var/solr
       - {{ solr_config_dir }}:/config:ro
-    command: >
+    command: |
       sh -c "
       set -e;
       echo '========================================';
