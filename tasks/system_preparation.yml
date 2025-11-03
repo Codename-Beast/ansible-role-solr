@@ -1,6 +1,10 @@
 ---
-# Version: 1.1.0
+# Version: 1.2.0
 # Description: System preparation for Solr installation
+# Changelog v1.2:
+#   - REMOVED: jq and libxml2-utils packages (validation moved to init-container)
+#   - REASON: Avoid duplicate validation and unnecessary host dependencies
+#   - BENEFIT: Cleaner host system, validation centralized in init-container
 # Changelog v1.1:
 #   - NEW: Initial system preparation task file
 #   - Directory structure creation
@@ -15,8 +19,7 @@
       - ca-certificates
       - gnupg
       - lsb-release
-      - jq                    # For JSON validation
-      - libxml2-utils         # For XML validation (xmllint)
+      # NOTE: jq and libxml2-utils removed - validation done in init-container
     state: present
     update_cache: yes
     cache_valid_time: 3600
@@ -112,8 +115,6 @@
           - "ca-certificates"
           - "gnupg"
           - "lsb-release"
-          - "jq"
-          - "libxml2-utils"
         system_tuning:
           vm_max_map_count: "262144"
         existing_volume: "{{ existing_volume.stdout != '' }}"
@@ -129,7 +130,7 @@
     msg:
       - "SYSTEM PREPARATION COMPLETED"
       - "Directories created: {{ solr_compose_dir }}, {{ solr_config_dir }}, {{ solr_backup_dir }}"
-      - "Required packages installed: curl, ca-certificates, gnupg, lsb-release, jq, libxml2-utils"
+      - "Required packages installed: curl, ca-certificates, gnupg, lsb-release"
       - "System tuning applied: vm.max_map_count=262144"
       - "Existing volume: {{ 'YES' if existing_volume.stdout != '' else 'NO' }}"
       - "Force recreate: {{ 'YES' if solr_force_recreate | default(false) else 'NO' }}"
