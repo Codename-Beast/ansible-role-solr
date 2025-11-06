@@ -1,5 +1,5 @@
 # Eledia Solr 9.9.0 - Moodle-Optimized Docker Image
-# With Enterprise Features: Backup/Restore, Log Rotation, Enhanced Health Checks
+# Features: Backup/Restore, Log Rotation, Enhanced Health Checks
 # Author: Bernd Schreistetter
 # Version: 2.2.0
 
@@ -65,6 +65,6 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=60s \
 # Labels
 LABEL maintainer="Bernd Schreistetter <bernd@eledia.de>" \
       version="2.2.0" \
-      description="Eledia Solr 9.9.0 - Moodle-optimized with Enterprise features (Backup/Restore, Log Rotation, Enhanced Health Checks)" \
+      description="Eledia Solr 9.9.0 - Moodle-optimized with Backup/Restore, Log Rotation, and Enhanced Health Checks" \
       org.opencontainers.image.source="https://github.com/Codename-Beast/ansible-role-solr" \
       features="backup,restore,log-rotation,health-checks,moodle-schema,basic-auth"

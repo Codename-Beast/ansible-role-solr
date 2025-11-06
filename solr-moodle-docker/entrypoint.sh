@@ -83,8 +83,8 @@ debug_log() {
 }
 
 echo "========================================"
-echo "Eledia Solr 9.9.0 - Standalone Edition"
-echo "Version: 2.1.0 (Enhanced Error Handling)"
+echo "Eledia Solr 9.9.0 - Moodle Edition"
+echo "Version: 2.2.0 (Backup, Log Rotation, Health Checks)"
 echo "========================================"
 
 if [ "${DEBUG}" = "true" ]; then
@@ -160,7 +160,7 @@ echo "  [OK] All prerequisites satisfied"
 # ============================================================
 
 echo ""
-echo "[1/8] Environment Variable Validation..."
+echo "[1/9] Environment Variable Validation..."
 
 # Required variables with validation
 : "${SOLR_AUTH_ENABLED:=true}"
@@ -283,7 +283,7 @@ generate_password() {
 
 if [ "${SOLR_AUTH_ENABLED}" = "true" ]; then
     echo ""
-    echo "[2/8] Password Management..."
+    echo "[2/9] Password Management..."
 
     # Generate passwords if not provided
     if [ -z "${SOLR_ADMIN_PASSWORD}" ]; then
@@ -385,7 +385,7 @@ fi
 # ============================================================
 
 echo ""
-echo "[3/8] Configuration Generation..."
+echo "[3/9] Configuration Generation..."
 
 CONFIG_DIR="/var/solr/data/configs"
 LANG_DIR="/var/solr/data/lang"
@@ -564,7 +564,7 @@ fi
 # ============================================================
 
 echo ""
-echo "[4/8] Setting permissions..."
+echo "[4/9] Setting permissions..."
 
 debug_log "Setting ownership: chown -R solr:solr /var/solr"
 if ! chown -R solr:solr /var/solr 2>/dev/null; then
@@ -580,7 +580,7 @@ echo "  [OK] Permissions set"
 # ============================================================
 
 echo ""
-echo "[5/8] Configuration Summary:"
+echo "[5/9] Configuration Summary:"
 echo "========================================"
 ls -lah /var/solr/data/security.json 2>/dev/null || echo "security.json: NOT FOUND"
 echo "---"
@@ -594,7 +594,7 @@ echo "========================================"
 # ============================================================
 
 echo ""
-echo "[6/8] Starting Solr..."
+echo "[6/9] Starting Solr..."
 echo "========================================"
 
 # Check if port 8983 is already in use (within container)
@@ -641,7 +641,7 @@ echo "  [OK] Solr process started"
 # ============================================================
 
 echo ""
-echo "[7/8] Waiting for Solr to be ready..."
+echo "[7/9] Waiting for Solr to be ready..."
 
 MAX_WAIT=60
 WAIT_COUNT=0
@@ -696,7 +696,7 @@ echo "  [OK] Solr is ready and responding!"
 # ============================================================
 
 echo ""
-echo "[8/8] Core Creation..."
+echo "[8/9] Core Creation..."
 
 # Check if core already exists
 debug_log "Checking if core '${SOLR_CORE_NAME}' exists..."
@@ -813,6 +813,36 @@ else
 fi
 
 # ============================================================
+# AUTOMATION SETUP (Backups, Log Rotation, Health Checks)
+# ============================================================
+
+echo ""
+echo "[9/9] Automation Setup..."
+
+# Set up backup automation via cron
+: "${BACKUP_ENABLED:=false}"
+if [ "${BACKUP_ENABLED}" = "true" ]; then
+    debug_log "Setting up backup automation..."
+    if [ -x /opt/eledia/scripts/setup-cron.sh ]; then
+        /opt/eledia/scripts/setup-cron.sh
+        echo "  [OK] Backup automation configured"
+    else
+        warn "setup-cron.sh not found or not executable - backups will need to be run manually"
+    fi
+else
+    echo "  [SKIP] Backup automation disabled (BACKUP_ENABLED=false)"
+fi
+
+# Run initial health check (optional - for diagnostics)
+if [ "${DEBUG}" = "true" ] && [ -x /opt/eledia/scripts/health-check.sh ]; then
+    echo ""
+    echo "  [DEBUG] Running initial health check..."
+    HEALTH_CHECK_TYPE=detailed /opt/eledia/scripts/health-check.sh || warn "Initial health check reported warnings"
+fi
+
+echo "  [OK] Automation setup complete"
+
+# ============================================================
 # FINALIZATION
 # ============================================================
 
@@ -828,6 +858,18 @@ echo "  - Customer: ${CUSTOMER_NAME}"
 echo "  - Auth enabled: ${SOLR_AUTH_ENABLED}"
 echo "  - Moodle schema: ${SOLR_USE_MOODLE_SCHEMA}"
 echo "  - Heap size: ${SOLR_HEAP}"
+echo ""
+echo "🔧 Features:"
+echo "  - Backups: ${BACKUP_ENABLED:-false}"
+if [ "${BACKUP_ENABLED}" = "true" ]; then
+    echo "    Schedule: ${BACKUP_SCHEDULE:-0 2 * * *}"
+    echo "    Retention: ${BACKUP_RETENTION_DAYS:-7} days"
+fi
+echo "  - Log Rotation: ${LOG_ROTATION_ENABLED:-true}"
+if [ "${LOG_ROTATION_ENABLED}" = "true" ]; then
+    echo "    Max size: ${LOG_MAX_SIZE:-100M}, Max files: ${LOG_MAX_FILES:-10}"
+fi
+echo "  - Health Checks: Available (/opt/eledia/scripts/health-check.sh)"
 
 if [ "${SOLR_AUTH_ENABLED}" = "true" ]; then
     echo ""

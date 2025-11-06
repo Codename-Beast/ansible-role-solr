@@ -1,9 +1,10 @@
 version: '3.8'
 
 # Eledia Solr 9.9.0 - Moodle-Optimized Docker Compose
-# Version: 2.1.0
+# Version: 2.2.0
 # Replaces ansible-role-solr for Docker-only environments
 # Moodle 4.1-5.0.x ready out of the box
+# Features: Backup/Restore, Log Rotation, Enhanced Health Checks
 
 services:
   solr:
@@ -52,6 +53,27 @@ services:
       # DEBUG MODE
       # ============================================================
       DEBUG: ${DEBUG:-false}
+
+      # ============================================================
+      # BACKUP & RESTORE
+      # ============================================================
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 2 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      BACKUP_DIR: ${BACKUP_DIR:-/var/solr/backups}
+
+      # ============================================================
+      # LOG ROTATION
+      # ============================================================
+      LOG_ROTATION_ENABLED: ${LOG_ROTATION_ENABLED:-true}
+      LOG_MAX_SIZE: ${LOG_MAX_SIZE:-100M}
+      LOG_MAX_FILES: ${LOG_MAX_FILES:-10}
+      LOG_COMPRESSION: ${LOG_COMPRESSION:-true}
+
+      # ============================================================
+      # HEALTH CHECKS
+      # ============================================================
+      HEALTH_CHECK_TYPE: ${HEALTH_CHECK_TYPE:-liveness}
 
     restart: unless-stopped
 

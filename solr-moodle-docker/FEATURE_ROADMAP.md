@@ -1,7 +1,7 @@
 # Eledia Solr - Future Feature Roadmap
 
 **Current Version**: 2.1.0
-**Status**: Production-Ready ✅
+**Status**: Tested ✅
 **Evaluation Date**: 06.11.2025
 
 ---
@@ -333,7 +333,7 @@ Environment:
 - Rolling updates
 
 **Aufwand**: 20-30 Stunden (SEHR komplex!)
-**Value**: ⭐⭐⭐⭐ (Enterprise HA)
+**Value**: ⭐⭐⭐⭐ (HA)
 
 ---
 
@@ -470,7 +470,7 @@ docker exec solr /opt/eledia/scripts/recovery.sh \
 - ✅ Excellent foundation für Erweiterungen
 - ✅ Nicht zu komplex (easy to maintain)
 
-**Die Top-5 Features würden die Lösung auf Enterprise-Level bringen**:
+**Die Top-5 Features würden die Lösung auf robust bringen**:
 - Backup/Restore → Business Continuity
 - Prometheus → Observability
 - SSL/TLS → Security Compliance
@@ -486,4 +486,4 @@ docker exec solr /opt/eledia/scripts/recovery.sh \
 
 **Erstellt**: 06.11.2025
 **Version**: 2.1.0
-**Status**: ✅ Production-Ready + Clear Roadmap
+**Status**: ✅ Tested + Clear Roadmap
