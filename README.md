@@ -52,6 +52,39 @@ make health
 
 Solr is now running at: http://localhost:8983
 
+## 🏢 Multi-Tenancy (Optional)
+
+**NEW in v3.2.0**: Host multiple isolated search indexes (tenants) within one Solr instance.
+
+Perfect for:
+- Multiple Moodle instances on one server
+- Dev/Staging/Production environments on same infrastructure
+- Cost optimization vs. running multiple Solr containers
+
+### Quick Start - Multi-Tenant
+
+```bash
+# Create a tenant (generates core + user + RBAC)
+make tenant-create TENANT=prod
+
+# List all tenants
+make tenant-list
+
+# Backup a tenant
+make tenant-backup TENANT=prod
+
+# Delete a tenant (with backup)
+make tenant-delete TENANT=prod BACKUP=true
+```
+
+**Security**: Each tenant is completely isolated via Solr RBAC:
+- ✅ Dedicated Solr core per tenant
+- ✅ Unique credentials per tenant
+- ✅ Tenants CANNOT access other tenants' data
+- ✅ Admin retains full access
+
+**Documentation**: See [MULTI_TENANCY.md](MULTI_TENANCY.md) ([German](MULTI_TENANCY_DE.md))
+
 ## ⚙️ Configuration
 
 ### Environment Variables (.env)

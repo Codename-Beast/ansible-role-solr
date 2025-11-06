@@ -1,0 +1,332 @@
+#!/bin/bash
+
+###############################################################################
+# Tenant Deletion Script
+# Deletes a tenant (Solr core + user + RBAC configuration)
+# Optional: Creates backup before deletion
+###############################################################################
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Load environment
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$PROJECT_ROOT/.env"
+    set +a
+else
+    echo -e "${RED}❌ Error: .env file not found.${NC}"
+    exit 1
+fi
+
+###############################################################################
+# Helper Functions
+###############################################################################
+
+log_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+log_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+log_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+log_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+###############################################################################
+# Validation
+###############################################################################
+
+validate_tenant_id() {
+    local tenant_id=$1
+
+    if [ -z "$tenant_id" ]; then
+        log_error "Tenant ID cannot be empty"
+        echo ""
+        echo "Usage: $0 <tenant_id> [BACKUP=true|false]"
+        echo "Example: $0 tenant1 BACKUP=true"
+        exit 1
+    fi
+}
+
+check_tenant_exists() {
+    local tenant_id=$1
+    local core_name="moodle_${tenant_id}"
+
+    # Check if core exists
+    if ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
+        "http://localhost:8983/solr/admin/cores?action=STATUS&core=${core_name}" | grep -q "\"${core_name}\""; then
+        log_error "Tenant '${tenant_id}' does not exist (core: ${core_name})"
+        log_info "Use './scripts/tenant-list.sh' to see all tenants"
+        exit 1
+    fi
+}
+
+###############################################################################
+# Backup
+###############################################################################
+
+create_backup() {
+    local tenant_id=$1
+    local core_name="moodle_${tenant_id}"
+
+    log_info "Creating backup for tenant: ${tenant_id}"
+
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_name="tenant_${tenant_id}_${timestamp}"
+    local backup_dir="$PROJECT_ROOT/backups"
+
+    # Create backup directory
+    mkdir -p "$backup_dir"
+
+    # Create Solr snapshot
+    log_info "Creating Solr snapshot..."
+    if ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
+        "http://localhost:8983/solr/${core_name}/replication?command=backup&name=${backup_name}" > /dev/null; then
+        log_error "Failed to create Solr snapshot"
+        return 1
+    fi
+
+    # Wait for backup to complete
+    log_info "Waiting for backup to complete..."
+    sleep 5
+
+    # Copy backup files
+    log_info "Copying backup files..."
+    local data_dir="$PROJECT_ROOT/data/${core_name}"
+    if [ -d "$data_dir" ]; then
+        tar czf "$backup_dir/${backup_name}.tar.gz" \
+            -C "$PROJECT_ROOT/data" \
+            "$core_name" \
+            2>/dev/null || log_warning "Some files could not be backed up"
+    fi
+
+    # Backup credentials
+    if [ -f "$PROJECT_ROOT/.env.${tenant_id}" ]; then
+        cp "$PROJECT_ROOT/.env.${tenant_id}" "$backup_dir/${backup_name}_credentials.env"
+        log_success "Credentials backed up"
+    fi
+
+    log_success "Backup created: ${backup_name}.tar.gz"
+    echo "   Location: $backup_dir/${backup_name}.tar.gz"
+    return 0
+}
+
+###############################################################################
+# Core Deletion
+###############################################################################
+
+delete_core() {
+    local tenant_id=$1
+    local core_name="moodle_${tenant_id}"
+
+    log_info "Deleting Solr core: ${core_name}"
+
+    # Unload core
+    if ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
+        "http://localhost:8983/solr/admin/cores?action=UNLOAD&core=${core_name}&deleteIndex=true&deleteDataDir=true&deleteInstanceDir=true" > /dev/null; then
+        log_error "Failed to unload core ${core_name}"
+        return 1
+    fi
+
+    # Remove data directory
+    log_info "Removing data directory..."
+    local data_dir="$PROJECT_ROOT/data/${core_name}"
+    if [ -d "$data_dir" ]; then
+        rm -rf "$data_dir"
+        log_success "Data directory removed"
+    fi
+
+    log_success "Core ${core_name} deleted successfully"
+    return 0
+}
+
+###############################################################################
+# User & RBAC Removal
+###############################################################################
+
+remove_user_and_rbac() {
+    local tenant_id=$1
+    local username="${tenant_id}_customer"
+    local core_name="moodle_${tenant_id}"
+    local role_name="${tenant_id}_role"
+
+    log_info "Removing user and RBAC configuration for tenant: ${tenant_id}"
+
+    # Get current security.json
+    local security_json
+    security_json=$(docker compose exec -T solr cat /var/solr/data/security.json)
+
+    # Remove user credentials
+    log_info "Removing user: ${username}"
+    security_json=$(echo "$security_json" | jq \
+        --arg user "$username" \
+        'del(.authentication.credentials[$user])')
+
+    # Remove user-role mapping
+    log_info "Removing role: ${role_name}"
+    security_json=$(echo "$security_json" | jq \
+        --arg user "$username" \
+        'del(.authorization."user-role"[$user])')
+
+    # Remove permission for tenant's core
+    log_info "Removing permissions for core: ${core_name}"
+    security_json=$(echo "$security_json" | jq \
+        --arg tenant "$tenant_id" \
+        'del(.authorization.permissions[] | select(.name == ($tenant + "-access")))')
+
+    # Write updated security.json back
+    echo "$security_json" | docker compose exec -T solr tee /var/solr/data/security.json > /dev/null
+
+    # Reload security configuration (restart Solr)
+    log_info "Reloading Solr to apply security changes..."
+    docker compose restart solr
+
+    # Wait for Solr to be ready
+    log_info "Waiting for Solr to be ready..."
+    local max_wait=60
+    local waited=0
+    while ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
+        "http://localhost:8983/solr/admin/info/system" > /dev/null 2>&1; do
+        sleep 2
+        waited=$((waited + 2))
+        if [ $waited -ge $max_wait ]; then
+            log_error "Solr did not become ready within ${max_wait} seconds"
+            return 1
+        fi
+    done
+
+    log_success "User and RBAC configuration removed successfully"
+    return 0
+}
+
+###############################################################################
+# Credentials Cleanup
+###############################################################################
+
+archive_credentials() {
+    local tenant_id=$1
+    local env_file="$PROJECT_ROOT/.env.${tenant_id}"
+
+    if [ -f "$env_file" ]; then
+        log_info "Archiving credentials file..."
+        local timestamp
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        local archive_name=".env.${tenant_id}.deleted_${timestamp}"
+        mv "$env_file" "$PROJECT_ROOT/$archive_name"
+        log_success "Credentials archived: $archive_name"
+    else
+        log_warning "Credentials file not found: $env_file"
+    fi
+}
+
+###############################################################################
+# Confirmation Prompt
+###############################################################################
+
+confirm_deletion() {
+    local tenant_id=$1
+    local backup_enabled=$2
+
+    echo ""
+    log_warning "You are about to DELETE tenant: ${tenant_id}"
+    echo ""
+    echo "   Core:       moodle_${tenant_id}"
+    echo "   User:       ${tenant_id}_customer"
+    echo "   Backup:     $([ "$backup_enabled" = true ] && echo "✅ Enabled" || echo "❌ Disabled")"
+    echo ""
+    log_warning "This action CANNOT be undone (unless backup is enabled)"
+    echo ""
+    read -rp "Type 'DELETE' to confirm: " confirmation
+
+    if [ "$confirmation" != "DELETE" ]; then
+        log_info "Deletion cancelled"
+        exit 0
+    fi
+}
+
+###############################################################################
+# Main Function
+###############################################################################
+
+main() {
+    local tenant_id=${1:-}
+    local backup_enabled=${BACKUP:-false}
+
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║           Solr Multi-Tenancy: Delete Tenant                ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    # Validate input
+    validate_tenant_id "$tenant_id"
+    check_tenant_exists "$tenant_id"
+
+    # Confirm deletion
+    confirm_deletion "$tenant_id" "$backup_enabled"
+
+    # Create backup if requested
+    if [ "$backup_enabled" = true ]; then
+        if ! create_backup "$tenant_id"; then
+            log_error "Backup failed. Aborting deletion."
+            exit 1
+        fi
+    else
+        log_warning "Backup disabled. Data will be permanently lost."
+    fi
+
+    # Delete core
+    if ! delete_core "$tenant_id"; then
+        log_error "Failed to delete core. Security configuration not modified."
+        exit 1
+    fi
+
+    # Remove user and RBAC
+    if ! remove_user_and_rbac "$tenant_id"; then
+        log_error "Failed to remove security configuration"
+        log_warning "Core was deleted but security.json may contain stale entries"
+        exit 1
+    fi
+
+    # Archive credentials
+    archive_credentials "$tenant_id"
+
+    # Success summary
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║                  ✅ SUCCESS                                ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+    log_success "Tenant '${tenant_id}' deleted successfully!"
+    echo ""
+    if [ "$backup_enabled" = true ]; then
+        echo "📦 Backup available in: backups/"
+        echo "   To restore, manually extract and recreate the tenant"
+    fi
+    echo ""
+    echo "📝 Next Steps:"
+    echo "   1. View remaining tenants: make tenant-list"
+    echo "   2. Remove from Moodle configuration if applicable"
+    echo ""
+}
+
+main "$@"

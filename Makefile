@@ -1,5 +1,6 @@
 .PHONY: help init preflight config start stop restart logs health dashboard backup create-core test security-scan benchmark clean destroy \
-        monitoring-up monitoring-down grafana prometheus alertmanager metrics
+        monitoring-up monitoring-down grafana prometheus alertmanager metrics \
+        tenant-create tenant-delete tenant-list tenant-backup tenant-backup-all
 
 # Default target
 help:
@@ -30,6 +31,13 @@ help:
 	@echo "  make test           - Run integration test suite"
 	@echo "  make security-scan  - Run Trivy security scan"
 	@echo "  make benchmark      - Run performance benchmarks"
+	@echo ""
+	@echo "Multi-Tenancy (Optional):"
+	@echo "  make tenant-create TENANT=<id>    - Create new tenant"
+	@echo "  make tenant-delete TENANT=<id>    - Delete tenant (BACKUP=true for backup)"
+	@echo "  make tenant-list                  - List all tenants"
+	@echo "  make tenant-backup TENANT=<id>    - Backup single tenant"
+	@echo "  make tenant-backup-all            - Backup all tenants"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean          - Stop and remove containers"
@@ -167,3 +175,45 @@ destroy:
 	else \
 		echo "Cancelled"; \
 	fi
+
+###############################################################################
+# Multi-Tenancy Management
+###############################################################################
+
+# Create a new tenant
+tenant-create:
+	@if [ -z "$(TENANT)" ]; then \
+		echo "❌ Error: TENANT parameter required"; \
+		echo "Usage: make tenant-create TENANT=<tenant_id>"; \
+		echo "Example: make tenant-create TENANT=tenant1"; \
+		exit 1; \
+	fi
+	@./scripts/tenant-create.sh $(TENANT)
+
+# Delete a tenant
+tenant-delete:
+	@if [ -z "$(TENANT)" ]; then \
+		echo "❌ Error: TENANT parameter required"; \
+		echo "Usage: make tenant-delete TENANT=<tenant_id> [BACKUP=true]"; \
+		echo "Example: make tenant-delete TENANT=tenant1 BACKUP=true"; \
+		exit 1; \
+	fi
+	@BACKUP=$(BACKUP) ./scripts/tenant-delete.sh $(TENANT)
+
+# List all tenants
+tenant-list:
+	@./scripts/tenant-list.sh
+
+# Backup a single tenant
+tenant-backup:
+	@if [ -z "$(TENANT)" ]; then \
+		echo "❌ Error: TENANT parameter required"; \
+		echo "Usage: make tenant-backup TENANT=<tenant_id>"; \
+		echo "Example: make tenant-backup TENANT=tenant1"; \
+		exit 1; \
+	fi
+	@./scripts/tenant-backup.sh $(TENANT)
+
+# Backup all tenants
+tenant-backup-all:
+	@./scripts/tenant-backup.sh --all
