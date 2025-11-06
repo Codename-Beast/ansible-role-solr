@@ -1,8 +1,10 @@
 # Solr for Moodle - Docker Edition
 
-**Production-ready Apache Solr 9.9.0 for Moodle with Docker Compose**
+**Apache Solr 9.9.0 for Moodle with Docker Compose**
 
-A complete standalone Docker solution for running Apache Solr optimized for Moodle search. No Ansible required - just Docker and docker-compose.
+> ⚠️ **Note**: This is the Docker-based variant. The tested and stable **Ansible version** is on the `main` branch (tested on Xen with Debian, Ansible 2.12.10).
+
+A standalone Docker solution for running Apache Solr optimized for Moodle search. Works on bare systems as long as Docker is installed.
 
 ## 🎯 Features
 
@@ -11,10 +13,11 @@ A complete standalone Docker solution for running Apache Solr optimized for Mood
 - ✅ BasicAuth security with 3 roles (admin, support, customer)
 - ✅ Automated backup with cron scheduling
 - ✅ Optional Prometheus + Grafana monitoring
-- ✅ Production-ready configuration
 - ✅ Health check API
 - ✅ Resource limits and optimization
 - ✅ Comprehensive management scripts
+- ✅ Pre-flight checks (Docker, ports, disk, memory)
+- ✅ Works on bare systems (only Docker required)
 
 ## 📋 Requirements
 
@@ -31,22 +34,25 @@ A complete standalone Docker solution for running Apache Solr optimized for Mood
 git clone <your-repo-url>
 cd solr-moodle-docker
 
-# 2. Initialize environment
+# 2. Run pre-flight checks (validates Docker, ports, disk, memory)
+./scripts/preflight-check.sh
+
+# 3. Initialize environment
 make init
 
-# 3. Configure (edit .env file)
+# 4. Configure (edit .env file)
 nano .env
 
-# 4. Generate configuration
+# 5. Generate configuration
 make config
 
-# 5. Start Solr
+# 6. Start Solr
 make start
 
-# 6. Create Moodle core
+# 7. Create Moodle core
 make create-core
 
-# 7. Check health
+# 8. Check health
 make health
 ```
 
@@ -56,9 +62,9 @@ Solr is now running at: http://localhost:8983
 
 **NEW in v3.2.0**: Host multiple isolated search indexes (tenants) within one Solr instance.
 
-Perfect for:
+Useful for:
 - Multiple Moodle instances on one server
-- Dev/Staging/Production environments on same infrastructure
+- Dev/Staging environments on same infrastructure
 - Cost optimization vs. running multiple Solr containers
 
 ### Quick Start - Multi-Tenant
@@ -186,9 +192,9 @@ python3 scripts/hash-password.py --verify "password" "HASH SALT"
 ./scripts/generate-config.sh
 ```
 
-### Docker Secrets (Production)
+### Docker Secrets (Optional)
 
-For production, use Docker Secrets instead of .env:
+For enhanced security, use Docker Secrets instead of .env:
 
 ```bash
 # Setup secrets
@@ -209,7 +215,7 @@ For production, use Docker Secrets instead of .env:
 ### Deployment Modes
 
 ```bash
-# 1. Minimal (production default)
+# 1. Minimal (no monitoring)
 docker compose up -d
 
 # 2. With remote monitoring (exporter only)
@@ -452,11 +458,11 @@ curl -u customer:password \
 
 - [MONITORING.md](MONITORING.md) - Complete monitoring guide
 - [CHANGELOG.md](CHANGELOG.md) - Version history
-- [REVIEWS_v2.3.0.md](REVIEWS_v2.3.0.md) - Code review documentation
+- [MULTI_TENANCY.md](MULTI_TENANCY.md) - Multi-tenancy guide
 
 ## 📝 Version
 
-**Current Version**: 2.3.1
+**Current Version**: 3.4.0 (Docker branch)
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
@@ -464,10 +470,11 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 - Always change default passwords
 - Use strong passwords (16+ characters)
-- Enable HTTPS in production (use reverse proxy)
+- Enable HTTPS (use reverse proxy like nginx/traefik)
 - Restrict port access (firewall rules)
 - Regular security updates
 - Monitor access logs
+- Run pre-flight checks before deployment
 
 ## ⚖️ License
 
