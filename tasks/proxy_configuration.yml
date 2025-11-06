@@ -19,7 +19,7 @@
   when:
     - apache_check.rc != 0
     - solr_proxy_enabled | default(true)
-
+#nötig?
 - name: proxy_config - Enable required Apache modules
   apache2_module:
     name: "{{ item }}"

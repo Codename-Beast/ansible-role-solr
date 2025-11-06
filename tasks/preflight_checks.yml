@@ -69,10 +69,6 @@
       - "Consider changing solr_port in host_vars"
   when: "'PORT_FREE' not in port_check.stdout"
 
-# ============================================================================
-# NEW VALIDATION CHECKS
-# ============================================================================
-
 - name: preflight-check - Validate required variables are defined
   assert:
     that:
@@ -171,7 +167,6 @@
       - "Ansible: {{ ansible_version.full }}"
       - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }}"
       - "Disk space: {{ disk_space.stdout }}GB (minimum: {{ solr_min_disk_space_gb }}GB)"
-      - "Memory: {{ available_memory.stdout }}GB (minimum: {{ solr_min_memory_gb }}GB)"
       - "Docker: {{ 'INSTALLED' if docker_version_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Docker Compose: {{ 'INSTALLED' if docker_compose_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Port {{ solr_port }}: {{ 'AVAILABLE' if 'PORT_FREE' in port_check.stdout else 'IN USE (WARNING)' }}"

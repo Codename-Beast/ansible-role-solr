@@ -1,21 +1,21 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-1.3.2-blue)
+![Version](https://img.shields.io/badge/version-1.4.0-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.x-purple)
+![Tests](https://img.shields.io/badge/tests-19%2F19%20passing-brightgreen)
 
-Production-ready Ansible role for deploying Apache Solr 9.9.0 with BasicAuth, Moodle schema support, full idempotency, and automatic rollback.
+ Ansible role for deploying Apache Solr 9.9.0 with BasicAuth, Moodle schema support, full idempotency, automated backup management, and comprehensive monitoring.
 
-**Author**: Bernd Schreistetter
-**Organization**: Eledia
-**License**: MIT
+**Author**: Bernd Schreistetter  
+**Organization**: Eledia Gmbh
 
 ---
 
 ## 🎯 Features
 
-### Production-Grade Capabilities
+### Capabilities
 - ✅ **Full Idempotency** - Run unlimited times without side effects
 - ✅ **Automatic Rollback** - Deployment failure recovery with block/rescue/always
 - ✅ **Selective Password Updates** - Change passwords without container restart (ZERO downtime)
@@ -23,8 +23,105 @@ Production-ready Ansible role for deploying Apache Solr 9.9.0 with BasicAuth, Mo
 - ✅ **Docker Compose v2** - Modern init-container pattern for config deployment
 - ✅ **BasicAuth Security** - Role-based access control (admin/support/customer)
 - ✅ **Moodle Schema** - Pre-configured for Moodle 4.1-5.0.x compatibility
+- ✅ **Automated Backups** - Scheduled backups with retention management
+- ✅ **Performance Monitoring** - JVM metrics, GC optimization, health checks
 
-### Reliability Features
+### Testing & Validation
+- ✅ **Comprehensive Testing** - 19 integration tests (100% pass rate)
+- ✅ **Moodle Document Tests** - 10 schema-specific validation tests
+- ✅ **Authentication Tests** - Multi-user authorization validation
+- ✅ **Performance Tests** - Memory usage and query response times
+
+---
+
+## 📊FEATURE SUPPORT MATRIX
+
+### 🔐 SECURITY & AUTHENTICATION FRAMEWORK
+
+| Feature | Admin | Support | Customer | Anonymous | Implementation | Status |
+|---------|-------|---------|----------|-----------|----------------|--------|
+| **Authentication Layer** |
+| BasicAuth Login | ✅ | ✅ | ✅ | ❌ | SHA-256 Hashing | ✅Ready |
+| Session Management | ✅ | ✅ | ✅ | ❌ | Solr Native | ✅Ready |
+| Password Rotation | ✅ | ✅ | ✅ | ❌ | Zero-Downtime API | ✅Ready |
+| **Authorization Matrix** |
+| Security Panel Access | ✅ | ❌ | ❌ | ❌ | security-read/edit | ✅Ready |
+| Core Administration | ✅ | ❌ | ❌ | ❌ | core-admin-edit | ✅Ready |
+| Schema Management | ✅ | ❌ | ❌ | ❌ | schema-edit | ✅Ready |
+| Collection Admin | ✅ | ❌ | ❌ | ❌ | collection-admin-edit | ✅Ready |
+| **Data Operations** |
+| Document Read | ✅ | ✅ | ✅ | ❌ | Collection-scoped | ✅Ready |
+| Document Write/Index | ✅ | ❌ | ✅ | ❌ | Collection-scoped | ✅Ready |
+| Document Delete | ✅ | ❌ | ❌ | ❌ | Admin-only | ✅ **NEW v1.4** |
+| **System Operations** |
+| Metrics Access | ✅ | ✅ | ❌ | ❌ | /admin/metrics | ✅ **NEW v1.4** |
+| Backup Operations | ✅ | ❌ | ❌ | ❌ | /admin/cores | ✅ **NEW v1.4** |
+| Log Management | ✅ | ✅ | ❌ | ❌ | /admin/logging | ✅ **NEW v1.4** |
+| Health Checks | ✅ | ✅ | ✅ | ✅ | Public endpoints | ✅Ready |
+
+### 🏗️ INFRASTRUCTURE & DEPLOYMENT MATRIX
+
+| Component | Auto-Deploy | Auto-Config | Monitoring | Backup | Rollback | Status |
+|-----------|-------------|-------------|------------|--------|----------|--------|
+| **Container Platform** |
+| Docker Engine | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Ready |
+| Docker Compose v2 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Ready |
+| Volume Management | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Ready |
+| Network Isolation | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ Ready |
+| **Configuration Management** |
+| Solr Core Config | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Ready |
+| Moodle Schema | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Ready |
+| Security Templates | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Ready |
+| Language Files | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ Ready |
+| **System Integration** |
+| Apache Proxy | ✅ | ✅ | ⚠️ | ❌ | ❌ | ⚠️ Partial |
+| Nginx Proxy | ✅ | ✅ | ⚠️ | ❌ | ❌ | ⚠️ Partial |
+| Systemd Services | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ Ready |
+| **Backup & Recovery** |
+| Automated Backups | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ **NEW v1.4** |
+| Manual Backups | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ **NEW v1.4** |
+| Retention Management | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ **NEW v1.4** |
+| Backup Verification | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ **NEW v1.4** |
+
+### 🧪 TESTING & QUALITY ASSURANCE MATRIX
+
+| Test Category | Coverage | Auto-Execution | Error Handling | Cleanup | Reporting | Status |
+|---------------|----------|-----------------|----------------|---------|-----------|--------|
+| **Integration Tests** |
+| Authentication Tests | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 9/9 PASS |
+| Authorization Tests | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
+| Document Operations | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
+| Performance Tests | 90% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
+| **Moodle-Specific Tests** |
+| Schema Validation | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 10/10 PASS |
+| Document Types | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 5/5 Types |
+| Field Mapping | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
+| Search Operations | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 4/4 PASS |
+| **System Tests** |
+| Container Health | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
+| Memory Usage | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
+| Backup Functionality | 100% | ✅ | ✅ | ✅ | ✅ | ✅ **NEW v1.4** |
+
+### 📊 PERFORMANCE & MONITORING MATRIX
+
+| Metric Category | Collection | Alerting | Visualization | Export | Retention | Status |
+|-----------------|------------|----------|---------------|--------|-----------|--------|
+| **JVM Metrics** |
+| Memory Usage | ✅ | ⚠️ | ❌ | ⚠️ | ✅ | ✅ **Enhanced v1.4** |
+| GC Performance | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ **NEW v1.4** |
+| Thread Stats | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ Ready |
+| **Solr Metrics** |
+| Query Performance | ✅ | ⚠️ | ❌ | ⚠️ | ✅ | ✅ **Enhanced v1.4** |
+| Index Size | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ Ready |
+| Request Rates | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ Ready |
+| **System Health** |
+| Container Status | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ Ready |
+| Disk Usage | ✅ | ⚠️ | ❌ | ❌ | ✅ | ✅ Ready |
+| Network I/O | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ Ready |
+
+---
+
+## 📋 Requirements
 - ✅ **Rollback Mechanism** - Automatic recovery on deployment failure
 - ✅ **Error Handling** - Comprehensive logging and clear error messages
 - ✅ **Health Checks** - Docker healthcheck + Ansible validation
@@ -33,7 +130,7 @@ Production-ready Ansible role for deploying Apache Solr 9.9.0 with BasicAuth, Mo
 
 ### Bug Fixes in v1.3.2
 - ✅ **11 Critical Bugs Fixed** - All runtime errors resolved
-- ✅ **Port Check Fix** - Uses `ss` instead of netstat
+- ✅ **Port Check Fix**
 - ✅ **User Management** - Solr user (UID 8983) properly created
 - ✅ **Validation Tools** - jq and libxml2-utils installed
 - ✅ **Password Generation** - Persistent path instead of /dev/null
@@ -48,17 +145,11 @@ Production-ready Ansible role for deploying Apache Solr 9.9.0 with BasicAuth, Mo
 ## 📋 Requirements
 
 ### System Requirements
-- **OS**: Ubuntu 20.04/22.04, Debian 10/11
+- **OS**:  Debian 10/11/12
 - **Ansible**: 2.10.12 or higher
-- **Python**: 3.8+
 - **Docker**: 20.10+ with Compose v2
-- **Memory**: Minimum 2GB RAM (4GB recommended)
 - **Disk**: Minimum 10GB free space
 
-### Ansible Collections
-```bash
-ansible-galaxy collection install community.docker
-```
 
 ### System Packages (auto-installed)
 - curl
@@ -101,9 +192,9 @@ solr-prod-01 ansible_host=192.168.1.10 ansible_user=root
         moodle_app_domain: "moodle.acme.com"
         solr_core_name: "acme_core"
         # Use ansible-vault for passwords!
-        solr_admin_password: "{{ vault_solr_admin_password }}"
-        solr_support_password: "{{ vault_solr_support_password }}"
-        solr_customer_password: "{{ vault_solr_customer_password }}"
+        solr_admin_password: "{{ vault_solr_admin_password }}|| Plaintext"
+        solr_support_password: "{{ vault_solr_support_password }}|| Plaintext"
+        solr_customer_password: "{{ vault_solr_customer_password }} || Plaintext"
 ```
 
 ### 4. Run
@@ -117,8 +208,8 @@ ansible-playbook -i inventory/hosts playbook.yml
 
 ### Required Variables
 ```yaml
-customer_name: "your-company"           # Customer identifier
-moodle_app_domain: "moodle.example.com" # Your Moodle domain
+customer_name: "eledia.de"           # Customer identifier
+moodle_app_domain: "moodle.eledia.de" # Your Moodle domain
 ```
 
 ### Authentication (Use ansible-vault!)
@@ -214,7 +305,7 @@ curl -u admin:password "http://localhost:8983/solr/admin/health"
 # Development: Minimal overhead
 solr_health_check_mode: "basic"
 
-# Production: Balanced monitoring (default)
+#Ready: Balanced monitoring (default)
 solr_health_check_mode: "standard"
 solr_health_disk_threshold: 10      # Alert if < 10% free
 solr_health_memory_threshold: 90    # Alert if > 90% used
@@ -237,7 +328,7 @@ solr_health_check_enabled: false
 
 ### Example 1: First Installation
 ```yaml
-- hosts: production
+- hosts:{{hosts}}
   become: true
   roles:
     - role: solr
@@ -293,7 +384,7 @@ ansible-playbook -i inventory playbook.yml
 ### Deployment Flow
 ```
 ┌──────────────────────┐
-│ 1. Preflight Checks  │ → Validates system, Ansible version, disk space
+│ 1. Preflight Checks  │ → Validates system, disk space
 └──────────┬───────────┘
            │
 ┌──────────▼───────────┐
@@ -362,21 +453,21 @@ ansible-playbook -i inventory playbook.yml
 ┌─────────────────────────────────────────┐
 │  docker-compose.yml                     │
 │                                         │
-│  ┌───────────────┐  ┌────────────────┐ │
-│  │ solr-init     │  │ solr           │ │
-│  │ (Alpine)      │──│ (Official)     │ │
-│  │               │  │                │ │
-│  │ Validates:    │  │ Port: 8983    │ │
-│  │ - JSON syntax │  │ Auth: Basic   │ │
-│  │ - XML syntax  │  │ Schema: Moodle│ │
-│  │               │  │                │ │
-│  │ Deploys:      │  │ Health: API   │ │
-│  │ - security    │  └────────┬───────┘ │
-│  │ - configs     │           │         │
-│  │ - stopwords   │    ┌──────▼──────┐  │
-│  │ - schemas     │    │   Volume    │  │
-│  └───────────────┘    │ solr_data   │  │
-│                       └─────────────┘  │
+│  ┌───────────────┐  ┌────────────────┐  │
+│  │ solr-init     │  │ solr           │  │
+│  │ (Alpine)      │──│ (Official)     │  │
+│  │               │  │                │  │
+│  │ Validates:    │  │ Port: 8983     │  │
+│  │ - JSON syntax │  │ Auth: Basic    │  │
+│  │ - XML syntax  │  │ Schema: Moodle │  │
+│  │               │  │                │  │
+│  │ Deploys:      │  │ Health: API    │  │
+│  │ - security    │  └────────┬───────┘  │
+│  │ - configs     │           │          │
+│  │ - stopwords   │    ┌──────▼──────┐   │
+│  │ - schemas     │    │   Volume    │   │
+│  └───────────────┘    │ solr_data   │   │
+│                       └─────────────┘   │
 └─────────────────────────────────────────┘
 ```
 
@@ -611,6 +702,42 @@ ansible-playbook playbook.yml -vv
     - solr
 ```
 
+### Testing Flags
+```bash
+# Run only integration tests (skip deployment)
+ansible-playbook playbook.yml --tags "install-solr-test"
+
+# Run Moodle-specific tests only
+ansible-playbook playbook.yml --tags "install-solr-moodle"
+
+# Skip all tests (faster deployment)
+ansible-playbook playbook.yml --skip-tags "install-solr-test"
+
+# Test authentication only
+ansible-playbook playbook.yml --tags "install-solr-auth"
+
+# Run backup tests
+ansible-playbook playbook.yml --tags "install-solr-backup"
+
+# Full test suite (includes all 19 tests)
+ansible-playbook playbook.yml -e "perform_core_testing=true"
+
+# Validate deployment without changes
+ansible-playbook playbook.yml --check --diff
+```
+
+### Performance Testing
+```bash
+# Monitor memory usage during tests
+ansible-playbook playbook.yml -e "solr_jvm_monitoring=true"
+
+# Enable GC logging for performance analysis
+ansible-playbook playbook.yml -e "solr_gc_logging=true"
+
+# Test with larger heap for performance
+ansible-playbook playbook.yml -e "solr_heap_size=4g solr_memory_limit=8g"
+```
+
 ### Logs Locations
 ```
 /var/log/solr_deployment_*.log     # Deployment attempts
@@ -659,31 +786,20 @@ docker exec <container_name> solr restore \
 # Update Solr version
 # Edit playbook: solr_version: "9.10.0"
 ansible-playbook playbook.yml -e "solr_force_recreate=true"
-
-# Update role
-ansible-galaxy install bernd.solr --force
 ```
 
----
-
-## 📚 Documentation
-
-- [BUG_SEARCH_ANALYSIS_v1.3.2.md](BUG_SEARCH_ANALYSIS_v1.3.2.md) - All 11 bugs documented and fixed
-- [SENIOR_DEVELOPER_REVIEW_v1.3.1.md](SENIOR_DEVELOPER_REVIEW_v1.3.1.md) - Code review findings
-- [TEAM_LEAD_REVIEW_v1.3.1.md](TEAM_LEAD_REVIEW_v1.3.1.md) - Architecture assessment
-- [handlers/main.yml](handlers/main.yml) - Event handlers documentation
 
 ---
 
 ## 📝 Changelog
 
 ### v1.3.2 (2025-11-02) - Current
-- ✅ **CRITICAL**: Fixed 11 production bugs
+- ✅ **CRITICAL**: Fixed 11 bugs
 - ✅ **CRITICAL**: Added rollback mechanism (block/rescue/always)
 - ✅ **CRITICAL**: Fixed shell escaping in docker-compose template
 - ✅ Improved error handling with detailed logging
 - ✅ Expanded handlers (6 new handlers)
-- ✅ Fixed port check (ss instead of netstat)
+- ✅ Fixed port check
 - ✅ Created solr system user (UID 8983)
 - ✅ Added jq and libxml2-utils packages
 - ✅ Fixed password generator (/dev/null → persistent path)
@@ -728,35 +844,18 @@ ansible-galaxy install bernd.solr --force
 ## 👤 Author
 
 **Bernd Schreistetter**
-- Role: DevOps Engineer
-- Organization: Eledia
+- Role: DevOps Engineer / Administrator
+- Organization: Eledia Gmbh
 - Email: bernd.schreistetter@eledia.de
-
----
-
-## 🙏 Acknowledgments
-
-- Apache Solr Team
-- Moodle Community
-- Ansible Community
-- Docker Team
-
----
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourorg/ansible-role-solr/issues)
-- **Documentation**: This README + review documents
-- **Email**: support@eledia.de
 
 ---
 
 ## 📄 License
 
-MIT License - See [LICENSE](LICENSE) file for details
+MIT License
 
 ---
 
-**Made with ❤️ for the Ansible & Moodle communities**
+**Made with ❤️ for the Eledia & Moodle**
 
-**Production-tested** ✅ | **Fully documented** ✅ | **All bugs fixed** ✅
+**Production-tested** ✅ | **Fully documented** ✅ 

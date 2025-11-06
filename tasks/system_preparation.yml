@@ -12,6 +12,15 @@
 #   - Required packages installation
 #   - Compatible with Hetzner Cloud and Xen Server
 
+- name: install-solr - Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: true
+  ignore_errors: true
+  register: apt_cache_update
+  changed_when: false
+
 - name: install-solr - Install required system packages
   apt:
     name:
@@ -19,10 +28,8 @@
       - ca-certificates
       - gnupg
       - lsb-release
-      # NOTE: jq and libxml2-utils removed - validation done in init-container
     state: present
-    update_cache: yes
-    cache_valid_time: 3600
+    update_cache: no
   become: true
 
 - name: install-solr - Create solr group with GID 8983
@@ -63,8 +70,8 @@
   file:
     path: "{{ solr_log_dir }}"
     state: directory
-    owner: solr
-    group: solr
+    owner: root
+    group: root
     mode: '0755'
   become: true
 
@@ -95,7 +102,7 @@
     state: present
     reload: yes
   become: true
-  when: ansible_virtualization_type != 'openvz'  # Skip for OpenVZ
+  when: ansible_virtualization_type != 'openvz'
 
 
 - name: install-solr - Create Rundeck output

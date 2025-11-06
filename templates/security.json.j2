@@ -21,6 +21,12 @@
       { "name": "schema-edit",            "role": "admin" },
       { "name": "config-edit",            "role": "admin" },
       { "name": "collection-admin-edit",  "role": "admin" },
+      { "name": "core-admin-read",        "role": "admin" },
+      { "name": "core-admin-edit",        "role": "admin" },
+      { "name": "delete",                 "collection": "{{ solr_core_name }}", "role": ["admin"] },
+      { "name": "metrics",                "path": "/admin/metrics", "role": ["admin", "support"] },
+      { "name": "backup",                 "path": "/admin/cores", "role": ["admin"] },
+      { "name": "logging",                "path": "/admin/logging", "role": ["admin", "support"] },
       { "name": "read",    "collection": "{{ solr_core_name }}", "role": ["admin", "support", "customer"] },
       { "name": "update",  "collection": "{{ solr_core_name }}", "role": ["admin", "customer"] }
     ],

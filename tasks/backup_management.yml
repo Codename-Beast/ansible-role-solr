@@ -1,0 +1,108 @@
+---
+# Version: 1.0.0
+# Description: Automated backup management for Solr cores
+# Author: Bernd Schreistetter
+
+- name: backup-mgmt - Create backup directory
+  file:
+    path: "{{ solr_backup_path }}"
+    state: directory
+    owner: "8983"  # solr user in container
+    group: "8983"
+    mode: '0755'
+  become: true
+
+- name: backup-mgmt - Setup backup cron job
+  cron:
+    name: "Solr {{ solr_core_name }} automated backup"
+    cron_file: "solr_backup_{{ customer_name }}"
+    user: root
+    job: |
+      TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+      docker exec {{ solr_container_name }} \
+        solr backup -c {{ solr_core_name }} \
+        -d {{ solr_backup_path }} \
+        -name backup_${TIMESTAMP} \
+        {{ '-z' if solr_backup_compress else '' }} \
+        && echo "Backup completed: backup_${TIMESTAMP}" \
+        || echo "Backup failed: backup_${TIMESTAMP}"
+    hour: "{{ solr_backup_schedule.split(' ')[1] }}"
+    minute: "{{ solr_backup_schedule.split(' ')[0] }}"
+    state: "{{ 'present' if solr_backup_enabled else 'absent' }}"
+  become: true
+  when: solr_backup_schedule is defined
+
+- name: backup-mgmt - Setup backup cleanup cron job
+  cron:
+    name: "Solr {{ solr_core_name }} backup cleanup"
+    cron_file: "solr_backup_cleanup_{{ customer_name }}"
+    user: root
+    job: |
+      find {{ solr_backup_path }} -name "backup_*" -type d -mtime +{{ solr_backup_retention }} -exec rm -rf {} \; 2>/dev/null || true
+      echo "Backup cleanup completed - removed backups older than {{ solr_backup_retention }} days"
+    hour: "3"
+    minute: "30"
+    state: "{{ 'present' if solr_backup_enabled else 'absent' }}"
+  become: true
+  when: solr_backup_enabled
+
+- name: backup-mgmt - Create backup script
+  template:
+    src: backup_script.sh.j2
+    dest: "/usr/local/bin/solr_backup_{{ customer_name }}.sh"
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: solr_backup_enabled
+
+- name: backup-mgmt - Test backup functionality
+  shell: |
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)_test
+    docker exec {{ solr_container_name }} \
+      solr backup -c {{ solr_core_name }} \
+      -d {{ solr_backup_path }} \
+      -name backup_${TIMESTAMP} \
+      {{ '-z' if solr_backup_compress else '' }}
+  register: backup_test_result
+  failed_when: backup_test_result.rc != 0
+  when: 
+    - solr_backup_enabled
+    - solr_validate_deployment | default(true)
+
+- name: backup-mgmt - Cleanup test backup
+  shell: |
+    docker exec {{ solr_container_name }} \
+      rm -rf {{ solr_backup_path }}/backup_*_test 2>/dev/null || true
+  when: 
+    - solr_backup_enabled
+    - backup_test_result is defined
+    - backup_test_result.rc == 0
+
+- name: backup-mgmt - Create backup status check
+  copy:
+    content: |
+      #!/bin/bash
+      # Solr Backup Status Check for {{ customer_name }}
+      BACKUP_DIR="{{ solr_backup_path }}"
+      LATEST_BACKUP=$(ls -1t $BACKUP_DIR/backup_* 2>/dev/null | head -1)
+      
+      if [ -z "$LATEST_BACKUP" ]; then
+        echo " No backups found in $BACKUP_DIR"
+        exit 1
+      fi
+      
+      BACKUP_AGE=$(find "$LATEST_BACKUP" -mtime +1 2>/dev/null)
+      if [ -n "$BACKUP_AGE" ]; then
+        echo "Latest backup is older than 24 hours: $LATEST_BACKUP"
+        exit 1
+      fi
+      
+      echo "Latest backup is current: $LATEST_BACKUP"
+      exit 0
+    dest: "/usr/local/bin/solr_backup_status_{{ customer_name }}.sh"
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: solr_backup_enabled

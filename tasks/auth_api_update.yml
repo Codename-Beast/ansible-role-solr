@@ -20,7 +20,6 @@
     success_msg: "Password hashes available for API update"
   when: needs_api_update | default(false)
 
-# SECURITY: API Update disabled - no password storage on Control Node
 # When passwords change, container will be restarted instead
 # This ensures consistent state without needing old password storage
 

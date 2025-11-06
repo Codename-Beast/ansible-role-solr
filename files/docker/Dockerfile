@@ -2,7 +2,7 @@
 FROM solr:9.9.0
 
 LABEL maintainer="Ansible Automation"
-LABEL version="1.0.0"
+LABEL version="2.0.0"
 LABEL description="Solr 9.9.0 configured for Moodle"
 
 USER root

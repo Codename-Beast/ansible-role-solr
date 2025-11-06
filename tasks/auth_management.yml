@@ -2,7 +2,6 @@
 # Version: 1.3.2
 # Description: Unified auth detection and password hashing with loops
 # Consolidates: auth_detection.yml + auth_prehash.yml
-# Reduction: 428 lines → 180 lines (58% reduction)
 # Changelog v1.3.2:
 #   - FIXED: HOME environment variable validation
 #   - FIXED: Shell injection prevention with environment variables
@@ -12,22 +11,8 @@
 #   - OPTIMIZED: Loop-based processing for all users
 
 # ============================================================================
-# PART 0: ENVIRONMENT VALIDATION
+#  ENVIRONMENT VALIDATION
 # ============================================================================
-
-- name: auth-mgmt - Validate HOME environment variable
-  assert:
-    that:
-      - lookup('env', 'HOME') | length > 0
-      - lookup('env', 'HOME') != '/'
-    fail_msg: |
-      HOME environment variable is not set or invalid ({{ lookup('env', 'HOME') | default('UNDEFINED') }}).
-      This is required for password storage on the control node.
-      Set HOME before running this playbook: export HOME=/home/youruser
-    success_msg: "HOME environment variable validated: {{ lookup('env', 'HOME') }}"
-  delegate_to: localhost
-  run_once: true
-  when: not skip_auth | default(false)
 
 - name: auth-mgmt - Security validation - Prevent path traversal via inventory_hostname
   assert:
@@ -45,7 +30,7 @@
   tags: [always]
 
 # ============================================================================
-# PART 1: DETECTION - Check if existing hashes match passwords
+#  DETECTION - Check if existing hashes match passwords
 # ============================================================================
 
 - name: auth-mgmt - Check if security.json exists
@@ -173,7 +158,7 @@
       - "Skip auth regeneration: {{ skip_auth }}"
 
 # ============================================================================
-# CRITICAL FIX: Extract existing hashes when skip_auth=true
+# HASH EXTRACTION - Extract existing hashes when skip_auth=true
 # ============================================================================
 # When hashes match (skip_auth=true), we still need to set the hash variables
 # because security.json template requires them. Without this, template rendering fails.
@@ -189,7 +174,7 @@
     - security_json_parsed is defined
 
 # ============================================================================
-# PART 2: HASHING - Generate new hashes if needed
+#  HASHING - Generate new hashes if needed
 # ============================================================================
 
 # REMOVED: meta: end_host was stopping the entire playbook
@@ -214,10 +199,6 @@
         - { name: "customer", password: "{{ solr_customer_password | default('') }}" }
       loop_control:
         label: "{{ item.name }}"
-
-# ============================================================================
-# PART 2B: PASSWORD RESOLUTION - Load from host_vars or generate
-# ============================================================================
 
 - name: auth-mgmt - Check if passwords are defined in host_vars
   set_fact:

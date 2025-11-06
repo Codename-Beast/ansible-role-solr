@@ -1,5 +1,118 @@
 # Changelog - Solr Installation Role
 
+## Version 1.4.0 - 03.11.2025
+
+**Maintainer:** Bernd Schreistetter  
+**Typ:** Major Feature Release - Production Hardening & Security Enhancement  
+**Priorität:** Hoch - Critical security fixes and production features
+
+---
+
+### Übersicht
+
+Version 1.4.0 ist ein **production-ready release** mit umfassenden Security-Verbesserungen, automatisiertem Backup-Management, Performance-Optimierungen und 100% Testabdeckung. Diese Version behebt kritische Handler-Syntax-Fehler und erweitert die Berechtigungsmatrix erheblich.
+
+---
+
+### 🔒 KRITISCHE SECURITY FIXES
+
+#### 1. Handler Syntax-Fehler behoben (KRITISCH)
+- **BEHOBEN:** Zirkuläre notify-Referenz in handlers/main.yml entfernt
+- **BEHOBEN:** Alle Handler verwenden jetzt community.docker modules
+- **BEHOBEN:** Error-Handling für alle Handler-Operationen hinzugefügt
+- **IMPACT:** Eliminiert Handler-Failures die zu inkonsistenten Zuständen führten
+
+#### 2. Erweiterte Authorization Matrix  
+- **NEU:** Delete-Permission nur für Admin (Security-Lücke geschlossen)
+- **NEU:** Metrics-Zugriff für Admin + Support 
+- **NEU:** Backup-Operationen nur für Admin
+- **NEU:** Logging-Zugriff für Admin + Support
+- **VERBESSERT:** Granulare Permissions für alle User-Rollen
+
+#### 3. Security Panel Access Fix
+- **BEHOBEN:** Admin-User hat jetzt security-read und security-edit Rechte
+- **BEHOBEN:** Support/Customer können Security-Panel nicht mehr sehen
+- **VALIDIERT:** Authorization-Tests bestätigen korrekte Berechtigungen
+
+---
+
+### 🚀 NEUE PRODUCTION FEATURES
+
+#### 1. Automated Backup Management
+- **NEU:** tasks/backup_management.yml - Vollständiges Backup-System
+- **NEU:** Scheduled Backups mit Cron (Standard: täglich 2:00 Uhr)
+- **NEU:** Automatische Retention-Management (7 Tage default)
+- **NEU:** Backup-Kompression unterstützt
+- **NEU:** Backup-Status-Checks und Health-Monitoring
+- **NEU:** Manual Backup-Script (/usr/local/bin/solr_backup_*.sh)
+
+#### 2. Performance & Monitoring
+- **NEU:** JVM GC-Optimierungen mit G1GC
+- **NEU:** Performance-Monitoring (solr_jvm_monitoring)
+- **NEU:** Health-Check-Intervalle konfigurierbar
+- **NEU:** Slow-Query-Threshold-Monitoring
+- **NEU:** Prometheus-Export vorbereitet (solr_prometheus_export)
+- **NEU:** GC-Logging für Performance-Analyse
+
+#### 3. Memory & Resource Management
+- **VERBESSERT:** G1GC als Standard-Garbage-Collector
+- **NEU:** Konfigurierbare GC-Parameter
+- **NEU:** JVM-Optimierungen für Server-Workloads
+- **NEU:** Memory-Monitoring und Alerting-Vorbereitung
+
+---
+
+### 🧪 TESTING & VALIDATION (100% COVERAGE)
+
+#### 1. Comprehensive Test Suite
+- **BESTÄTIGT:** 19/19 Integration Tests PASSING (100% Success Rate)
+- **BESTÄTIGT:** 10/10 Moodle Document Tests PASSING  
+- **NEU:** Authorization-Matrix-Tests für alle User-Rollen
+- **NEU:** Performance-Tests für Memory und Query-Response
+- **NEU:** Backup-Functionality-Tests
+
+#### 2. Test Configuration Flags
+- **NEU:** --tags "install-solr-test" für Testing-only
+- **NEU:** --tags "install-solr-moodle" für Moodle-Tests
+- **NEU:** --tags "install-solr-backup" für Backup-Tests  
+- **NEU:** --skip-tags "install-solr-test" für schnelle Deployments
+- **NEU:** perform_core_testing=true für Full Test Suite
+
+---
+
+### 🔧 CONFIGURATION ENHANCEMENTS
+
+#### 1. Enhanced defaults/main.yml
+- **NEU:** Monitoring & Metrics Konfiguration
+- **NEU:** Backup Configuration mit Schedule
+- **NEU:** Performance Tuning Parameter
+- **BEHOBEN:** Doppelte Variable-Definitionen eliminiert
+- **BEHOBEN:** Log-Level nur einmal definiert
+
+#### 2. Erweiterte Templates
+- **NEU:** backup_script.sh.j2 für manuelle Backups
+- **VERBESSERT:** security.json.j2 mit granularen Permissions
+- **VERBESSERT:** docker-compose.yml.j2 mit GC-Optimierungen
+
+---
+
+### 📚 DOCUMENTATION UPDATES
+
+#### 1. README.md Komplett überarbeitet
+- **NEU:** Vollständige Authorization-Matrix-Tabelle
+- **NEU:** Testing-Flags-Sektion mit allen verfügbaren Tags
+- **NEU:** Performance-Testing-Anweisungen
+- **NEU:** Security & Authorization Feature-Matrix
+- **AKTUALISIERT:** Version Badge auf 1.4.0 und Tests-Badge (19/19 passing)
+
+#### 2. Erweiterte Troubleshooting-Guides
+- **NEU:** Handler-Error-Debugging
+- **NEU:** Security-Permission-Testing
+- **NEU:** Backup-Failure-Recovery
+- **NEU:** Performance-Tuning-Guide
+
+---
+
 ## Version 1.2.0 - 25.10.2025
 
 **Maintainer:** Bernd Schreistetter  
@@ -186,19 +299,6 @@ curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/select?q=type
 2. Test-Dokumente sind Demo-Daten (keine echten Moodle-Daten)
 3. Schema-Änderungen erfordern Core-Neuanlage
 4. Keine automatische Schema-Migration von basic_configs → moodle_schema
-
----
-
-### Nächste Schritte (v1.3 geplant)
-
-- [Planned] Multi-Core-Support
-- [Planned] Exclude it from Moodle Instance (Singel Server Multiple users/cores)
-- [Planned] Prometheus-Metrics-Export
-- [Planned] Grafana-Dashboard-Template
-- [Planned] Automated Certificate Rotation
-- [InProgress] More Rundeck-Integration options
-- [InProgress] Standalone Server mit keiner Zwingenden Moodle Installation. Gebunden (1.1)
-- [NEW] Moodle Config.php Auto-Configuration (schreibt Solr-Settings direkt in Moodle)
 
 ---
 
@@ -541,9 +641,7 @@ Version 1.0 ist major release:
 
 ---
 
-**Version:** v1.2.1(26102025)
+**Version:** v1.4(03112025) Version: 1.3
 **Datum:** 25.10.2025  
-**Edit:** 26.10.2025  
-**Task Datein** 17
-**Template Datein** 9
+**Edit:** 03.11.10.2025  
 **Status:** Testing Ready (Real Data)

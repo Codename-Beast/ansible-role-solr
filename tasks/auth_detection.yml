@@ -107,7 +107,7 @@
     - solr_admin_password | length == 0 or existing_admin_hash | length == 0
 
 # Validate support password
-- name: Verify support hash (CROSS-PLATFORM) 
+- name: Verify support hash  
   when:
     - existing_security_json.stat.exists
     - solr_admin_password | length > 0

@@ -2,7 +2,7 @@
 # Version: 1.3.2
 # Description: Persist Solr credentials with idempotency and selective updates
 # Changelog v1.3.2:
-#   - FIXED: Support for dynamic inventory (inventory_dir may be undefined)
+#   - FIXED: Support for dynamic inventory 
 # Changelog v1.3.1:
 #   - FIXED: No more duplicate entries in host_vars (proper marker usage)
 #   - FIXED: Idempotent backup (no timestamp in filename)
@@ -39,16 +39,7 @@
   register: host_vars_file
   delegate_to: localhost
 
-- name: auth-persist - Create host_vars directory if needed
-  file:
-    path: "{{ host_vars_dir }}"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-  when: not host_vars_file.stat.exists
-
-- name: auth-persist - Update credentials in host_vars (idempotent)
+- name: auth-persist - Update credentials in host_vars
   blockinfile:
     path: "{{ host_vars_dir }}/{{ inventory_hostname }}"
     create: yes
@@ -59,7 +50,6 @@
       # Solr Authentication Configuration
       # Host: {{ inventory_hostname }}
       # Customer: {{ customer_name | default('default') }}
-      # Last updated: {{ ansible_date_time.iso8601 }}
 
       # IMPORTANT: Only change these values if you want to update credentials
       # After changing, run the playbook to apply changes
@@ -74,22 +64,14 @@
 
       solr_core_name_override: "{{ solr_core_name }}"
       solr_port: {{ solr_port }}
-    mode: '0600'
   delegate_to: localhost
   run_once: true
-
-# SECURITY: Credential backup removed - passwords are only stored on Control Node
-# in $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/
-# and in container as hashes in /var/solr/data/security.json
-
-# SECURITY: Rundeck credential file removed - if Rundeck integration needed,
-# configure Rundeck to read from Control Node: $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/
 
 - name: auth-persist - Display persistence summary
   debug:
     msg:
       - "========================================"
-      - "CREDENTIALS PERSISTED (IDEMPOTENT)"
+      - "CREDENTIALS PERSISTED"
       - "========================================"
       - "Host vars: {{ host_vars_dir }}/{{ inventory_hostname }}"
       - "Control Node: $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/"
@@ -98,13 +80,8 @@
       - "IDEMPOTENCY:"
       - "  - Multiple runs: No duplicates"
       - "  - Only updates: Changed values"
-      - "  - Backup: Automatic before overwrite"
       - ""
       - "SECURITY:"
-      - "  - Host_vars mode: 0600"
-      - "  - Control Node passwords: mode 0600"
       - "  - Container: Hashes only (SHA256 double-hash)"
-      - "  - Encryption: ansible-vault encrypt host_vars/{{ inventory_hostname }}"
       - ""
-      - "NOTE: Passwords NOT stored on target host (outside container)"
       - "========================================"

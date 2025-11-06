@@ -143,11 +143,41 @@ solr_core_name_base: "{{ solr_core_name_raw[:45] | regex_replace('[^a-zA-Z0-9_]'
 solr_core_name: "{{ solr_core_name_base }}_core"
 solr_core_config: "moodle_configs"
 # ============================================================================
+# MONITORING & METRICS CONFIGURATION 
+# ============================================================================
+solr_metrics_enabled: true
+solr_prometheus_export: false
+solr_health_check_interval: 30  # seconds
+# Note: solr_health_check_timeout defined in retry section above
+solr_metrics_path: "/admin/metrics"
+solr_log_level: "INFO"  # DEBUG, INFO, WARN, ERROR
+
+# Performance Monitoring
+solr_jvm_monitoring: true
+solr_gc_logging: true
+solr_slow_query_threshold: 1000  # milliseconds
+
+# ============================================================================
+# BACKUP CONFIGURATION (UPDATED)
+# ============================================================================
+# Note: Diese Werte überschreiben die ursprünglichen weiter unten
+solr_backup_enabled: true
+solr_backup_schedule: "0 2 * * *"  # Daily at 2 AM
+solr_backup_retention: 7  # days
+solr_backup_path: "/var/solr/backup"
+solr_backup_compress: true
+solr_backup_credentials: false
+
+# ============================================================================
 # MEMORY CONFIGURATION
 # ============================================================================
 solr_heap_size: "2g"
 solr_memory_limit: "4g"  # Must be >= heap + 50% for non-heap memory (metaspace, buffers, threads)
 solr_memory_swap: "4g"
+
+# GC & Performance Optimizations
+solr_gc_options: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200"
+solr_jvm_opts: "-server -Djava.awt.headless=true -Dfile.encoding=UTF-8"
 solr_cpu_quota: 100000
 solr_cpu_period: 100000
 # ============================================================================
@@ -167,7 +197,7 @@ solr_ssl_cert_path: "/etc/letsencrypt/live/{{ moodle_app_domain | default('local
 solr_max_boolean_clauses: 1024
 solr_auto_commit_time: 15000  # milliseconds
 solr_auto_soft_commit_time: 1000  # milliseconds
-solr_log_level: "INFO"
+# Note: solr_log_level defined in MONITORING section above
 # ============================================================================
 # MOODLE CONFIGURATION
 # ============================================================================
@@ -211,12 +241,6 @@ solr_moodle_performance:
 solr_use_moodle_schema: true
 solr_moodle_test_docs: true
 solr_moodle_versions: ["4.1", "4.2", "4.3", "4.4", "5.0.x"]
-# ============================================================================
-# BACKUP CONFIGURATION
-# ============================================================================
-solr_backup_enabled: false
-solr_backup_retention: 7  # days
-solr_backup_credentials: false
 # ============================================================================
 # DEPLOYMENT FLAGS
 # ============================================================================

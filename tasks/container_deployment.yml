@@ -174,7 +174,7 @@
       debug:
         msg: "Container backup: {{ container_backup.stdout | default('skipped') }}"
 
-    - name: solr-deployment - Stop services for restart (only if needed)
+    - name: solr-deployment - Stop services for restart
       command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
       when: needs_restart
       become: true
@@ -219,35 +219,6 @@
           4. Try manual deployment: cd {{ solr_compose_dir }} && docker compose up -d
 
           For support, provide this error message and the logs mentioned above.
-
-  always:
-    - name: solr-deployment - ALWAYS - Log deployment attempt
-      copy:
-        content: |
-          Deployment Attempt Log
-          ======================
-          Timestamp: {{ ansible_date_time.iso8601 }}
-          Host: {{ inventory_hostname }}
-          User: {{ ansible_user_id }}
-
-          Container: {{ solr_container_name }}
-          Backup created: {{ container_backup.stdout | default('unknown') }}
-          Config changed: {{ config_changed | default('unknown') }}
-          Needs restart: {{ needs_restart | default('unknown') }}
-          Needs start: {{ needs_start | default('unknown') }}
-
-          Result: {{ 'SUCCESS' if ansible_failed_task is not defined else 'FAILED' }}
-          {% if ansible_failed_task is defined %}
-          Failed task: {{ ansible_failed_task.name }}
-          Error: {{ ansible_failed_result.msg | default('Unknown') }}
-          {% endif %}
-        dest: "/var/log/solr_deployment_{{ ansible_date_time.epoch }}.log"
-        owner: root
-        group: root
-        mode: '0644'
-      delegate_to: localhost
-      become: false
-      failed_when: false
 
   when: not can_skip
 

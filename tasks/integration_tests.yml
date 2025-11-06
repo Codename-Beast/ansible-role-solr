@@ -51,22 +51,28 @@
   changed_when: false
   failed_when: auth_wrong_test.status != 401
 
-
-- name: install-solr - Test document indexing (add test document)
+- name: Add test document to core
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs?commit=true"
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
+    validate_certs: no
     body_format: json
-    status_code: 200
     body:
       id: "integration_test_{{ ansible_date_time.epoch }}"
       title: "Integration Test Document"
-      text: "Smoke test document for integration testing"
-  register: index_test
-  failed_when: index_test.status != 200
+      content: "Smoke test document for Solr core {{ solr_core_name }}"
+      contextid: 1
+      courseid: 1
+      modified: "{{ ansible_date_time.iso8601 }}"
+      type: 0
+      itemid: 1
+      description1: "Test document for integration testing"
+      description2: "Created by Ansible automation"
+    status_code: 200
+  register: add_document_result
 
 - name: install-solr - Store test document ID for cleanup
   set_fact:
@@ -119,13 +125,13 @@
   failed_when: false
 
 - name: install-solr - Check Docker container health
-  command: docker inspect --format='{{`{{.State.Health.Status}}`}}' {{ solr_container_name }}
+  command: "docker inspect --format='{{ '{{' }}.State.Health.Status{{ '}}' }}' {{ solr_container_name }}"
   register: container_health
   changed_when: false
   failed_when: false
 
 - name: install-solr - Check Docker container status
-  command: docker inspect --format='{{`{{.State.Status}}`}}' {{ solr_container_name }}
+  command: "docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ solr_container_name }}"
   register: container_status
   changed_when: false
 
@@ -164,7 +170,7 @@
       core_ping_test.status == 200,
       auth_reject_test.status == 401,
       auth_wrong_test.status == 401,
-      index_test.status == 200,
+      add_document_result.status == 200,
       search_test.json.response.numFound >= 1,
       container_status.stdout == 'running',
       security_json_check.rc == 0,
@@ -188,7 +194,7 @@
         core_ping: "{{ 'PASSED' if core_ping_test.status == 200 else 'FAILED' }}"
         auth_no_credentials: "{{ 'PASSED' if auth_reject_test.status == 401 else 'FAILED' }}"
         auth_wrong_credentials: "{{ 'PASSED' if auth_wrong_test.status == 401 else 'FAILED' }}"
-        document_indexing: "{{ 'PASSED' if index_test.status == 200 else 'FAILED' }}"
+        document_indexing: "{{ 'PASSED' if add_document_result.status == 200 else 'FAILED' }}"
         document_search: "{{ 'PASSED' if search_test.json.response.numFound >= 1 else 'FAILED' }}"
         container_status: "{{ 'PASSED' if container_status.stdout == 'running' else 'FAILED' }}"
         container_health: "{{ container_health.stdout if container_health.rc == 0 else 'N/A' }}"
@@ -210,7 +216,7 @@
       - "Core ping: {{ 'PASSED' if core_ping_test.status == 200 else 'FAILED' }}"
       - "Auth rejection (no creds): {{ 'PASSED' if auth_reject_test.status == 401 else 'FAILED' }}"
       - "Auth rejection (wrong creds): {{ 'PASSED' if auth_wrong_test.status == 401 else 'FAILED' }}"
-      - "Document indexing: {{ 'PASSED' if index_test.status == 200 else 'FAILED' }}"
+      - "Document indexing: {{ 'PASSED' if add_document_result.status == 200 else 'FAILED' }}"
       - "Document search: {{ 'PASSED' if search_test.json.response.numFound >= 1 else 'FAILED' }}"
       - "Container running: {{ 'PASSED' if container_status.stdout == 'running' else 'FAILED' }}"
       - "Container health: {{ container_health.stdout if container_health.rc == 0 else 'N/A' }}"

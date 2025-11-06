@@ -94,6 +94,17 @@
   changed_when: cfg_copy.rc == 0
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
+- name: install-solr - Create schema.xml from moodle_schema.xml if missing
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: >
+      sh -lc 'if [ -f /var/solr/data/configsets/{{ solr_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ solr_core_config }}/conf/schema.xml ]; then
+                cp /var/solr/data/configsets/{{ solr_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ solr_core_config }}/conf/schema.xml;
+              fi'
+  register: schema_copy
+  changed_when: schema_copy.rc == 0
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
 - name: install-solr - Set ownership for configSet (root inside container)
   community.docker.docker_container_exec:
     container: "{{ solr_container_name }}"
@@ -126,7 +137,19 @@
 - name: install-solr - Ensure lang directory exists in configSet
   community.docker.docker_container_exec:
     container: "{{ solr_container_name }}"
-    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ solr_core_config }}/lang'"
+    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ solr_core_config }}/conf/lang'"
+  changed_when: true
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: install-solr - Copy lang files from deployed location to configSet
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: >
+      sh -lc 'for f in /var/solr/data/lang/*; do
+                if [ -f "$f" ]; then
+                  cp "$f" /var/solr/data/configsets/{{ solr_core_config }}/conf/lang/;
+                fi;
+              done'
   changed_when: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
@@ -137,12 +160,12 @@
       sh -lc '
       for f in stopwords_en.txt stopwords_de.txt; do
         if [ -f /var/solr/data/configsets/{{ solr_core_config }}/conf/$f ]; then
-          cp -f /var/solr/data/configsets/{{ solr_core_config }}/conf/$f /var/solr/data/configsets/{{ solr_core_config }}/lang/;
+          cp -f /var/solr/data/configsets/{{ solr_core_config }}/conf/$f /var/solr/data/configsets/{{ solr_core_config }}/conf/lang/;
         fi;
       done &&
-      chown -R 8983:8983 /var/solr/data/configsets/{{ solr_core_config }}/lang &&
-      find /var/solr/data/configsets/{{ solr_core_config }}/lang -type d -exec chmod 0755 {} \; &&
-      find /var/solr/data/configsets/{{ solr_core_config }}/lang -type f -exec chmod 0644 {} \;'
+      chown -R 8983:8983 /var/solr/data/configsets/{{ solr_core_config }}/conf/lang &&
+      find /var/solr/data/configsets/{{ solr_core_config }}/conf/lang -type d -exec chmod 0755 {} \; &&
+      find /var/solr/data/configsets/{{ solr_core_config }}/conf/lang -type f -exec chmod 0644 {} \;'
   changed_when: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
@@ -167,7 +190,7 @@
 
 # ---------------- API CREATE (schema.xml via configset) ----------------
 
-- name: install-solr - Try API core CREATE (uses configSet we just pushed)
+- name: install-solr - Try API core CREATE (uses configSet)
   uri:
     url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=CREATE&name={{ solr_core_name }}&configSet={{ solr_core_config }}"
     method: GET
@@ -246,7 +269,7 @@
   failed_when: false
   changed_when: false
 
-- name: install-solr - Ensure no managed-schema present in CORE (safety)
+- name: install-solr - Ensure no managed-schema present in CORE
   community.docker.docker_container_exec:
     container: "{{ solr_container_name }}"
     command: "sh -lc 'rm -f /var/solr/data/{{ solr_core_name }}/conf/managed-schema /var/solr/data/{{ solr_core_name }}/conf/old_managed-schema || true'"

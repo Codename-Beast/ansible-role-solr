@@ -13,12 +13,9 @@
 #   - ADDED: Deployment attempt logging for debugging
 # Changelog v1.3.1:
 #   - CRITICAL: Full idempotency - unlimited re-runs on same server
-#   - FEATURE: Selective password updates without container restart
-#   - FEATURE: Core name changes create new cores (old cores preserved)
 #   - FIXED: Host_vars duplicate entries eliminated
 #   - FIXED: Container only restarts when non-auth configs change
-#   - OPTIMIZED: Consolidated auth tasks (4→2 files, 58% reduction)
-#   - OPTIMIZED: Unified config management (3→1 files, 52% reduction)
+
 
 - name: install-solr - Preflight checks
   include_tasks: preflight_checks.yml
@@ -35,14 +32,13 @@
   include_tasks: docker_installation.yml
   tags:
     - install-solr-docker
-# OPTIMIZED: Auth detection + password hashing (unified)
+
 - name: solr-auth management (detection + hashing)
   include_tasks: auth_management.yml
   when: solr_auth_enabled | default(true)
   tags:
     - install-solr-auth
 
-# OPTIMIZED: Config management (unified)
 - name: install-solr - Configuration management
   include_tasks: config_management.yml
   tags:
@@ -109,6 +105,12 @@
   when: solr_proxy_enabled | default(true)
   tags:
     - install-solr-proxy
+
+#- name: install-solr - Backup management
+#  include_tasks: backup_management.yml
+#  when: solr_backup_enabled | default(true)
+#  tags:
+#    - install-solr-backup
 
 - name: install-solr - Integration tests
   include_tasks: integration_tests.yml

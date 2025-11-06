@@ -29,17 +29,14 @@
       id: "forum_post_1_{{ ansible_date_time.epoch }}"
       title: "Einführung in die Mathematik"
       content: "Dies ist ein Testbeitrag für das Mathematik-Forum. Hier diskutieren wir über lineare Algebra und Analysis."
-      description: "Forum-Beitrag im Kurs Mathematik Grundlagen"
+      description1: "Forum-Beitrag im Kurs Mathematik Grundlagen"
       contextid: 101
       courseid: 5
       owneruserid: 2
       modified: "{{ ansible_date_time.iso8601 }}"
-      type: "forum_post"
+      type: 0
       areaid: "mod_forum-post"
       itemid: 1234
-      modname: "forum"
-      username: "Max Mustermann"
-      categoryid: 1
     status_code: 200
   register: test_doc1
 
@@ -60,12 +57,9 @@
       courseid: 7
       owneruserid: 3
       modified: "{{ ansible_date_time.iso8601 }}"
-      type: "wiki_page"
+      type: 1
       areaid: "mod_wiki-page"
       itemid: 5678
-      modname: "wiki"
-      username: "Anna Schmidt"
-      categoryid: 2
     status_code: 200
   register: test_doc2
 
@@ -81,16 +75,14 @@
       id: "course_module_1_{{ ansible_date_time.epoch }}"
       title: "Einführung in Python Programmierung"
       content: "Lerne die Grundlagen der Python Programmierung. Von Variablen über Funktionen bis zu objektorientierten Konzepten."
-      description: "Dieser Kurs behandelt alle wichtigen Python-Grundlagen für Anfänger"
+      description1: "Dieser Kurs behandelt alle wichtigen Python-Grundlagen für Anfänger"
       contextid: 103
       courseid: 12
       owneruserid: 1
       modified: "{{ ansible_date_time.iso8601 }}"
-      type: "course_module"
+      type: 2
       areaid: "core_course-course"
       itemid: 9012
-      username: "Admin User"
-      categoryid: 3
     status_code: 200
   register: test_doc3
 
@@ -111,12 +103,9 @@
       courseid: 8
       owneruserid: 4
       modified: "{{ ansible_date_time.iso8601 }}"
-      type: "assignment"
+      type: 3
       areaid: "mod_assign-activity"
       itemid: 3456
-      modname: "assign"
-      username: "Prof. Dr. Meier"
-      categoryid: 2
     status_code: 200
   register: test_doc4
 
@@ -132,17 +121,14 @@
       id: "page_resource_1_{{ ansible_date_time.epoch }}"
       title: "Lernmaterialien: HTML und CSS"
       content: "HTML ist die Struktur-Sprache des Webs. CSS ermöglicht das Styling. Zusammen bilden sie die Grundlage moderner Webseiten. Responsive Design und Flexbox sind wichtige Konzepte."
-      description: "Einführung in Webentwicklung mit HTML5 und CSS3"
+      description1: "Einführung in Webentwicklung mit HTML5 und CSS3"
       contextid: 105
       courseid: 15
       owneruserid: 2
       modified: "{{ ansible_date_time.iso8601 }}"
-      type: "page"
+      type: 4
       areaid: "mod_page-activity"
       itemid: 7890
-      modname: "page"
-      username: "Max Mustermann"
-      categoryid: 4
     status_code: 200
   register: test_doc5
 
@@ -191,7 +177,7 @@
 
 - name: install-solr - Test search by type
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=type:forum_post&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=type:0&wt=json"
     method: GET
     user: "{{ solr_customer_user }}"
     password: "{{ solr_customer_password }}"
@@ -200,9 +186,9 @@
   register: search_type
   changed_when: false
 
-- name: install-solr - Test facet search by modname
+- name: install-solr - Test facet search by type
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*&facet=true&facet.field=modname&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*&facet=true&facet.field=type&wt=json"
     method: GET
     user: "{{ solr_customer_user }}"
     password: "{{ solr_customer_password }}"
@@ -213,18 +199,19 @@
 
 - name: install-solr - Calculate test results
   set_fact:
-    moodle_tests_passed: "{{ [
-      test_doc1.status == 200,
-      test_doc2.status == 200,
-      test_doc3.status == 200,
-      test_doc4.status == 200,
-      test_doc5.status == 200,
-      commit_result.status == 200,
-      search_math.json.response.numFound >= 1,
-      search_python.json.response.numFound >= 1,
-      search_course.json.response.numFound >= 1,
-      search_type.json.response.numFound >= 1
-    ] | select('true') | list | length }}"
+    moodle_tests_passed: >-
+      {{
+        (test_doc1.status == 200) | int +
+        (test_doc2.status == 200) | int +
+        (test_doc3.status == 200) | int +
+        (test_doc4.status == 200) | int +
+        (test_doc5.status == 200) | int +
+        (commit_result.status == 200) | int +
+        (search_math.json.response.numFound >= 1) | int +
+        (search_python.json.response.numFound >= 1) | int +
+        (search_course.json.response.numFound >= 1) | int +
+        (search_type.json.response.numFound >= 1) | int
+      }}
     moodle_tests_total: 10
 
 - name: install-solr - Create Rundeck-compatible output
