@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 ###############################################################################
-# Atomic Security.json Manager v3.3.0
+# Atomic Security.json Manager v3.4.0
 # Provides file-locking and transactional updates to prevent race conditions
 ###############################################################################
 
 set -euo pipefail
 
-# Configuration
+# Configuration (v3.4.0: Configurable from .env)
 SECURITY_JSON="${SECURITY_JSON:-/var/solr/data/security.json}"
 LOCK_DIR="/tmp/security-json-lock"
-LOCK_TIMEOUT=60
+LOCK_TIMEOUT="${TRANSACTION_LOCK_TIMEOUT:-300}"  # v3.4.0: Configurable (default: 5min)
 BACKUP_DIR="/var/solr/backup/security"
 
 # Colors
@@ -280,9 +280,9 @@ begin_transaction() {
     TRANSACTION_LOG="/tmp/security_transaction_${TRANSACTION_ID}.log"
     TRANSACTION_BACKUP="${SECURITY_JSON}.tx_backup.${TRANSACTION_ID}"
 
-    # Acquire lock for entire transaction
-    if ! acquire_lock 300; then  # 5 minute timeout for transactions
-        log_error "Failed to acquire lock for transaction"
+    # Acquire lock for entire transaction (v3.4.0: Use configurable timeout)
+    if ! acquire_lock "${TRANSACTION_LOCK_TIMEOUT:-300}"; then
+        log_error "Failed to acquire lock for transaction (timeout: ${TRANSACTION_LOCK_TIMEOUT:-300}s)"
         return 1
     fi
 

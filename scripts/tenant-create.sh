@@ -1,57 +1,30 @@
 #!/bin/bash
 
 ###############################################################################
-# Tenant Creation Script
+# Tenant Creation Script v3.4.0
 # Creates a new isolated tenant (Solr core + user + RBAC configuration)
 ###############################################################################
 
 set -euo pipefail
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Load environment
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/.env"
-    set +a
-else
-    echo -e "${RED}❌ Error: .env file not found. Run 'make init' first.${NC}"
-    exit 1
-fi
+# Load common functions (v3.4.0 - Centralized utilities)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/common.sh"
 
 # CRITICAL: Load atomic security manager (v3.3.0 - Race condition fix)
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/security-json-manager.sh"
 
 ###############################################################################
-# Helper Functions
+# Pre-flight Checks (v3.4.0)
 ###############################################################################
 
-log_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
-}
-
-log_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-log_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
-}
+# Check if Solr container is running
+require_container_running "solr"
 
 ###############################################################################
 # Validation
@@ -212,34 +185,13 @@ add_user_and_rbac() {
     # Start Solr
     docker compose start solr >/dev/null 2>&1
 
-    # Wait for Solr to be ready with progress indication
-    log_info "Waiting for Solr to be ready..."
-    local max_wait=90
-    local waited=0
-    local last_msg_time=0
-
-    while ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
-        "http://localhost:8983/solr/admin/info/system" > /dev/null 2>&1; do
-        sleep 2
-        waited=$((waited + 2))
-
-        # Progress update every 10s
-        if [ $((waited - last_msg_time)) -ge 10 ] && [ $waited -lt $max_wait ]; then
-            echo "   Still waiting... (${waited}s/${max_wait}s)"
-            last_msg_time=$waited
-        fi
-
-        if [ $waited -ge $max_wait ]; then
-            log_error "Solr did not become ready within ${max_wait} seconds"
-            log_error "Check logs: docker compose logs solr"
-            log_error "Rolling back security.json changes..."
-            rollback_transaction
-            trap - ERR
-            return 1
-        fi
-    done
-
-    log_success "Solr is ready (took ${waited}s)"
+    # v3.4.0: Use centralized wait_for_solr function with configurable timeout
+    if ! wait_for_solr "${SOLR_STARTUP_TIMEOUT}"; then
+        log_error "Rolling back security.json changes..."
+        rollback_transaction
+        trap - ERR
+        return 1
+    fi
 
     # Now commit transaction - Solr successfully loaded new config
     commit_transaction

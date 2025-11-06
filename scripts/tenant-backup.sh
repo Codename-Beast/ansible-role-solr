@@ -1,33 +1,26 @@
 #!/bin/bash
 
 ###############################################################################
-# Tenant Backup Script
+# Tenant Backup Script v3.4.0
 # Creates backups for one or all tenants
 ###############################################################################
 
 set -euo pipefail
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Load environment
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$PROJECT_ROOT/.env"
-    set +a
-else
-    echo -e "${RED}❌ Error: .env file not found.${NC}"
-    exit 1
-fi
+# Load common functions (v3.4.0 - Centralized utilities)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/common.sh"
+
+###############################################################################
+# Pre-flight Checks (v3.4.0)
+###############################################################################
+
+# Check if Solr container is running
+require_container_running "solr"
 
 ###############################################################################
 # Backup Locking (v3.3.1 - Prevent concurrent backups of same tenant)
@@ -36,7 +29,7 @@ fi
 acquire_backup_lock() {
     local tenant_id=$1
     local lock_dir="/tmp/backup_${tenant_id}.lock"
-    local timeout=300  # 5 minutes
+    local timeout=${BACKUP_LOCK_TIMEOUT:-300}  # v3.4.0: Configurable from .env (default: 5min)
     local elapsed=0
     local backoff=2
 
@@ -80,26 +73,6 @@ release_backup_lock() {
             rm -rf "$lock_dir"
         fi
     fi
-}
-
-###############################################################################
-# Helper Functions
-###############################################################################
-
-log_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
-}
-
-log_success() {
-    echo -e "${GREEN}✅ $1${NC}"
-}
-
-log_error() {
-    echo -e "${RED}❌ $1${NC}"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
 ###############################################################################

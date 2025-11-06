@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Common Shell Script Library v2.3.0
-# Provides: Retry logic, logging, error handling, file locking
+# Common Shell Script Library v3.4.0
+# Provides: Retry logic, logging, error handling, file locking, Solr utilities
 # Usage: source /path/to/common.sh
 
 # ============================================================================
@@ -352,6 +352,140 @@ get_project_dir() {
 }
 
 # ============================================================================
+# SOLR UTILITIES (v3.4.0 - Multi-Tenancy Support)
+# ============================================================================
+
+# Configurable timeouts (loaded from .env with sensible defaults)
+SOLR_STARTUP_TIMEOUT="${SOLR_STARTUP_TIMEOUT:-90}"
+SOLR_HEALTH_CHECK_INTERVAL="${SOLR_HEALTH_CHECK_INTERVAL:-2}"
+SOLR_PROGRESS_INTERVAL="${SOLR_PROGRESS_INTERVAL:-10}"
+CONTAINER_CHECK_TIMEOUT="${CONTAINER_CHECK_TIMEOUT:-30}"
+BACKUP_LOCK_TIMEOUT="${BACKUP_LOCK_TIMEOUT:-300}"
+TRANSACTION_LOCK_TIMEOUT="${TRANSACTION_LOCK_TIMEOUT:-300}"
+
+# Check if a specific container is running (fast check for tenant scripts)
+# Usage: check_container_running "solr" || die "Solr not running"
+check_container_running() {
+    local container_name=$1
+    local timeout=${2:-5}
+    local waited=0
+
+    log_debug "Checking if container '$container_name' is running..."
+
+    while [ $waited -lt $timeout ]; do
+        if docker compose ps "$container_name" 2>/dev/null | grep -q 'Up'; then
+            log_debug "Container '$container_name' is running"
+            return 0
+        fi
+
+        sleep 1
+        waited=$((waited + 1))
+    done
+
+    return 1
+}
+
+# Check if container is running, exit with helpful message if not
+# Usage: require_container_running "solr"
+require_container_running() {
+    local container_name=$1
+
+    if ! check_container_running "$container_name" 5; then
+        log_error "Container '$container_name' is not running"
+        log_error ""
+        log_error "Start it with one of these commands:"
+        log_error "  make start"
+        log_error "  docker compose up -d $container_name"
+        log_error ""
+        log_error "Check status with:"
+        log_error "  docker compose ps"
+        log_error "  docker compose logs $container_name"
+        exit 1
+    fi
+}
+
+# Wait for Solr to become ready with progress indication
+# Usage: wait_for_solr [timeout] [on_timeout_callback]
+# Returns: 0 on success, 1 on timeout
+wait_for_solr() {
+    local max_wait=${1:-$SOLR_STARTUP_TIMEOUT}
+    local on_timeout_callback=${2:-}
+    local waited=0
+    local last_msg_time=0
+    local check_interval=${SOLR_HEALTH_CHECK_INTERVAL}
+    local progress_interval=${SOLR_PROGRESS_INTERVAL}
+
+    log_info "Waiting for Solr to be ready (timeout: ${max_wait}s)..."
+
+    # Validate credentials are set
+    if [ -z "${SOLR_ADMIN_USER:-}" ] || [ -z "${SOLR_ADMIN_PASSWORD:-}" ]; then
+        log_error "SOLR_ADMIN_USER and SOLR_ADMIN_PASSWORD must be set in .env"
+        return 1
+    fi
+
+    while ! docker compose exec -T solr curl -sf \
+        -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
+        "http://localhost:8983/solr/admin/info/system" > /dev/null 2>&1; do
+
+        sleep "$check_interval"
+        waited=$((waited + check_interval))
+
+        # Progress update at regular intervals
+        if [ $((waited - last_msg_time)) -ge $progress_interval ] && [ $waited -lt $max_wait ]; then
+            echo "   Still waiting... (${waited}s/${max_wait}s)"
+            last_msg_time=$waited
+        fi
+
+        if [ $waited -ge $max_wait ]; then
+            log_error "Solr did not become ready within ${max_wait} seconds"
+            log_error ""
+            log_error "Troubleshooting steps:"
+            log_error "  1. Check container status:"
+            log_error "     docker compose ps solr"
+            log_error ""
+            log_error "  2. Check Solr logs:"
+            log_error "     docker compose logs solr"
+            log_error "     docker compose logs --tail 50 solr"
+            log_error ""
+            log_error "  3. Check if container is out of memory:"
+            log_error "     docker stats solr --no-stream"
+            log_error ""
+            log_error "  4. Try increasing timeout in .env:"
+            log_error "     SOLR_STARTUP_TIMEOUT=$((max_wait + 30))"
+
+            # Call optional callback (e.g., rollback transaction)
+            if [ -n "$on_timeout_callback" ] && type "$on_timeout_callback" &>/dev/null; then
+                log_error ""
+                log_error "Executing cleanup: $on_timeout_callback"
+                $on_timeout_callback
+            fi
+
+            return 1
+        fi
+    done
+
+    log_success "Solr is ready (took ${waited}s)"
+    return 0
+}
+
+# Validate tenant ID format
+# Usage: validate_tenant_id "prod" || die "Invalid tenant ID"
+validate_tenant_id() {
+    local tenant_id=$1
+
+    # Allow alphanumeric, underscore, hyphen (3-32 chars)
+    if ! [[ "$tenant_id" =~ ^[a-zA-Z0-9_-]{3,32}$ ]]; then
+        log_error "Invalid tenant ID: $tenant_id"
+        log_error "Requirements:"
+        log_error "  - 3-32 characters"
+        log_error "  - Only letters, numbers, underscore, hyphen"
+        log_error "  - No spaces or special characters"
+        return 1
+    fi
+    return 0
+}
+
+# ============================================================================
 # EXPORT FUNCTIONS (for subshells)
 # ============================================================================
 
@@ -362,3 +496,8 @@ export -f acquire_lock release_lock with_lock
 export -f require_command require_file require_dir require_env
 export -f wait_for_container is_service_running
 export -f load_env get_project_dir
+export -f check_container_running require_container_running wait_for_solr validate_tenant_id
+
+# Export configuration variables
+export SOLR_STARTUP_TIMEOUT SOLR_HEALTH_CHECK_INTERVAL SOLR_PROGRESS_INTERVAL
+export CONTAINER_CHECK_TIMEOUT BACKUP_LOCK_TIMEOUT TRANSACTION_LOCK_TIMEOUT
