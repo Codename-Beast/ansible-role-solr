@@ -1,0 +1,27 @@
+# Environment
+.env
+
+# Data directories
+data/*
+!data/.gitkeep
+backups/*
+!backups/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Generated config (except examples)
+config/security.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml

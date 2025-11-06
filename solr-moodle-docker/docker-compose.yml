@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  solr-init:
+    image: alpine:3.20
+    container_name: ${CUSTOMER_NAME}_solr_init
+    volumes:
+      - solr_data:/var/solr
+      - ./config:/config:ro
+    command: >
+      sh -c "
+      set -e;
+      echo '========================================';
+      echo 'Solr Configuration Deployment v2.0';
+      echo '========================================';
+
+      echo '[1/5] Installing validation tools...';
+      apk add --no-cache jq libxml2-utils;
+
+      echo '[2/5] Creating directory structure...';
+      mkdir -p /var/solr/data /var/solr/data/configs /var/solr/data/lang /var/solr/backup/configs;
+
+      echo '[3/5] Backing up existing configs...';
+      TIMESTAMP=$$(date +%Y%m%d_%H%M%S);
+      [ -f /var/solr/data/security.json ] && cp /var/solr/data/security.json /var/solr/backup/configs/security.json.$$TIMESTAMP 2>/dev/null || true;
+
+      echo '[4/5] Validating configuration files...';
+      if [ -f /config/security.json ]; then
+        echo '  ✓ Validating security.json';
+        jq empty /config/security.json || ( echo 'ERROR: Invalid JSON in security.json'; exit 1 );
+      fi;
+      if [ -f /config/solrconfig.xml ]; then
+        echo '  ✓ Validating solrconfig.xml';
+        xmllint --noout /config/solrconfig.xml || ( echo 'ERROR: Invalid XML in solrconfig.xml'; exit 1 );
+      fi;
+      if [ -f /config/moodle_schema.xml ]; then
+        echo '  ✓ Validating moodle_schema.xml';
+        xmllint --noout /config/moodle_schema.xml || ( echo 'ERROR: Invalid XML in moodle_schema.xml'; exit 1 );
+      fi;
+
+      echo '[5/5] Deploying configuration files...';
+      for file in security.json solrconfig.xml moodle_schema.xml synonyms.txt protwords.txt; do
+        if [ -f /config/$$file ]; then
+          if echo $$file | grep -q '.xml\|.json'; then
+            echo \"  ✓ Deploying $$file\";
+          else
+            echo \"  ✓ Deploying $$file\";
+          fi;
+          if echo $$file | grep -q 'security.json'; then
+            cp /config/$$file /var/solr/data/$$file;
+          else
+            cp /config/$$file /var/solr/data/configs/$$file;
+          fi;
+        fi;
+      done;
+
+      for file in stopwords.txt stopwords_de.txt stopwords_en.txt; do
+        if [ -f /config/$$file ]; then
+          echo \"  ✓ Deploying $$file\";
+          cp /config/$$file /var/solr/data/lang/$$file;
+        fi;
+      done;
+
+      echo 'Setting permissions...';
+      chown -R 8983:8983 /var/solr;
+      chmod 600 /var/solr/data/security.json 2>/dev/null || true;
+
+      echo '========================================';
+      echo 'Configuration Deployment: SUCCESS';
+      echo '========================================';
+      exit 0;
+      "
+    networks:
+      - solr_network
+
+  solr:
+    image: solr:${SOLR_VERSION:-9.9.0}
+    container_name: ${CUSTOMER_NAME}_solr
+    depends_on:
+      solr-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${SOLR_PORT:-8983}:8983"
+    volumes:
+      - solr_data:/var/solr
+      - ./backups:/var/solr/backups
+      - ./logs:/var/solr/logs
+    environment:
+      SOLR_HEAP: ${SOLR_HEAP_SIZE:-2g}
+      SOLR_JAVA_MEM: "-Xms${SOLR_HEAP_SIZE:-2g} -Xmx${SOLR_HEAP_SIZE:-2g}"
+      SOLR_LOG_LEVEL: ${SOLR_LOG_LEVEL:-INFO}
+    networks:
+      - solr_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8983/solr/admin/ping?wt=json || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: ${SOLR_MEMORY_LIMIT:-4g}
+        reservations:
+          memory: ${SOLR_HEAP_SIZE:-2g}
+
+volumes:
+  solr_data:
+    driver: local
+
+networks:
+  solr_network:
+    driver: bridge
