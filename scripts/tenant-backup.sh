@@ -92,8 +92,25 @@ backup_tenant() {
     # Create backup directory
     mkdir -p "$backup_dir"
 
-    # Step 1: Create Solr snapshot
-    log_info "  [1/4] Creating Solr snapshot..."
+    # CRITICAL FIX v3.3.0: Force commit before backup for consistency
+    log_info "  [1/6] Flushing pending commits..."
+    if ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
+        "http://localhost:8983/solr/${core_name}/update?commit=true&waitSearcher=true" >/dev/null 2>&1; then
+        log_warning "Failed to flush commits (continuing anyway)"
+    fi
+    sleep 2  # Wait for commit to complete
+
+    # Get pre-backup metadata
+    log_info "  [2/6] Collecting metadata..."
+    local doc_count
+    doc_count=$(docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
+        "http://localhost:8983/solr/${core_name}/admin/luke?wt=json&numTerms=0" 2>/dev/null | \
+        jq -r '.index.numDocs // 0' || echo "0")
+
+    log_info "    Documents: $(printf "%'d" "$doc_count" 2>/dev/null || echo "$doc_count")"
+
+    # Step 3: Create Solr snapshot
+    log_info "  [3/6] Creating Solr snapshot..."
     local snapshot_response
     if ! snapshot_response=$(docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
         "http://localhost:8983/solr/${core_name}/replication?command=backup&name=${backup_name}&wt=json" 2>&1); then
@@ -110,12 +127,12 @@ backup_tenant() {
         return 1
     fi
 
-    # Step 2: Wait for backup to complete
-    log_info "  [2/4] Waiting for backup to complete..."
+    # Step 4: Wait for backup to complete
+    log_info "  [4/6] Waiting for backup to complete..."
     sleep 5
 
-    # Step 3: Archive backup files
-    log_info "  [3/4] Archiving backup files..."
+    # Step 5: Archive backup files
+    log_info "  [5/6] Archiving backup files..."
     local data_dir="$PROJECT_ROOT/data/${core_name}"
     if [ -d "$data_dir" ]; then
         if tar czf "$backup_dir/${backup_name}.tar.gz" \
@@ -130,8 +147,22 @@ backup_tenant() {
         return 1
     fi
 
-    # Step 4: Backup credentials
-    log_info "  [4/4] Backing up credentials..."
+    # Step 6: Backup credentials & metadata
+    log_info "  [6/6] Backing up credentials & metadata..."
+
+    # Create metadata file
+    cat > "$backup_dir/${backup_name}.meta.json" <<EOF
+{
+  "tenant_id": "${tenant_id}",
+  "core_name": "${core_name}",
+  "backup_name": "${backup_name}",
+  "timestamp": "$(date -Iseconds)",
+  "solr_version": "${SOLR_VERSION}",
+  "document_count": ${doc_count},
+  "backup_type": "consistent",
+  "includes": ["core_data", "credentials"]
+}
+EOF
     if [ -f "$PROJECT_ROOT/.env.${tenant_id}" ]; then
         cp "$PROJECT_ROOT/.env.${tenant_id}" "$backup_dir/${backup_name}_credentials.env"
         chmod 600 "$backup_dir/${backup_name}_credentials.env"

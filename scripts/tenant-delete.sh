@@ -30,6 +30,10 @@ else
     exit 1
 fi
 
+# CRITICAL: Load atomic security manager (v3.3.0 - Race condition fix)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/security-json-manager.sh"
+
 ###############################################################################
 # Helper Functions
 ###############################################################################
@@ -171,34 +175,44 @@ remove_user_and_rbac() {
 
     log_info "Removing user and RBAC configuration for tenant: ${tenant_id}"
 
-    # Get current security.json
-    local security_json
-    security_json=$(docker compose exec -T solr cat /var/solr/data/security.json)
+    # CRITICAL FIX v3.3.0: Use transactional updates to prevent race conditions
+    # All security.json modifications are now atomic and protected by file locking
 
-    # Remove user credentials
-    log_info "Removing user: ${username}"
-    security_json=$(echo "$security_json" | jq \
-        --arg user "$username" \
-        'del(.authentication.credentials[$user])')
+    # Begin transaction
+    begin_transaction
+    trap 'rollback_transaction' ERR
 
-    # Remove user-role mapping
-    log_info "Removing role: ${role_name}"
-    security_json=$(echo "$security_json" | jq \
-        --arg user "$username" \
-        'del(.authorization."user-role"[$user])')
-
-    # Remove permission for tenant's core
+    # Step 1: Remove permission for tenant's core
     log_info "Removing permissions for core: ${core_name}"
-    security_json=$(echo "$security_json" | jq \
-        --arg tenant "$tenant_id" \
-        'del(.authorization.permissions[] | select(.name == ($tenant + "-access")))')
+    log_operation "REMOVE_PERMISSION ${tenant_id}-access"
+    if ! remove_permission "${tenant_id}-access"; then
+        log_warning "Permission not found or already removed"
+        # Continue - not critical
+    fi
 
-    # Write updated security.json back
-    echo "$security_json" | docker compose exec -T solr tee /var/solr/data/security.json > /dev/null
+    # Step 2: Remove user-role mapping
+    log_info "Removing role: ${role_name}"
+    log_operation "REMOVE_USER_ROLE $username"
+    if ! remove_user_role "$username"; then
+        log_warning "User role not found or already removed"
+        # Continue - not critical
+    fi
 
-    # Reload security configuration (restart Solr)
+    # Step 3: Remove user credentials
+    log_info "Removing user: ${username}"
+    log_operation "REMOVE_CREDENTIAL $username"
+    if ! remove_credential "$username"; then
+        log_warning "User credential not found or already removed"
+        # Continue - not critical
+    fi
+
+    # Commit transaction
+    commit_transaction
+    trap - ERR
+
+    # Reload security configuration (restart Solr) - done AFTER transaction
     log_info "Reloading Solr to apply security changes..."
-    docker compose restart solr
+    docker compose restart solr >/dev/null 2>&1
 
     # Wait for Solr to be ready
     log_info "Waiting for Solr to be ready..."

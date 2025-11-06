@@ -1,30 +1,104 @@
 #!/bin/sh
 # Solr Init Container - Configuration Deployment
-# Version: 2.2.0
+# Version: 3.3.0 - FIXED: Security.json Persistence
+#
+# CRITICAL FIX: security.json is now preserved across restarts
+# to maintain tenant user credentials
 
 set -e
 
 echo "========================================="
-echo "Solr Configuration Deployment v2.2.0"
+echo "Solr Configuration Deployment v3.3.0"
 echo "========================================="
 
 # Install validation tools
-echo "[1/5] Installing validation tools..."
+echo "[1/6] Installing validation tools..."
 apk add --no-cache jq libxml2-utils 2>&1 | grep -v 'fetch\|OK:' || true
 
 # Create directory structure
-echo "[2/5] Creating directory structure..."
+echo "[2/6] Creating directory structure..."
 mkdir -p /var/solr/data /var/solr/data/configs /var/solr/data/lang /var/solr/backup/configs
 
-# Backup existing configs
-echo "[3/5] Backing up existing configs..."
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-if [ -f /var/solr/data/security.json ]; then
+# CRITICAL FIX: Intelligent security.json deployment
+echo "[3/6] Handling security.json deployment..."
+if [ ! -f /var/solr/data/security.json ]; then
+    echo "  ✓ First run detected - deploying initial security.json"
+    cp /config/security.json /var/solr/data/security.json
+    chmod 600 /var/solr/data/security.json
+    chown 8983:8983 /var/solr/data/security.json
+else
+    echo "  ℹ️  security.json already exists - preserving (contains tenant data)"
+
+    # Create backup before any potential merge
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     cp /var/solr/data/security.json /var/solr/backup/configs/security.json.$TIMESTAMP 2>/dev/null || true
+    echo "  ✓ Backup created: security.json.$TIMESTAMP"
+
+    # Optional: Merge new admin users from template without destroying tenant users
+    if [ -f /config/security.json ]; then
+        echo "  ℹ️  Checking for new admin users in template..."
+
+        EXISTING_JSON="/var/solr/data/security.json"
+        TEMPLATE_JSON="/config/security.json"
+        TEMP_JSON="/tmp/security_merged_$$.json"
+
+        # Use jq to merge only admin credentials if they don't exist yet
+        # This allows adding admin users without destroying tenant users
+        if jq -s '
+            .[0] as $existing |
+            .[1] as $template |
+            $existing |
+            # Merge admin/support credentials from template if missing
+            .authentication.credentials += (
+                $template.authentication.credentials |
+                to_entries |
+                map(select(.key | test("admin|support"))) |
+                map(select(.key as $k | ($existing.authentication.credentials | has($k) | not))) |
+                from_entries
+            )
+        ' "$EXISTING_JSON" "$TEMPLATE_JSON" > "$TEMP_JSON" 2>/dev/null; then
+
+            # Validate merged JSON
+            if jq empty "$TEMP_JSON" 2>/dev/null; then
+                # Check if merge produced changes
+                if ! diff -q "$EXISTING_JSON" "$TEMP_JSON" >/dev/null 2>&1; then
+                    mv "$TEMP_JSON" "$EXISTING_JSON"
+                    chmod 600 "$EXISTING_JSON"
+                    chown 8983:8983 "$EXISTING_JSON"
+                    echo "  ✓ Merged new admin users from template"
+                else
+                    rm "$TEMP_JSON"
+                    echo "  ℹ️  No new admin users to merge"
+                fi
+            else
+                echo "  ⚠️  Merge validation failed, keeping existing security.json"
+                rm "$TEMP_JSON"
+            fi
+        else
+            echo "  ⚠️  Merge failed, keeping existing security.json"
+            rm -f "$TEMP_JSON"
+        fi
+    fi
 fi
 
-# Validate configuration files
-echo "[4/5] Validating configuration files..."
+# Validate security.json
+echo "[4/6] Validating security.json..."
+if ! jq empty /var/solr/data/security.json 2>/dev/null; then
+    echo "❌ ERROR: Invalid JSON in security.json"
+    exit 1
+fi
+
+# Check for required credentials
+CRED_COUNT=$(jq '.authentication.credentials | length' /var/solr/data/security.json)
+if [ "$CRED_COUNT" -lt 1 ]; then
+    echo "❌ ERROR: No credentials defined in security.json"
+    exit 1
+fi
+
+echo "  ✓ security.json is valid ($CRED_COUNT users)"
+
+# Validate other configuration files
+echo "[5/6] Validating other configuration files..."
 validate_file() {
     FILE=$1
     TYPE=$2
@@ -51,12 +125,11 @@ validate_file() {
     return 0
 }
 
-validate_file /config/security.json json || exit 1
 validate_file /config/solrconfig.xml xml || exit 1
 validate_file /config/moodle_schema.xml xml || exit 1
 
-# Deploy configuration files
-echo "[5/5] Deploying configuration files..."
+# Deploy other configuration files (these can be safely overwritten)
+echo "[6/6] Deploying other configuration files..."
 deploy_file() {
     SRC=$1
     DEST=$2
@@ -67,7 +140,6 @@ deploy_file() {
     fi
 }
 
-deploy_file /config/security.json /var/solr/data/security.json
 deploy_file /config/solrconfig.xml /var/solr/data/configs/solrconfig.xml
 deploy_file /config/moodle_schema.xml /var/solr/data/configs/moodle_schema.xml
 deploy_file /config/synonyms.txt /var/solr/data/configs/synonyms.txt
@@ -83,5 +155,7 @@ chmod 600 /var/solr/data/security.json 2>/dev/null || true
 
 echo "========================================="
 echo "Deployment: SUCCESS"
+echo "  - security.json: PRESERVED (tenants intact)"
+echo "  - Other configs: UPDATED"
 echo "========================================="
 exit 0

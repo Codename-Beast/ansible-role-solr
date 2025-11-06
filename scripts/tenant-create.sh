@@ -29,6 +29,10 @@ else
     exit 1
 fi
 
+# CRITICAL: Load atomic security manager (v3.3.0 - Race condition fix)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/security-json-manager.sh"
+
 ###############################################################################
 # Helper Functions
 ###############################################################################
@@ -156,25 +160,32 @@ add_user_and_rbac() {
 
     log_info "Configuring user and RBAC for tenant: ${tenant_id}"
 
-    # Get current security.json
-    local security_json
-    security_json=$(docker compose exec -T solr cat /var/solr/data/security.json)
+    # CRITICAL FIX v3.3.0: Use transactional updates to prevent race conditions
+    # All security.json modifications are now atomic and protected by file locking
 
-    # Add user credentials
+    # Begin transaction
+    begin_transaction
+    trap 'rollback_transaction' ERR
+
+    # Step 1: Add user credentials
     log_info "Adding user: ${username}"
-    security_json=$(echo "$security_json" | jq \
-        --arg user "$username" \
-        --arg hash "SHA256:${hashed_password}" \
-        '.authentication.credentials[$user] = $hash')
+    log_operation "ADD_CREDENTIAL $username"
+    if ! add_credential "$username" "SHA256:${hashed_password}"; then
+        log_error "Failed to add credential"
+        rollback_transaction
+        return 1
+    fi
 
-    # Add user-role mapping
+    # Step 2: Add user-role mapping
     log_info "Assigning role: ${role_name}"
-    security_json=$(echo "$security_json" | jq \
-        --arg user "$username" \
-        --arg role "$role_name" \
-        '.authorization."user-role"[$user] = [$role]')
+    log_operation "ADD_USER_ROLE $username $role_name"
+    if ! add_user_role "$username" "$role_name"; then
+        log_error "Failed to assign role"
+        rollback_transaction
+        return 1
+    fi
 
-    # Add permission for tenant's core
+    # Step 3: Add permission for tenant's core
     log_info "Setting up permissions for core: ${core_name}"
     local permission="{
         \"name\": \"${tenant_id}-access\",
@@ -182,16 +193,20 @@ add_user_and_rbac() {
         \"collection\": \"${core_name}\",
         \"path\": \"/*\"
     }"
-    security_json=$(echo "$security_json" | jq \
-        --argjson perm "$permission" \
-        '.authorization.permissions += [$perm]')
+    log_operation "ADD_PERMISSION ${tenant_id}-access"
+    if ! add_permission "$permission"; then
+        log_error "Failed to add permission"
+        rollback_transaction
+        return 1
+    fi
 
-    # Write updated security.json back
-    echo "$security_json" | docker compose exec -T solr tee /var/solr/data/security.json > /dev/null
+    # Commit transaction
+    commit_transaction
+    trap - ERR
 
-    # Reload security configuration (restart Solr)
+    # Reload security configuration (restart Solr) - done AFTER transaction
     log_info "Reloading Solr to apply security changes..."
-    docker compose restart solr
+    docker compose restart solr >/dev/null 2>&1
 
     # Wait for Solr to be ready
     log_info "Waiting for Solr to be ready..."

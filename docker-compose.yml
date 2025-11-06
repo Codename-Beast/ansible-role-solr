@@ -1,7 +1,7 @@
 version: '3.8'
 
 # ============================================================================
-# Solr Moodle Docker Compose v3.2.0
+# Solr Moodle Docker Compose v3.3.0
 #
 # Profiles:
 #   default         - Only Solr (production minimal)
