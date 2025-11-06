@@ -3,7 +3,7 @@ version: '3.8'
 # Eledia Solr 9.9.0 - Moodle-Optimized Docker Compose
 # Version: 2.2.0
 # Replaces ansible-role-solr for Docker-only environments
-# Moodle 4.1-5.0.x ready out of the box
+# Moodle 4.1-5.0.x ready
 # Features: Backup/Restore, Log Rotation, Enhanced Health Checks
 
 services:
