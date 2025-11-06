@@ -244,6 +244,38 @@ services:
           memory: 256m
           cpus: '0.3'
 
+  # ============================================================================
+  # BACKUP SERVICE (Optional - Profile: backup)
+  # ============================================================================
+
+  backup-cron:
+    profiles: ["backup"]
+    image: alpine:3.20
+    container_name: ${CUSTOMER_NAME}_backup_cron
+    depends_on:
+      solr:
+        condition: service_healthy
+    volumes:
+      - ./scripts/backup-cron.sh:/scripts/backup-cron.sh:ro
+      - ./scripts/lib:/scripts/lib:ro
+      - ./config/backup-crontab:/etc/crontabs/root:ro
+      - solr_data:/var/solr:ro
+      - ./backups:/var/solr/backups
+    environment:
+      CUSTOMER_NAME: ${CUSTOMER_NAME}
+      SOLR_HOST: "solr:8983"
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_WEBHOOK_URL: ${BACKUP_WEBHOOK_URL:-}
+    command: crond -f -l 2
+    networks:
+      - solr_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.1'
+
 # ============================================================================
 # VOLUMES
 # ============================================================================
