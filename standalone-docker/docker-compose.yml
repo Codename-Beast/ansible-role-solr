@@ -1,0 +1,77 @@
+version: '3.8'
+
+# Eledia Solr 9.9.0 - Standalone Docker Compose
+# Version: 2.0.0
+# Replaces ansible-role-solr for Docker-only environments
+
+services:
+  solr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eledia-solr:9.9.0
+    container_name: ${CUSTOMER_NAME:-default}_solr
+    ports:
+      - "${SOLR_PORT:-127.0.0.1:8983}:8983"
+    volumes:
+      - solr_data:/var/solr
+      # Optional: Mount custom config templates
+      # - ./custom-configs:/opt/eledia/config-templates:ro
+    environment:
+      # ============================================================
+      # REQUIRED SETTINGS
+      # ============================================================
+      CUSTOMER_NAME: ${CUSTOMER_NAME:-default}
+      SOLR_CORE_NAME: ${SOLR_CORE_NAME:-moodle}
+
+      # ============================================================
+      # AUTHENTICATION (optional - will be auto-generated if not set)
+      # ============================================================
+      SOLR_AUTH_ENABLED: ${SOLR_AUTH_ENABLED:-true}
+      SOLR_ADMIN_USER: ${SOLR_ADMIN_USER:-admin}
+      SOLR_ADMIN_PASSWORD: ${SOLR_ADMIN_PASSWORD}
+      SOLR_SUPPORT_USER: ${SOLR_SUPPORT_USER:-support}
+      SOLR_SUPPORT_PASSWORD: ${SOLR_SUPPORT_PASSWORD}
+      SOLR_CUSTOMER_USER: ${SOLR_CUSTOMER_USER:-customer}
+      SOLR_CUSTOMER_PASSWORD: ${SOLR_CUSTOMER_PASSWORD}
+
+      # ============================================================
+      # MOODLE SCHEMA (optional)
+      # ============================================================
+      SOLR_USE_MOODLE_SCHEMA: ${SOLR_USE_MOODLE_SCHEMA:-false}
+
+      # ============================================================
+      # PERFORMANCE TUNING
+      # ============================================================
+      SOLR_HEAP: ${SOLR_HEAP:-512m}
+      SOLR_JAVA_MEM: ${SOLR_JAVA_MEM:--Xms512m -Xmx512m}
+      SOLR_LOG_LEVEL: ${SOLR_LOG_LEVEL:-INFO}
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8983/solr/admin/ping?wt=json || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+    deploy:
+      resources:
+        limits:
+          memory: ${SOLR_MEMORY_LIMIT:-1g}
+        reservations:
+          memory: ${SOLR_HEAP:-512m}
+
+    networks:
+      - solr_network
+
+volumes:
+  solr_data:
+    name: ${CUSTOMER_NAME:-default}_solr_data
+    driver: local
+
+networks:
+  solr_network:
+    name: ${CUSTOMER_NAME:-default}_solr_network
+    driver: bridge
