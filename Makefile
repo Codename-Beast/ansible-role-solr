@@ -41,12 +41,16 @@ init:
 		echo ".env file already exists"; \
 	fi
 
+# Pre-flight checks
+preflight:
+	@./scripts/preflight-check.sh
+
 # Generate configuration files
 config:
 	@./scripts/generate-config.sh
 
-# Start services
-start:
+# Start services (with pre-flight checks)
+start: preflight
 	@./scripts/start.sh
 
 # Stop services

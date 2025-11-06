@@ -1,13 +1,14 @@
 version: '3.8'
 
 # ============================================================================
-# Solr Moodle Docker Compose v2.4.0
+# Solr Moodle Docker Compose v2.5.0
 #
 # Profiles:
 #   default         - Only Solr (production minimal)
 #   monitoring      - Add local monitoring stack
 #   exporter-only   - Only Solr + Exporter (for remote monitoring)
 #   backup          - Add automated backup service
+#   logrotate       - Add log rotation service (v2.5.0)
 #
 # Network Segmentation (v2.4.0):
 #   frontend_network (172.20.0.0/24) - External access (Solr, Health API, Grafana)
@@ -18,6 +19,7 @@ version: '3.8'
 #   docker compose --profile monitoring up -d         # With monitoring
 #   docker compose --profile exporter-only up -d      # Exporter for remote
 #   docker compose --profile backup up -d             # With automated backups
+#   docker compose --profile logrotate up -d          # With log rotation
 # ============================================================================
 
 services:
@@ -55,6 +57,8 @@ services:
       SOLR_JAVA_MEM: "-Xms${SOLR_HEAP_SIZE:-2g} -Xmx${SOLR_HEAP_SIZE:-2g}"
       SOLR_LOG_LEVEL: ${SOLR_LOG_LEVEL:-INFO}
       SOLR_STOP_WAIT: 30
+      GC_LOG_OPTS: >-
+        -Xlog:gc*,safepoint:file=/var/solr/logs/gc.log:time,uptime,level,tags:filecount=10,filesize=10M
       SOLR_OPTS: >-
         -XX:+UseG1GC
         -XX:+ParallelRefProcEnabled
@@ -284,6 +288,30 @@ services:
       resources:
         limits:
           memory: 128m
+          cpus: '0.1'
+
+  # ============================================================================
+  # LOG ROTATION SERVICE (Optional - Profile: logrotate)
+  # ============================================================================
+
+  log-rotator:
+    profiles: ["logrotate"]
+    image: alpine:3.20
+    container_name: ${CUSTOMER_NAME}_log_rotator
+    depends_on:
+      - solr
+    volumes:
+      - ./logs:/var/solr/logs
+      - ./config/logrotate.conf:/etc/logrotate.d/solr:ro
+      - ./config/logrotate-crontab:/etc/crontabs/root:ro
+    command: sh -c "apk add --no-cache logrotate && crond -f -l 2"
+    networks:
+      - backend_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64m
           cpus: '0.1'
 
 # ============================================================================
