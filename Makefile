@@ -1,4 +1,4 @@
-.PHONY: help init config start stop restart logs health backup create-core clean destroy \
+.PHONY: help init preflight config start stop restart logs health dashboard backup create-core test clean destroy \
         monitoring-up monitoring-down grafana prometheus alertmanager metrics
 
 # Default target
@@ -14,6 +14,7 @@ help:
 	@echo "  make restart        - Restart all services"
 	@echo "  make logs           - Show Solr logs (follow)"
 	@echo "  make health         - Check Solr health"
+	@echo "  make dashboard      - Show comprehensive status dashboard"
 	@echo "  make create-core    - Create Moodle core"
 	@echo "  make backup         - Create backup of Solr core"
 	@echo ""
@@ -24,6 +25,9 @@ help:
 	@echo "  make prometheus     - Open Prometheus in browser"
 	@echo "  make alertmanager   - Open Alertmanager in browser"
 	@echo "  make metrics        - Show Solr metrics"
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test           - Run integration test suite"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean          - Stop and remove containers"
@@ -67,6 +71,10 @@ logs:
 # Health check
 health:
 	@./scripts/health.sh
+
+# Dashboard (comprehensive status)
+dashboard:
+	@./scripts/dashboard.sh
 
 # Create core
 create-core:
@@ -126,6 +134,10 @@ metrics:
 	curl -s "http://localhost:$$PORT/metrics" | head -50; \
 	echo ""; \
 	echo "(Showing first 50 lines. Full metrics at http://localhost:$$PORT/metrics)"
+
+# Integration tests
+test:
+	@./tests/integration-test.sh
 
 # Clean up containers
 clean:
