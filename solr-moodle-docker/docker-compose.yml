@@ -1,8 +1,9 @@
 version: '3.8'
 
-# Eledia Solr 9.9.0 - Standalone Docker Compose
-# Version: 2.0.0
+# Eledia Solr 9.9.0 - Moodle-Optimized Docker Compose
+# Version: 2.1.0
 # Replaces ansible-role-solr for Docker-only environments
+# Moodle 4.1-5.0.x ready out of the box
 
 services:
   solr:
@@ -36,15 +37,15 @@ services:
       SOLR_CUSTOMER_PASSWORD: ${SOLR_CUSTOMER_PASSWORD}
 
       # ============================================================
-      # MOODLE SCHEMA (optional)
+      # MOODLE SCHEMA (enabled by default)
       # ============================================================
-      SOLR_USE_MOODLE_SCHEMA: ${SOLR_USE_MOODLE_SCHEMA:-false}
+      SOLR_USE_MOODLE_SCHEMA: ${SOLR_USE_MOODLE_SCHEMA:-true}
 
       # ============================================================
-      # PERFORMANCE TUNING
+      # PERFORMANCE TUNING (production-grade defaults)
       # ============================================================
-      SOLR_HEAP: ${SOLR_HEAP:-512m}
-      SOLR_JAVA_MEM: ${SOLR_JAVA_MEM:--Xms512m -Xmx512m}
+      SOLR_HEAP: ${SOLR_HEAP:-2g}
+      SOLR_JAVA_MEM: ${SOLR_JAVA_MEM:--Xms2g -Xmx2g}
       SOLR_LOG_LEVEL: ${SOLR_LOG_LEVEL:-INFO}
 
       # ============================================================
@@ -64,9 +65,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${SOLR_MEMORY_LIMIT:-1g}
+          memory: ${SOLR_MEMORY_LIMIT:-4g}
         reservations:
-          memory: ${SOLR_HEAP:-512m}
+          memory: ${SOLR_HEAP:-2g}
 
     networks:
       - solr_network

@@ -21,7 +21,7 @@ Each scenario tests a specific failure mode and verifies that:
 ## Test Environment Setup
 
 ```bash
-cd /home/user/ansible-role-solr/standalone-docker
+cd /home/user/ansible-role-solr/solr-moodle-docker
 
 # Enable DEBUG mode for all tests
 export DEBUG=true
@@ -89,7 +89,7 @@ SOLR_USE_MOODLE_SCHEMA=false
   3. Inspect container: docker exec -it <container> bash
   4. Verify .env file settings
 
-📚 Documentation: See standalone-docker/README.md
+📚 Documentation: See solr-moodle-docker/README.md
 ```
 
 ---

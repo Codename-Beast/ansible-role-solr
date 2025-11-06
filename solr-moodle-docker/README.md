@@ -1,4 +1,4 @@
-# Eledia Solr 9.9.0 - Standalone Docker Edition
+# Eledia Solr 9.9.0 - Moodle-Optimized Docker Edition
 
 **Version**: 2.0.0
 **Author**: Bernd Schreistetter
@@ -28,7 +28,7 @@ This is a standalone Docker solution that replicates the full functionality of t
 ### 1. Build the Docker image
 
 ```bash
-cd standalone-docker
+cd solr-moodle-docker
 docker-compose build
 ```
 
@@ -119,7 +119,7 @@ curl -u admin:YOUR_PASSWORD http://localhost:8983/solr/admin/cores?action=STATUS
 ## Directory Structure
 
 ```
-standalone-docker/
+solr-moodle-docker/
 ├── Dockerfile                    # Main image definition
 ├── docker-compose.yml            # Container orchestration
 ├── .env.example                  # Environment template

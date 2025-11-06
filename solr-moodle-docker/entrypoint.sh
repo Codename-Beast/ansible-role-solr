@@ -61,7 +61,7 @@ error_exit() {
     echo "  3. Inspect container: docker exec -it <container> bash"
     echo "  4. Verify .env file settings"
     echo ""
-    echo "📚 Documentation: See standalone-docker/README.md"
+    echo "📚 Documentation: See solr-moodle-docker/README.md"
     echo ""
 
     exit "${error_code}"
