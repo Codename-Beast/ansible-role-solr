@@ -166,8 +166,7 @@ atomic_update() {
         return 1
     fi
 
-    # Ensure lock is released on exit
-    trap release_lock EXIT INT TERM
+    # NOTE: Lock is explicitly released before each return (trap EXIT doesn't work in functions)
 
     # Create backup before modification
     create_backup "$(echo "$description" | tr ' ' '_')"
@@ -287,12 +286,22 @@ begin_transaction() {
         return 1
     fi
 
+    # CRITICAL FIX v3.3.2: Add error handling to release lock on failure
     # Create transaction backup
     if [ -f "$SECURITY_JSON" ]; then
-        cp "$SECURITY_JSON" "$TRANSACTION_BACKUP"
+        if ! cp "$SECURITY_JSON" "$TRANSACTION_BACKUP" 2>/dev/null; then
+            log_error "Failed to create transaction backup"
+            release_lock
+            return 1
+        fi
     fi
 
-    echo "BEGIN TRANSACTION $TRANSACTION_ID at $(date -Iseconds)" > "$TRANSACTION_LOG"
+    if ! echo "BEGIN TRANSACTION $TRANSACTION_ID at $(date -Iseconds)" > "$TRANSACTION_LOG" 2>/dev/null; then
+        log_error "Failed to create transaction log"
+        rm -f "$TRANSACTION_BACKUP"
+        release_lock
+        return 1
+    fi
     echo "  Backup: $TRANSACTION_BACKUP" >> "$TRANSACTION_LOG"
 
     echo "🔄 Transaction $TRANSACTION_ID started"

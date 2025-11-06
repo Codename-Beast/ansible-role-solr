@@ -143,7 +143,7 @@ backup_tenant() {
         log_error "Another backup may be running, or a stale lock exists"
         return 1
     fi
-    trap "release_backup_lock '$tenant_id'" EXIT INT TERM
+    # NOTE: Lock will be explicitly released before each return (trap EXIT doesn't work in functions)
 
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
@@ -158,6 +158,7 @@ backup_tenant() {
     if ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
         "http://localhost:8983/solr/${core_name}/update?commit=true&waitSearcher=true" >/dev/null 2>&1; then
         log_error "Commit failed - aborting backup to prevent inconsistent state"
+        release_backup_lock "$tenant_id"  # CRITICAL FIX v3.3.2: Release lock before return
         return 1
     fi
     sleep 2  # Wait for commit to complete
@@ -178,6 +179,7 @@ backup_tenant() {
         "http://localhost:8983/solr/${core_name}/replication?command=backup&name=${backup_name}&wt=json" 2>&1); then
         log_error "Failed to create Solr snapshot"
         log_error "Response: $snapshot_response"
+        release_backup_lock "$tenant_id"  # CRITICAL FIX v3.3.2: Release lock before return
         return 1
     fi
 
@@ -186,6 +188,7 @@ backup_tenant() {
         local error_msg
         error_msg=$(echo "$snapshot_response" | jq -r '.error.msg')
         log_error "Solr backup error: $error_msg"
+        release_backup_lock "$tenant_id"  # CRITICAL FIX v3.3.2: Release lock before return
         return 1
     fi
 
@@ -206,6 +209,7 @@ backup_tenant() {
         fi
     else
         log_error "Data directory not found: $data_dir"
+        release_backup_lock "$tenant_id"  # CRITICAL FIX v3.3.2: Release lock before return
         return 1
     fi
 
@@ -257,6 +261,7 @@ EOF
     echo "   Location:     backups/${backup_name}.tar.gz"
     echo ""
 
+    release_backup_lock "$tenant_id"  # CRITICAL FIX v3.3.2: Release lock before return
     return 0
 }
 

@@ -200,9 +200,8 @@ add_user_and_rbac() {
         return 1
     fi
 
-    # Commit transaction
-    commit_transaction
-    trap - ERR
+    # CRITICAL FIX v3.3.2: Keep transaction open until after Solr restart verification
+    # This ensures we can rollback if Solr fails to start with the new config
 
     # OPTIMIZED v3.3.1: Graceful Solr-only restart (minimized downtime)
     log_info "Reloading Solr to apply security changes (graceful restart)..."
@@ -233,11 +232,18 @@ add_user_and_rbac() {
         if [ $waited -ge $max_wait ]; then
             log_error "Solr did not become ready within ${max_wait} seconds"
             log_error "Check logs: docker compose logs solr"
+            log_error "Rolling back security.json changes..."
+            rollback_transaction
+            trap - ERR
             return 1
         fi
     done
 
     log_success "Solr is ready (took ${waited}s)"
+
+    # Now commit transaction - Solr successfully loaded new config
+    commit_transaction
+    trap - ERR
     log_success "User and RBAC configured successfully"
     return 0
 }
