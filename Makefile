@@ -1,4 +1,4 @@
-.PHONY: help init preflight config start stop restart logs health dashboard backup create-core test clean destroy \
+.PHONY: help init preflight config start stop restart logs health dashboard backup create-core test security-scan benchmark clean destroy \
         monitoring-up monitoring-down grafana prometheus alertmanager metrics
 
 # Default target
@@ -26,8 +26,10 @@ help:
 	@echo "  make alertmanager   - Open Alertmanager in browser"
 	@echo "  make metrics        - Show Solr metrics"
 	@echo ""
-	@echo "Testing:"
+	@echo "Testing & Security:"
 	@echo "  make test           - Run integration test suite"
+	@echo "  make security-scan  - Run Trivy security scan"
+	@echo "  make benchmark      - Run performance benchmarks"
 	@echo ""
 	@echo "Cleanup:"
 	@echo "  make clean          - Stop and remove containers"
@@ -138,6 +140,14 @@ metrics:
 # Integration tests
 test:
 	@./tests/integration-test.sh
+
+# Security scanning
+security-scan:
+	@./scripts/security-scan.sh
+
+# Performance benchmark
+benchmark:
+	@./scripts/benchmark.sh
 
 # Clean up containers
 clean:

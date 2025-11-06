@@ -1,61 +1,58 @@
-# Environment and Secrets
+# Environment
 .env
-.secrets/
-*.secret
 
-# Solr Data
+# Data directories
 data/
-logs/
 backups/
+logs/
 
-# Docker Secrets
-docker-secret-*
+# Security reports
+security-reports/
+*.sarif
 
-# Monitoring Data
-monitoring/grafana/data/
-monitoring/prometheus/data/
+# Benchmark results
+benchmark-results/
 
-# Generated Configurations
-config/security.json
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Temporary Files
-*.tmp
-*.log
-*.pid
-*.lock
-/tmp/
-
-# OS Files
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-pip-log.txt
-pip-delete-this-directory.txt
+# OS
+.DS_Store
+Thumbs.db
 
-# Backup Files
-*.backup
+# Temporary files
+*.tmp
 *.bak
-*.old
+*.log
 
-# Test Files
-test/
-tests/
-*.test
+# Docker
+.docker/
 
-# Documentation Build
-docs/_build/
-docs/.doctrees/
+# Grafana backups
+monitoring/grafana/dashboards/*.backup*

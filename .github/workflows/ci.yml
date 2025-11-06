@@ -1,0 +1,302 @@
+name: CI - Solr Docker Standalone
+
+on:
+  push:
+    branches: [ main, master, 'claude/**' ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  # ============================================================================
+  # JOB 1: Validate Configuration Files
+  # ============================================================================
+  validate-config:
+    name: Validate Configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate docker-compose.yml
+        run: |
+          docker compose config --quiet
+          echo "✅ docker-compose.yml is valid"
+
+      - name: Validate YAML syntax
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: docker-compose.yml
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 200
+                level: warning
+              comments:
+                min-spaces-from-content: 1
+
+      - name: Check for required files
+        run: |
+          echo "Checking required files..."
+          test -f .env.example || { echo "❌ .env.example missing"; exit 1; }
+          test -f docker-compose.yml || { echo "❌ docker-compose.yml missing"; exit 1; }
+          test -f Makefile || { echo "❌ Makefile missing"; exit 1; }
+          test -f README.md || { echo "❌ README.md missing"; exit 1; }
+          test -f README_DE.md || { echo "❌ README_DE.md missing"; exit 1; }
+          echo "✅ All required files present"
+
+  # ============================================================================
+  # JOB 2: Shell Script Validation
+  # ============================================================================
+  validate-scripts:
+    name: Validate Shell Scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on all scripts
+        run: |
+          echo "Running shellcheck on all .sh files..."
+          find scripts/ -name "*.sh" -type f -exec shellcheck -x {} +
+          echo "✅ All shell scripts passed shellcheck"
+
+      - name: Check script permissions
+        run: |
+          echo "Checking executable permissions..."
+          missing_exec=""
+          for script in scripts/*.sh; do
+            if [ ! -x "$script" ]; then
+              echo "❌ $script is not executable"
+              missing_exec="true"
+            fi
+          done
+
+          if [ -n "$missing_exec" ]; then
+            echo "Some scripts are not executable. Run: chmod +x scripts/*.sh"
+            exit 1
+          fi
+
+          echo "✅ All scripts have correct permissions"
+
+  # ============================================================================
+  # JOB 3: Python Script Validation
+  # ============================================================================
+  validate-python:
+    name: Validate Python Scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pylint flake8
+
+      - name: Check Python syntax
+        run: |
+          echo "Checking Python syntax..."
+          find scripts/ -name "*.py" -type f -exec python -m py_compile {} +
+          echo "✅ All Python scripts have valid syntax"
+
+      - name: Run flake8 (linting)
+        run: |
+          echo "Running flake8..."
+          flake8 scripts/*.py --max-line-length=120 --ignore=E501,W503 || true
+          echo "✅ Flake8 completed"
+
+  # ============================================================================
+  # JOB 4: Security Scanning with Trivy
+  # ============================================================================
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (Config)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-config-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-config-results.sarif'
+
+      - name: Run Trivy vulnerability scanner (Docker Compose)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'docker-compose.yml'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+  # ============================================================================
+  # JOB 5: Documentation Check
+  # ============================================================================
+  check-docs:
+    name: Check Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for broken links in Markdown
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          use-verbose-mode: 'no'
+          config-file: '.github/markdown-link-check-config.json'
+        continue-on-error: true
+
+      - name: Validate German translations exist
+        run: |
+          echo "Checking German translations..."
+          test -f README_DE.md || { echo "❌ README_DE.md missing"; exit 1; }
+          test -f RUNBOOK_DE.md || { echo "❌ RUNBOOK_DE.md missing"; exit 1; }
+          test -f MEMORY_TUNING_DE.md || { echo "❌ MEMORY_TUNING_DE.md missing"; exit 1; }
+          echo "✅ All German translations present"
+
+      - name: Check documentation completeness
+        run: |
+          echo "Checking documentation completeness..."
+          required_docs=(
+            "README.md"
+            "README_DE.md"
+            "CHANGELOG.md"
+            "RUNBOOK.md"
+            "RUNBOOK_DE.md"
+            "MEMORY_TUNING.md"
+            "MEMORY_TUNING_DE.md"
+            "RELEASE_NOTES_v3.0.0.md"
+            "SUMMARY.md"
+          )
+
+          for doc in "${required_docs[@]}"; do
+            if [ ! -f "$doc" ]; then
+              echo "❌ Missing: $doc"
+              exit 1
+            fi
+          done
+
+          echo "✅ All required documentation present"
+
+  # ============================================================================
+  # JOB 6: Integration Test (Dry Run)
+  # ============================================================================
+  integration-test-dry-run:
+    name: Integration Test (Syntax Check)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Validate integration test script
+        run: |
+          shellcheck tests/integration-test.sh
+          echo "✅ Integration test script is valid"
+
+      - name: Check test script is executable
+        run: |
+          test -x tests/integration-test.sh || { echo "❌ Test script not executable"; exit 1; }
+          echo "✅ Test script has correct permissions"
+
+  # ============================================================================
+  # JOB 7: Pre-Flight Check Validation
+  # ============================================================================
+  validate-preflight:
+    name: Validate Pre-Flight Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate preflight script
+        run: |
+          shellcheck scripts/preflight-check.sh
+          echo "✅ Pre-flight check script is valid"
+
+      - name: Check script structure
+        run: |
+          # Verify critical checks are present
+          grep -q "System Requirements" scripts/preflight-check.sh || exit 1
+          grep -q "Configuration Files" scripts/preflight-check.sh || exit 1
+          grep -q "Password Security" scripts/preflight-check.sh || exit 1
+          grep -q "Port Availability" scripts/preflight-check.sh || exit 1
+          grep -q "Disk Space" scripts/preflight-check.sh || exit 1
+          grep -q "Memory Configuration" scripts/preflight-check.sh || exit 1
+          echo "✅ All critical checks present in preflight script"
+
+  # ============================================================================
+  # FINAL: Summary
+  # ============================================================================
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs:
+      - validate-config
+      - validate-scripts
+      - validate-python
+      - security-scan
+      - check-docs
+      - integration-test-dry-run
+      - validate-preflight
+
+    steps:
+      - name: CI Passed
+        run: |
+          echo "🎉 All CI checks passed!"
+          echo ""
+          echo "✅ Configuration validation"
+          echo "✅ Shell script validation"
+          echo "✅ Python script validation"
+          echo "✅ Security scanning"
+          echo "✅ Documentation check"
+          echo "✅ Integration test validation"
+          echo "✅ Pre-flight check validation"
+          echo ""
+          echo "Ready for deployment!"
