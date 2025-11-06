@@ -1,0 +1,61 @@
+# Environment and Secrets
+.env
+.secrets/
+*.secret
+
+# Solr Data
+data/
+logs/
+backups/
+
+# Docker Secrets
+docker-secret-*
+
+# Monitoring Data
+monitoring/grafana/data/
+monitoring/prometheus/data/
+
+# Generated Configurations
+config/security.json
+
+# Temporary Files
+*.tmp
+*.log
+*.pid
+*.lock
+/tmp/
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Backup Files
+*.backup
+*.bak
+*.old
+
+# Test Files
+test/
+tests/
+*.test
+
+# Documentation Build
+docs/_build/
+docs/.doctrees/
