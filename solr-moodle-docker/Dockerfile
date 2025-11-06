@@ -63,8 +63,8 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=60s \
     CMD curl -f http://localhost:8983/solr/admin/ping?wt=json || exit 1
 
 # Labels
-LABEL maintainer="Bernd Schreistetter <bernd@eledia.de>" \
+LABEL maintainer="Bernd Schreistetter <bsc@eledia.de>" \
       version="2.2.0" \
-      description="Eledia Solr 9.9.0 - Moodle-optimized with Backup/Restore, Log Rotation, and Enhanced Health Checks" \
-      org.opencontainers.image.source="https://github.com/Codename-Beast/ansible-role-solr" \
+      description="Eledia Solr 9.9.0 - Moodle-optimized" \
+      org.opencontainers.image.source="#" \
       features="backup,restore,log-rotation,health-checks,moodle-schema,basic-auth"
