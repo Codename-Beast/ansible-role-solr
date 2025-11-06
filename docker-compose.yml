@@ -1,17 +1,23 @@
 version: '3.8'
 
 # ============================================================================
-# Solr Moodle Docker Compose v2.2.0
+# Solr Moodle Docker Compose v2.4.0
 #
 # Profiles:
 #   default         - Only Solr (production minimal)
 #   monitoring      - Add local monitoring stack
 #   exporter-only   - Only Solr + Exporter (for remote monitoring)
+#   backup          - Add automated backup service
+#
+# Network Segmentation (v2.4.0):
+#   frontend_network (172.20.0.0/24) - External access (Solr, Health API, Grafana)
+#   backend_network  (172.20.1.0/24) - Internal monitoring (Prometheus, Alertmanager, Exporter)
 #
 # Usage:
 #   docker compose up -d                              # Solr only
 #   docker compose --profile monitoring up -d         # With monitoring
 #   docker compose --profile exporter-only up -d      # Exporter for remote
+#   docker compose --profile backup up -d             # With automated backups
 # ============================================================================
 
 services:
@@ -29,7 +35,7 @@ services:
       - ./scripts/init-container.sh:/scripts/init.sh:ro
     command: ["/bin/sh", "/scripts/init.sh"]
     networks:
-      - solr_network
+      - frontend_network
     restart: "no"
 
   solr:
@@ -48,6 +54,7 @@ services:
       SOLR_HEAP: ${SOLR_HEAP_SIZE:-2g}
       SOLR_JAVA_MEM: "-Xms${SOLR_HEAP_SIZE:-2g} -Xmx${SOLR_HEAP_SIZE:-2g}"
       SOLR_LOG_LEVEL: ${SOLR_LOG_LEVEL:-INFO}
+      SOLR_STOP_WAIT: 30
       SOLR_OPTS: >-
         -XX:+UseG1GC
         -XX:+ParallelRefProcEnabled
@@ -56,10 +63,12 @@ services:
         -XX:InitiatingHeapOccupancyPercent=75
         -XX:+UnlockExperimentalVMOptions
         -XX:+AlwaysPreTouch
+        -Dsolr.jetty.graceful.shutdown=true
         -Dsolr.autoSoftCommit.maxTime=${SOLR_AUTO_SOFT_COMMIT_TIME:-1000}
         -Dsolr.autoCommit.maxTime=${SOLR_AUTO_COMMIT_TIME:-15000}
     networks:
-      - solr_network
+      - frontend_network  # External access
+      - backend_network   # Monitoring access
     restart: unless-stopped
     user: "8983:8983"
     stop_grace_period: 30s
@@ -100,7 +109,7 @@ services:
       - solr_data:/var/solr:ro
     command: ["python", "/app/health-api.py"]
     networks:
-      - solr_network
+      - frontend_network  # External access for health checks
     restart: unless-stopped
     environment:
       SOLR_URL: "http://solr:8983"
@@ -138,7 +147,7 @@ services:
     environment:
       JAVA_OPTS: "-Xms256m -Xmx512m"
     networks:
-      - solr_network
+      - backend_network  # Internal monitoring network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:9854/metrics || exit 1"]
@@ -169,7 +178,7 @@ services:
       - '--web.enable-lifecycle'
       - '--web.enable-admin-api'
     networks:
-      - solr_network
+      - backend_network  # Internal monitoring network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
@@ -202,7 +211,8 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
     networks:
-      - solr_network
+      - frontend_network  # External access for UI
+      - backend_network   # Access to Prometheus
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
@@ -231,7 +241,7 @@ services:
       - '--storage.path=/alertmanager'
       - '--web.external-url=http://localhost:9093'
     networks:
-      - solr_network
+      - backend_network  # Internal monitoring network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9093/-/healthy || exit 1"]
@@ -268,7 +278,7 @@ services:
       BACKUP_WEBHOOK_URL: ${BACKUP_WEBHOOK_URL:-}
     command: crond -f -l 2
     networks:
-      - solr_network
+      - backend_network  # Access to Solr for backups
     restart: unless-stopped
     deploy:
       resources:
@@ -299,6 +309,29 @@ volumes:
 # ============================================================================
 
 networks:
-  solr_network:
+  # Frontend network - External access (ports exposed)
+  # Contains: Solr, Health API, Grafana
+  frontend_network:
     driver: bridge
-    name: ${CUSTOMER_NAME}_solr_net
+    name: ${CUSTOMER_NAME}_frontend
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+    driver_opts:
+      com.docker.network.bridge.name: ${CUSTOMER_NAME}_frontend
+
+  # Backend network - Internal monitoring communication only
+  # Contains: Prometheus, Alertmanager, Solr Exporter
+  # Isolated from direct external access
+  backend_network:
+    driver: bridge
+    name: ${CUSTOMER_NAME}_backend
+    internal: false  # Set to true for complete isolation
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.1.0/24
+    driver_opts:
+      com.docker.network.bridge.name: ${CUSTOMER_NAME}_backend
+
