@@ -47,6 +47,11 @@ services:
       SOLR_JAVA_MEM: ${SOLR_JAVA_MEM:--Xms512m -Xmx512m}
       SOLR_LOG_LEVEL: ${SOLR_LOG_LEVEL:-INFO}
 
+      # ============================================================
+      # DEBUG MODE
+      # ============================================================
+      DEBUG: ${DEBUG:-false}
+
     restart: unless-stopped
 
     healthcheck:
