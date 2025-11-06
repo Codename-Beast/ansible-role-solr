@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Solr Configuration Generator v2.3.0
+# Solr Configuration Generator v2.3.1
 # Generates security.json and other configuration files
+# Uses Ansible-compatible Double SHA-256 algorithm
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -42,21 +43,20 @@ generate_config() {
 
     require_command "python3"
 
-    # Function to hash password using Python (with retry)
-    hash_password() {
-        local password=$1
-        retry_command 3 1 python3 "$SCRIPT_DIR/hash-password.py" "$password"
-    }
-
-    # Generate password hashes
-    log_info "Generating password hashes..."
+    # Generate password hashes with Ansible-compatible algorithm
+    # Uses --reuse to check existing hashes and reuse if password matches
+    log_info "Generating password hashes (Ansible-compatible)..."
     local admin_hash support_hash customer_hash
+    local security_json="$CONFIG_DIR/security.json"
 
-    admin_hash=$(hash_password "$SOLR_ADMIN_PASSWORD") || die "Failed to hash admin password"
-    support_hash=$(hash_password "$SOLR_SUPPORT_PASSWORD") || die "Failed to hash support password"
-    customer_hash=$(hash_password "$SOLR_CUSTOMER_PASSWORD") || die "Failed to hash customer password"
+    # Use --reuse to implement idempotency (like Ansible does)
+    # If security.json exists and password matches, reuse existing hash
+    # Otherwise generate new hash
+    admin_hash=$(retry_command 3 1 python3 "$SCRIPT_DIR/hash-password.py" --reuse "$SOLR_ADMIN_USER" "$SOLR_ADMIN_PASSWORD" "$security_json") || die "Failed to hash admin password"
+    support_hash=$(retry_command 3 1 python3 "$SCRIPT_DIR/hash-password.py" --reuse "$SOLR_SUPPORT_USER" "$SOLR_SUPPORT_PASSWORD" "$security_json") || die "Failed to hash support password"
+    customer_hash=$(retry_command 3 1 python3 "$SCRIPT_DIR/hash-password.py" --reuse "$SOLR_CUSTOMER_USER" "$SOLR_CUSTOMER_PASSWORD" "$security_json") || die "Failed to hash customer password"
 
-    log_success "Password hashes generated"
+    log_success "Password hashes generated (re-used existing if unchanged)"
 
     # Generate core name from customer name or domain
     local core_name
@@ -70,10 +70,11 @@ generate_config() {
     cat > "$CONFIG_DIR/security.json" <<EOF
 {
   "_meta": {
-    "version": "2.3.0",
+    "version": "2.3.1",
     "generated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
     "generator": "generate-config.sh",
-    "customer": "${CUSTOMER_NAME}"
+    "customer": "${CUSTOMER_NAME}",
+    "algorithm": "Double SHA-256 (Ansible-compatible)"
   },
   "authentication": {
     "blockUnknown": true,
@@ -132,7 +133,8 @@ EOF
     echo "=========================================="
     echo "Core name: $core_name"
     echo "Config directory: $CONFIG_DIR"
-    echo "Version: 2.3.0"
+    echo "Version: 2.3.1 (Ansible-compatible)"
+    echo "Algorithm: Double SHA-256 with hash reuse"
     echo ""
     echo "Next steps:"
     echo "  1. Review config/security.json"
@@ -145,7 +147,7 @@ EOF
 # ============================================================================
 
 main() {
-    log_info "Solr Configuration Generator v2.3.0"
+    log_info "Solr Configuration Generator v2.3.1"
 
     # Run generation with file locking to prevent race conditions
     with_lock "$LOCKFILE" generate_config

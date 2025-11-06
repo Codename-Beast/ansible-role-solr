@@ -2,6 +2,36 @@
 
 All notable changes to the Solr Moodle Docker standalone edition.
 
+## [2.3.1] - 2025-11-06
+
+### 🔧 Critical Fix - Ansible Compatibility
+
+**IMPORTANT**: This release fixes password hashing to be 100% compatible with the Ansible role.
+
+- **Fixed Password Hashing Algorithm** (CRITICAL)
+  - Changed from PBKDF2 to **Double SHA-256** (Ansible-compatible)
+  - Algorithm: `sha256(sha256(salt + password))` with random salt
+  - Format: `"HASH_B64 SALT_B64"` (hash first, then salt)
+  - Implements Ansible's exact algorithm from `tasks/auth_management.yml`
+  - Added `--reuse` flag to verify and reuse existing hashes
+  - Config regeneration re-uses existing hashes if passwords unchanged
+  - **100% compatible** with Ansible role deployments
+
+### Why This Change?
+
+The Ansible role uses a specific Double SHA-256 algorithm that is the standard
+for Solr BasicAuth. The previous PBKDF2 implementation was incompatible with
+Ansible-generated hashes, causing authentication failures.
+
+### Migration from v2.3.0
+
+If you already deployed v2.3.0 with PBKDF2 hashes:
+1. Backup your current setup
+2. Run `./scripts/generate-config.sh` to regenerate with Ansible algorithm
+3. Restart Solr: `docker compose restart solr`
+
+---
+
 ## [2.3.0] - 2025-11-06
 
 ### 🎉 Major Update - Production Ready
@@ -10,12 +40,12 @@ This release addresses ALL critical (P0) and high-priority (P1) issues from code
 
 ### ✨ Added - Core Features
 
-- **Idempotent Password Hashing** (P0)
-  - Deterministic hashing using PBKDF2
-  - Same password + customer = same hash every time
+- **Idempotent Password Hashing** (P0) - UPDATED IN v2.3.1
+  - Double SHA-256 with random salt (Ansible-compatible)
+  - Hash verification and reuse for idempotency
   - Supports `--verify` flag for hash validation
-  - Config regeneration no longer changes hashes
-  - 10,000 PBKDF2 iterations for security
+  - Config regeneration re-uses existing hashes if passwords match
+  - Algorithm: `sha256(sha256(salt_bytes + password_bytes))`
 
 - **Comprehensive Retry Logic** (P0)
   - `retry_command` with exponential backoff
@@ -75,10 +105,11 @@ This release addresses ALL critical (P0) and high-priority (P1) issues from code
 
 ### 🐛 Fixed - Critical Issues
 
-- **Fixed password hashing idempotence** (P0)
-  - Old: Random salt → different hashes each time
-  - New: Deterministic salt → same hash every time
-  - Impact: Config generation is now truly idempotent
+- **Fixed password hashing idempotence** (P0) - UPDATED IN v2.3.1
+  - Old: No verification → new hashes every time
+  - New: Hash verification and reuse (Ansible-compatible)
+  - Existing hashes are re-used if passwords haven't changed
+  - Impact: Config generation is now idempotent (like Ansible)
 
 - **Fixed race conditions** (P0)
   - Added file locking to generate-config.sh
@@ -94,9 +125,9 @@ This release addresses ALL critical (P0) and high-priority (P1) issues from code
 
 ### 🔧 Changed - Improvements
 
-- **Enhanced Scripts**:
-  - `hash-password.py`: Complete rewrite, deterministic hashing
-  - `generate-config.sh`: Added locking, retry logic, versioning
+- **Enhanced Scripts** (UPDATED IN v2.3.1):
+  - `hash-password.py`: Ansible-compatible Double SHA-256 with hash reuse
+  - `generate-config.sh`: Added locking, retry logic, versioning, hash reuse
   - `health.sh`: Enhanced with retry logic, better checks
   - All scripts now use common.sh library
 
@@ -125,10 +156,10 @@ This release addresses ALL critical (P0) and high-priority (P1) issues from code
 
 ### 🔒 Security
 
-- **Improved Password Security**:
-  - PBKDF2 with 10,000 iterations
-  - Deterministic but still secure
-  - Prevents rainbow table attacks
+- **Password Security** (UPDATED IN v2.3.1):
+  - Double SHA-256 with random salt (Ansible-compatible)
+  - Hash verification and reuse for idempotency
+  - Cryptographically secure random salts (32 bytes)
 
 - **Secrets Management**:
   - Docker Secrets support
