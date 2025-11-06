@@ -1,21 +1,33 @@
-.PHONY: help init config start stop restart logs health backup create-core clean destroy
+.PHONY: help init config start stop restart logs health backup create-core clean destroy \
+        monitoring-up monitoring-down grafana prometheus alertmanager metrics
 
 # Default target
 help:
 	@echo "=========================================="
 	@echo "Solr Moodle Docker - Available Commands"
 	@echo "=========================================="
-	@echo "  make init         - Initialize environment (.env file)"
-	@echo "  make config       - Generate configuration files"
-	@echo "  make start        - Start Solr services"
-	@echo "  make stop         - Stop Solr services"
-	@echo "  make restart      - Restart Solr services"
-	@echo "  make logs         - Show Solr logs (follow)"
-	@echo "  make health       - Check Solr health"
-	@echo "  make create-core  - Create Moodle core"
-	@echo "  make backup       - Create backup of Solr core"
-	@echo "  make clean        - Stop and remove containers"
-	@echo "  make destroy      - Remove everything (containers, volumes, data)"
+	@echo "Main Operations:"
+	@echo "  make init           - Initialize environment (.env file)"
+	@echo "  make config         - Generate configuration files"
+	@echo "  make start          - Start all services (Solr + Monitoring)"
+	@echo "  make stop           - Stop all services"
+	@echo "  make restart        - Restart all services"
+	@echo "  make logs           - Show Solr logs (follow)"
+	@echo "  make health         - Check Solr health"
+	@echo "  make create-core    - Create Moodle core"
+	@echo "  make backup         - Create backup of Solr core"
+	@echo ""
+	@echo "Monitoring:"
+	@echo "  make monitoring-up  - Start monitoring stack only"
+	@echo "  make monitoring-down- Stop monitoring stack"
+	@echo "  make grafana        - Open Grafana in browser"
+	@echo "  make prometheus     - Open Prometheus in browser"
+	@echo "  make alertmanager   - Open Alertmanager in browser"
+	@echo "  make metrics        - Show Solr metrics"
+	@echo ""
+	@echo "Cleanup:"
+	@echo "  make clean          - Stop and remove containers"
+	@echo "  make destroy        - Remove everything (⚠ DESTRUCTIVE)"
 	@echo "=========================================="
 
 # Initialize environment
@@ -59,6 +71,57 @@ create-core:
 # Backup
 backup:
 	@./scripts/backup.sh
+
+# Start monitoring stack
+monitoring-up:
+	@echo "Starting monitoring stack..."
+	@docker compose up -d prometheus grafana alertmanager solr-exporter
+	@echo "✓ Monitoring stack started"
+	@echo "  Grafana:      http://localhost:3000"
+	@echo "  Prometheus:   http://localhost:9090"
+	@echo "  Alertmanager: http://localhost:9093"
+
+# Stop monitoring stack
+monitoring-down:
+	@echo "Stopping monitoring stack..."
+	@docker compose stop prometheus grafana alertmanager solr-exporter
+	@echo "✓ Monitoring stack stopped"
+
+# Open Grafana
+grafana:
+	@. .env 2>/dev/null || true; \
+	PORT=$${GRAFANA_PORT:-3000}; \
+	echo "Opening Grafana at http://localhost:$$PORT"; \
+	command -v xdg-open >/dev/null && xdg-open "http://localhost:$$PORT" || \
+	command -v open >/dev/null && open "http://localhost:$$PORT" || \
+	echo "Please open http://localhost:$$PORT in your browser"
+
+# Open Prometheus
+prometheus:
+	@. .env 2>/dev/null || true; \
+	PORT=$${PROMETHEUS_PORT:-9090}; \
+	echo "Opening Prometheus at http://localhost:$$PORT"; \
+	command -v xdg-open >/dev/null && xdg-open "http://localhost:$$PORT" || \
+	command -v open >/dev/null && open "http://localhost:$$PORT" || \
+	echo "Please open http://localhost:$$PORT in your browser"
+
+# Open Alertmanager
+alertmanager:
+	@. .env 2>/dev/null || true; \
+	PORT=$${ALERTMANAGER_PORT:-9093}; \
+	echo "Opening Alertmanager at http://localhost:$$PORT"; \
+	command -v xdg-open >/dev/null && xdg-open "http://localhost:$$PORT" || \
+	command -v open >/dev/null && open "http://localhost:$$PORT" || \
+	echo "Please open http://localhost:$$PORT in your browser"
+
+# Show metrics
+metrics:
+	@. .env 2>/dev/null || true; \
+	PORT=$${EXPORTER_PORT:-9854}; \
+	echo "Fetching Solr metrics..."; \
+	curl -s "http://localhost:$$PORT/metrics" | head -50; \
+	echo ""; \
+	echo "(Showing first 50 lines. Full metrics at http://localhost:$$PORT/metrics)"
 
 # Clean up containers
 clean:

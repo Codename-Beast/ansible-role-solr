@@ -75,15 +75,7 @@ EOF
 
 echo "✓ Generated: config/security.json"
 
-# Copy stopwords files
-echo "Copying language files..."
-cp "$PROJECT_DIR/../files/conf/stopwords_en.txt" "$CONFIG_DIR/" 2>/dev/null || \
-    echo "a an and are as at be but by for if in into is it no not of on or such that the their then there these they this to was will with" > "$CONFIG_DIR/stopwords_en.txt"
-
-cp "$PROJECT_DIR/../files/conf/stopwords_de.txt" "$CONFIG_DIR/" 2>/dev/null || \
-    echo "aber als am an auch auf aus bei bin bis bist da das der des dem den die das ein eine einem einen einer eines er es für hatte haben hat im in ist ja kann mir mit muss nach nicht noch oder sein seine seinem seinen seiner sie sind über um und uns von war waren wir wird zum zur" > "$CONFIG_DIR/stopwords_de.txt"
-
-cat "$CONFIG_DIR/stopwords_en.txt" "$CONFIG_DIR/stopwords_de.txt" | sort -u > "$CONFIG_DIR/stopwords.txt"
+# Language files are already in lang/ directory - no need to copy
 
 echo "✓ Generated: stopwords files"
 

@@ -7,15 +7,16 @@ services:
     volumes:
       - solr_data:/var/solr
       - ./config:/config:ro
+      - ./lang:/lang:ro
     command: >
       sh -c "
       set -e;
       echo '========================================';
-      echo 'Solr Configuration Deployment v2.0';
+      echo 'Solr Configuration Deployment v2.1';
       echo '========================================';
 
       echo '[1/5] Installing validation tools...';
-      apk add --no-cache jq libxml2-utils;
+      apk add --no-cache jq libxml2-utils 2>&1 | grep -v 'fetch\|OK:' || true;
 
       echo '[2/5] Creating directory structure...';
       mkdir -p /var/solr/data /var/solr/data/configs /var/solr/data/lang /var/solr/backup/configs;
@@ -25,53 +26,30 @@ services:
       [ -f /var/solr/data/security.json ] && cp /var/solr/data/security.json /var/solr/backup/configs/security.json.$$TIMESTAMP 2>/dev/null || true;
 
       echo '[4/5] Validating configuration files...';
-      if [ -f /config/security.json ]; then
-        echo '  ✓ Validating security.json';
-        jq empty /config/security.json || ( echo 'ERROR: Invalid JSON in security.json'; exit 1 );
-      fi;
-      if [ -f /config/solrconfig.xml ]; then
-        echo '  ✓ Validating solrconfig.xml';
-        xmllint --noout /config/solrconfig.xml || ( echo 'ERROR: Invalid XML in solrconfig.xml'; exit 1 );
-      fi;
-      if [ -f /config/moodle_schema.xml ]; then
-        echo '  ✓ Validating moodle_schema.xml';
-        xmllint --noout /config/moodle_schema.xml || ( echo 'ERROR: Invalid XML in moodle_schema.xml'; exit 1 );
-      fi;
+      [ -f /config/security.json ] && jq empty /config/security.json || ( echo 'ERROR: Invalid security.json'; exit 1 );
+      [ -f /config/solrconfig.xml ] && xmllint --noout /config/solrconfig.xml || ( echo 'ERROR: Invalid solrconfig.xml'; exit 1 );
+      [ -f /config/moodle_schema.xml ] && xmllint --noout /config/moodle_schema.xml || ( echo 'ERROR: Invalid moodle_schema.xml'; exit 1 );
 
       echo '[5/5] Deploying configuration files...';
-      for file in security.json solrconfig.xml moodle_schema.xml synonyms.txt protwords.txt; do
-        if [ -f /config/$$file ]; then
-          if echo $$file | grep -q '.xml\|.json'; then
-            echo \"  ✓ Deploying $$file\";
-          else
-            echo \"  ✓ Deploying $$file\";
-          fi;
-          if echo $$file | grep -q 'security.json'; then
-            cp /config/$$file /var/solr/data/$$file;
-          else
-            cp /config/$$file /var/solr/data/configs/$$file;
-          fi;
-        fi;
-      done;
+      [ -f /config/security.json ] && cp /config/security.json /var/solr/data/security.json;
+      [ -f /config/solrconfig.xml ] && cp /config/solrconfig.xml /var/solr/data/configs/solrconfig.xml;
+      [ -f /config/moodle_schema.xml ] && cp /config/moodle_schema.xml /var/solr/data/configs/moodle_schema.xml;
+      [ -f /config/synonyms.txt ] && cp /config/synonyms.txt /var/solr/data/configs/synonyms.txt;
+      [ -f /config/protwords.txt ] && cp /config/protwords.txt /var/solr/data/configs/protwords.txt;
+      [ -f /lang/stopwords.txt ] && cp /lang/stopwords.txt /var/solr/data/lang/stopwords.txt;
+      [ -f /lang/stopwords_de.txt ] && cp /lang/stopwords_de.txt /var/solr/data/lang/stopwords_de.txt;
+      [ -f /lang/stopwords_en.txt ] && cp /lang/stopwords_en.txt /var/solr/data/lang/stopwords_en.txt;
 
-      for file in stopwords.txt stopwords_de.txt stopwords_en.txt; do
-        if [ -f /config/$$file ]; then
-          echo \"  ✓ Deploying $$file\";
-          cp /config/$$file /var/solr/data/lang/$$file;
-        fi;
-      done;
-
-      echo 'Setting permissions...';
       chown -R 8983:8983 /var/solr;
       chmod 600 /var/solr/data/security.json 2>/dev/null || true;
 
       echo '========================================';
-      echo 'Configuration Deployment: SUCCESS';
+      echo 'Deployment: SUCCESS';
       echo '========================================';
-      exit 0;
       "
     networks:
       - solr_network
+    restart: "no"
 
   solr:
     image: solr:${SOLR_VERSION:-9.9.0}
@@ -89,26 +67,152 @@ services:
       SOLR_HEAP: ${SOLR_HEAP_SIZE:-2g}
       SOLR_JAVA_MEM: "-Xms${SOLR_HEAP_SIZE:-2g} -Xmx${SOLR_HEAP_SIZE:-2g}"
       SOLR_LOG_LEVEL: ${SOLR_LOG_LEVEL:-INFO}
+      SOLR_OPTS: >-
+        -XX:+UseG1GC
+        -XX:+ParallelRefProcEnabled
+        -XX:G1HeapRegionSize=16m
+        -XX:MaxGCPauseMillis=200
+        -XX:+UnlockExperimentalVMOptions
+        -XX:+AlwaysPreTouch
+        -Dsolr.autoSoftCommit.maxTime=${SOLR_AUTO_SOFT_COMMIT_TIME:-1000}
+        -Dsolr.autoCommit.maxTime=${SOLR_AUTO_COMMIT_TIME:-15000}
     networks:
       - solr_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8983/solr/admin/ping?wt=json || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8983/solr/admin/ping?wt=json || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 5
+      retries: 3
       start_period: 60s
     deploy:
       resources:
         limits:
           memory: ${SOLR_MEMORY_LIMIT:-4g}
+          cpus: '${SOLR_CPU_LIMIT:-2.0}'
         reservations:
           memory: ${SOLR_HEAP_SIZE:-2g}
+          cpus: '${SOLR_CPU_RESERVATION:-0.5}'
+
+  solr-exporter:
+    image: solr:${SOLR_VERSION:-9.9.0}
+    container_name: ${CUSTOMER_NAME}_solr_exporter
+    depends_on:
+      solr:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${EXPORTER_PORT:-9854}:9854"
+    command: >
+      bash -c "/opt/solr/contrib/prometheus-exporter/bin/solr-exporter
+      -p 9854
+      -b http://solr:8983/solr
+      -f /opt/solr/contrib/prometheus-exporter/conf/solr-exporter-config.xml
+      -n 16"
+    environment:
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    networks:
+      - solr_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9854/metrics || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: ${CUSTOMER_NAME}_prometheus
+    depends_on:
+      - solr-exporter
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - solr_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: ${CUSTOMER_NAME}_grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: ${GRAFANA_PLUGINS:-}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/solr-dashboard.json
+    networks:
+      - solr_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: ${CUSTOMER_NAME}_alertmanager
+    depends_on:
+      - prometheus
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    networks:
+      - solr_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9093/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   solr_data:
     driver: local
+    name: ${CUSTOMER_NAME}_solr_data
+  prometheus_data:
+    driver: local
+    name: ${CUSTOMER_NAME}_prometheus_data
+  grafana_data:
+    driver: local
+    name: ${CUSTOMER_NAME}_grafana_data
+  alertmanager_data:
+    driver: local
+    name: ${CUSTOMER_NAME}_alertmanager_data
 
 networks:
   solr_network:
     driver: bridge
+    name: ${CUSTOMER_NAME}_solr_net
