@@ -30,6 +30,59 @@ else
 fi
 
 ###############################################################################
+# Backup Locking (v3.3.1 - Prevent concurrent backups of same tenant)
+###############################################################################
+
+acquire_backup_lock() {
+    local tenant_id=$1
+    local lock_dir="/tmp/backup_${tenant_id}.lock"
+    local timeout=300  # 5 minutes
+    local elapsed=0
+    local backoff=2
+
+    while [ $elapsed -lt $timeout ]; do
+        if mkdir "$lock_dir" 2>/dev/null; then
+            echo "$$" > "$lock_dir/pid"
+            echo "$(date +%s)" > "$lock_dir/timestamp"
+            return 0
+        fi
+
+        # Check for stale lock
+        if [ -f "$lock_dir/pid" ]; then
+            local lock_pid
+            lock_pid=$(cat "$lock_dir/pid" 2>/dev/null || echo "")
+            if [ -n "$lock_pid" ] && ! kill -0 "$lock_pid" 2>/dev/null; then
+                local lock_age=$(($(date +%s) - $(cat "$lock_dir/timestamp" 2>/dev/null || echo 0)))
+                echo "⚠️  Removing stale backup lock (PID $lock_pid, age: ${lock_age}s)"
+                rm -rf "$lock_dir"
+                continue
+            fi
+        fi
+
+        if [ $elapsed -eq 0 ]; then
+            echo "⏳ Another backup is running for ${tenant_id}, waiting..."
+        fi
+        sleep "$backoff"
+        elapsed=$((elapsed + backoff))
+    done
+
+    return 1
+}
+
+release_backup_lock() {
+    local tenant_id=$1
+    local lock_dir="/tmp/backup_${tenant_id}.lock"
+
+    if [ -d "$lock_dir" ]; then
+        local lock_pid
+        lock_pid=$(cat "$lock_dir/pid" 2>/dev/null || echo "")
+        if [ "$lock_pid" = "$$" ]; then
+            rm -rf "$lock_dir"
+        fi
+    fi
+}
+
+###############################################################################
 # Helper Functions
 ###############################################################################
 
@@ -84,6 +137,14 @@ backup_tenant() {
 
     log_info "Creating backup for tenant: ${tenant_id}"
 
+    # CRITICAL FIX v3.3.1: Acquire lock to prevent concurrent backups of same tenant
+    if ! acquire_backup_lock "$tenant_id"; then
+        log_error "Could not acquire backup lock for ${tenant_id} (timeout after 5min)"
+        log_error "Another backup may be running, or a stale lock exists"
+        return 1
+    fi
+    trap "release_backup_lock '$tenant_id'" EXIT INT TERM
+
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
     local backup_name="tenant_${tenant_id}_${timestamp}"
@@ -96,7 +157,8 @@ backup_tenant() {
     log_info "  [1/6] Flushing pending commits..."
     if ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
         "http://localhost:8983/solr/${core_name}/update?commit=true&waitSearcher=true" >/dev/null 2>&1; then
-        log_warning "Failed to flush commits (continuing anyway)"
+        log_error "Commit failed - aborting backup to prevent inconsistent state"
+        return 1
     fi
     sleep 2  # Wait for commit to complete
 

@@ -204,24 +204,40 @@ add_user_and_rbac() {
     commit_transaction
     trap - ERR
 
-    # Reload security configuration (restart Solr) - done AFTER transaction
-    log_info "Reloading Solr to apply security changes..."
-    docker compose restart solr >/dev/null 2>&1
+    # OPTIMIZED v3.3.1: Graceful Solr-only restart (minimized downtime)
+    log_info "Reloading Solr to apply security changes (graceful restart)..."
 
-    # Wait for Solr to be ready
+    # Stop Solr gracefully (10s timeout)
+    docker compose stop -t 10 solr >/dev/null 2>&1
+
+    # Start Solr
+    docker compose start solr >/dev/null 2>&1
+
+    # Wait for Solr to be ready with progress indication
     log_info "Waiting for Solr to be ready..."
-    local max_wait=60
+    local max_wait=90
     local waited=0
+    local last_msg_time=0
+
     while ! docker compose exec -T solr curl -sf -u "${SOLR_ADMIN_USER}:${SOLR_ADMIN_PASSWORD}" \
         "http://localhost:8983/solr/admin/info/system" > /dev/null 2>&1; do
         sleep 2
         waited=$((waited + 2))
+
+        # Progress update every 10s
+        if [ $((waited - last_msg_time)) -ge 10 ] && [ $waited -lt $max_wait ]; then
+            echo "   Still waiting... (${waited}s/${max_wait}s)"
+            last_msg_time=$waited
+        fi
+
         if [ $waited -ge $max_wait ]; then
             log_error "Solr did not become ready within ${max_wait} seconds"
+            log_error "Check logs: docker compose logs solr"
             return 1
         fi
     done
 
+    log_success "Solr is ready (took ${waited}s)"
     log_success "User and RBAC configured successfully"
     return 0
 }
