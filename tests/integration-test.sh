@@ -116,7 +116,7 @@ test_case "Solr container running" \
     "docker compose ps solr | grep -q 'Up'"
 
 test_case "Solr init completed successfully" \
-    "docker compose ps solr-init | grep -q 'Exited (0)' || docker compose ps solr-init | grep -q 'Completed'"
+    "docker compose ps -a solr-init | grep -q 'Exited (0)' || docker compose ps -a solr-init | grep -q 'Completed'"
 
 test_case "Health API container running" \
     "docker compose ps health-api | grep -q 'Up'"
