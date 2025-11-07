@@ -18,6 +18,7 @@ apk add --no-cache jq libxml2-utils 2>&1 | grep -v 'fetch\|OK:' || true
 # Create directory structure
 echo "[2/6] Creating directory structure..."
 mkdir -p /var/solr/data /var/solr/data/configs /var/solr/data/lang /var/solr/backup/configs
+mkdir -p /var/solr/logs /var/solr/backups
 
 # CRITICAL FIX: Intelligent security.json deployment
 echo "[3/6] Handling security.json deployment..."

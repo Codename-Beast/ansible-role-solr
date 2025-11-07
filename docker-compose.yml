@@ -29,7 +29,9 @@ services:
     image: alpine:3.20
     container_name: ${CUSTOMER_NAME}_solr_init
     volumes:
-      - solr_data:/var/solr/data          # Same as solr container
+      - solr_data:/var/solr/data          # Data volume
+      - solr_logs:/var/solr/logs          # Logs volume (needs permission setup)
+      - solr_backups:/var/solr/backups    # Backups volume (needs permission setup)
       - ${SOLR_CONFIG_DIR:-./config}:/config:ro
       - ./lang:/lang:ro
       - ./scripts/init-container.sh:/scripts/init.sh:ro
