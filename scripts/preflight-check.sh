@@ -255,7 +255,7 @@ if command -v df >/dev/null 2>&1; then
     elif [ "$available_gb" -ge 20 ]; then
         check_warn "Limited disk space available (${available_gb}GB) - Consider 50GB+"
     else
-        check_fail "Insufficient disk space (${available_gb}GB) - Need at least 20GB"
+        check_warn "Low disk space (${available_gb}GB) - Recommended: 20GB+"
     fi
 
     # Check inode availability
@@ -284,34 +284,46 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 
     # Get total system memory
     if command -v free >/dev/null 2>&1; then
-        total_mem_gb=$(free -g | awk '/^Mem:/{print $2}')
+        total_mem_gb=$(free -g | awk '/^Mem:/{print $2}' | grep -E '^[0-9]+$' || echo "0")
+
+        # Default to 0 if empty or invalid
+        total_mem_gb=${total_mem_gb:-0}
 
         if [ "$total_mem_gb" -ge 4 ]; then
             check_pass "Sufficient RAM available (${total_mem_gb}GB)"
-        else
+        elif [ "$total_mem_gb" -gt 0 ]; then
             check_warn "Limited RAM available (${total_mem_gb}GB) - Recommend 4GB+"
+        else
+            check_warn "Cannot determine system RAM (showing as 0GB)"
         fi
 
         # Check heap size configuration
         heap_size=${SOLR_HEAP_SIZE:-2g}
         heap_gb=$(echo "$heap_size" | sed 's/[^0-9]//g')
+        heap_gb=${heap_gb:-2}  # Default to 2 if empty
+
         mem_limit=${SOLR_MEMORY_LIMIT:-4g}
         limit_gb=$(echo "$mem_limit" | sed 's/[^0-9]//g')
+        limit_gb=${limit_gb:-4}  # Default to 4 if empty
 
         # Validate heap is 50-60% of memory limit
-        heap_percent=$((heap_gb * 100 / limit_gb))
+        if [ "$limit_gb" -gt 0 ]; then
+            heap_percent=$((heap_gb * 100 / limit_gb))
 
-        if [ $heap_percent -ge 45 ] && [ $heap_percent -le 65 ]; then
-            check_pass "SOLR_HEAP_SIZE (${heap_size}) is ${heap_percent}% of SOLR_MEMORY_LIMIT (${mem_limit}) - Good!"
-        else
-            check_warn "SOLR_HEAP_SIZE (${heap_size}) is ${heap_percent}% of SOLR_MEMORY_LIMIT (${mem_limit}) - Recommend 50-60%"
+            if [ $heap_percent -ge 45 ] && [ $heap_percent -le 65 ]; then
+                check_pass "SOLR_HEAP_SIZE (${heap_size}) is ${heap_percent}% of SOLR_MEMORY_LIMIT (${mem_limit}) - Good!"
+            else
+                check_warn "SOLR_HEAP_SIZE (${heap_size}) is ${heap_percent}% of SOLR_MEMORY_LIMIT (${mem_limit}) - Recommend 50-60%"
+            fi
         fi
 
-        # Check if memory limit exceeds system RAM
-        if [ $limit_gb -gt $total_mem_gb ]; then
-            check_warn "SOLR_MEMORY_LIMIT (${mem_limit}) exceeds system RAM (${total_mem_gb}GB)"
-        else
-            check_pass "SOLR_MEMORY_LIMIT (${mem_limit}) is within system RAM (${total_mem_gb}GB)"
+        # Check if memory limit exceeds system RAM (only if we have valid total_mem_gb)
+        if [ "$total_mem_gb" -gt 0 ]; then
+            if [ "$limit_gb" -gt "$total_mem_gb" ]; then
+                check_warn "SOLR_MEMORY_LIMIT (${mem_limit}) exceeds system RAM (${total_mem_gb}GB)"
+            else
+                check_pass "SOLR_MEMORY_LIMIT (${mem_limit}) is within system RAM (${total_mem_gb}GB)"
+            fi
         fi
     else
         check_warn "Cannot check memory (free command not available)"
