@@ -21,25 +21,20 @@ mkdir -p /var/solr/data /var/solr/data/configs /var/solr/data/lang /var/solr/bac
 mkdir -p /var/solr/logs /var/solr/backups
 mkdir -p /var/solr/data/configsets
 
-# Copy _default configSet if not exists (needed for core creation)
-if [ ! -d /var/solr/data/configsets/_default ]; then
-    echo "[2b/6] Copying _default configSet..."
-    # We'll create a minimal configSet with just the essentials
-    # The actual schema will be uploaded via API after core creation
-    mkdir -p /var/solr/data/configsets/_default/conf
+# Create moodle configSet with full schema (needed for core creation)
+if [ ! -d /var/solr/data/configsets/moodle ]; then
+    echo "[2b/6] Creating moodle configSet with schema..."
+    mkdir -p /var/solr/data/configsets/moodle/conf
 
-    # Create minimal solrconfig.xml (will be replaced by schema upload)
-    cat > /var/solr/data/configsets/_default/conf/solrconfig.xml << 'EOF'
+    # Create solrconfig.xml
+    cat > /var/solr/data/configsets/moodle/conf/solrconfig.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8" ?>
 <config>
   <luceneMatchVersion>9.9</luceneMatchVersion>
   <dataDir>${solr.data.dir:}</dataDir>
   <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.NRTCachingDirectoryFactory}"/>
   <codecFactory class="solr.SchemaCodecFactory"/>
-  <schemaFactory class="ManagedIndexSchemaFactory">
-    <bool name="mutable">true</bool>
-    <str name="managedSchemaResourceName">managed-schema.xml</str>
-  </schemaFactory>
+  <schemaFactory class="ClassicIndexSchemaFactory"/>
   <updateHandler class="solr.DirectUpdateHandler2">
     <updateLog>
       <str name="dir">${solr.ulog.dir:}</str>
@@ -70,12 +65,18 @@ if [ ! -d /var/solr/data/configsets/_default ]; then
 </config>
 EOF
 
-    # Create minimal managed-schema.xml
-    cat > /var/solr/data/configsets/_default/conf/managed-schema.xml << 'EOF'
+    # Copy Moodle schema from config directory
+    if [ -f /config/moodle_schema.xml ]; then
+        cp /config/moodle_schema.xml /var/solr/data/configsets/moodle/conf/schema.xml
+        echo "  ✓ Moodle schema copied"
+    else
+        echo "  ⚠ moodle_schema.xml not found, using minimal schema"
+        # Fallback to minimal schema
+        cat > /var/solr/data/configsets/moodle/conf/schema.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8" ?>
-<schema name="default-config" version="1.6">
+<schema name="moodle-schema" version="1.6">
   <uniqueKey>id</uniqueKey>
-  <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true"/>
   <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
   <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
     <analyzer type="index">
@@ -93,8 +94,9 @@ EOF
   <field name="_text_" type="text_general" indexed="true" stored="false" multiValued="true"/>
 </schema>
 EOF
+    fi
 
-    echo "  ✓ _default configSet created"
+    echo "  ✓ Moodle configSet created"
 fi
 
 # CRITICAL FIX: Intelligent security.json deployment

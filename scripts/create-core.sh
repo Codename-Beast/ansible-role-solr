@@ -44,14 +44,14 @@ if echo "$CORE_STATUS" | grep -q "\"$CORE_NAME\""; then
         "http://localhost:$SOLR_PORT/solr/admin/cores?action=UNLOAD&core=$CORE_NAME&deleteInstanceDir=true&wt=json" > /dev/null || true
 fi
 
-echo "Creating core: $CORE_NAME"
+echo "Creating core: $CORE_NAME with Moodle configSet"
 
-# Create core using Moodle schema
+# Create core using Moodle configSet (schema is already included)
 CREATE_RESPONSE=$(curl -s -u "$SOLR_ADMIN_USER:$SOLR_ADMIN_PASSWORD" \
-    "http://localhost:$SOLR_PORT/solr/admin/cores?action=CREATE&name=$CORE_NAME&configSet=_default&wt=json")
+    "http://localhost:$SOLR_PORT/solr/admin/cores?action=CREATE&name=$CORE_NAME&configSet=moodle&wt=json")
 
 if echo "$CREATE_RESPONSE" | grep -q "\"status\":0"; then
-    echo "✓ Core created successfully"
+    echo "✓ Core created successfully with Moodle schema"
 else
     echo "ERROR: Failed to create core"
     echo "$CREATE_RESPONSE"
@@ -59,25 +59,7 @@ else
 fi
 
 echo ""
-echo "Uploading Moodle schema..."
-
-# Upload schema
-SCHEMA_RESPONSE=$(curl -s -u "$SOLR_ADMIN_USER:$SOLR_ADMIN_PASSWORD" \
-    -X POST \
-    -H 'Content-type:application/xml' \
-    --data-binary @"$CONFIG_DIR/moodle_schema.xml" \
-    "http://localhost:$SOLR_PORT/solr/$CORE_NAME/schema")
-
-if echo "$SCHEMA_RESPONSE" | grep -q "\"status\":0"; then
-    echo "✓ Schema uploaded successfully"
-else
-    echo "ERROR: Failed to upload schema"
-    echo "$SCHEMA_RESPONSE"
-    exit 1
-fi
-
-echo ""
-echo "✓ Core created successfully"
+echo "✓ Moodle Core ready!"
 echo "Core name: $CORE_NAME"
 echo "Core URL: http://localhost:$SOLR_PORT/solr/$CORE_NAME"
 echo "=========================================="
