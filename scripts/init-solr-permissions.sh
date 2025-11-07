@@ -33,19 +33,18 @@ echo ""
 log_info "Preparing directories for Solr container (UID:GID ${SOLR_UID}:${SOLR_GID})"
 echo ""
 
-# Check if we need sudo
-NEEDS_SUDO=false
-if [ ! -w "$PROJECT_DIR" ]; then
-    NEEDS_SUDO=true
-    log_warn "Directory not writable by current user, will use sudo"
-fi
-
 # Function to run command with sudo if needed
+# Try without sudo first, fall back to sudo if permission denied
 run_cmd() {
-    if [ "$NEEDS_SUDO" = true ]; then
-        sudo "$@"
-    else
+    if [ "$(id -u)" -eq 0 ]; then
+        # Already root, no sudo needed
         "$@"
+    else
+        # Try without sudo first
+        "$@" 2>/dev/null || {
+            # If failed, try with sudo
+            sudo "$@"
+        }
     fi
 }
 
