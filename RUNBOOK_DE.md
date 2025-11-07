@@ -423,5 +423,5 @@ df -h
 
 ---
 
-**Version**: v2.5.0  
-**Siehe auch**: README_DE.md, MEMORY_TUNING_DE.md, REVIEWS_v2.5.0_DE.md
+**Version**: v2.5.0
+**Siehe auch**: README_DE.md, MEMORY_TUNING_DE.md

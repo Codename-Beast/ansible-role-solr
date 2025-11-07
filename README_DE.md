@@ -72,7 +72,6 @@ docker compose --profile monitoring --profile backup --profile logrotate up -d
 ### Betrieb
 - **RUNBOOK_DE.md** - Operatives Handbuch für den Betrieb
 - **MEMORY_TUNING_DE.md** - Speicher-Tuning Leitfaden
-- **REVIEWS_v2.5.0_DE.md** - Code Review und Verbesserungsvorschläge
 
 ### Entwicklung
 - **CHANGELOG.md** - Versionshistorie
