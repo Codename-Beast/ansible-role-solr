@@ -1,4 +1,4 @@
-.PHONY: help init preflight config start stop restart logs health dashboard backup create-core test security-scan benchmark clean destroy \
+.PHONY: help init preflight init-permissions config start stop restart logs health dashboard backup create-core test security-scan benchmark clean destroy \
         monitoring-up monitoring-down grafana prometheus alertmanager metrics \
         tenant-create tenant-delete tenant-list tenant-backup tenant-backup-all
 
@@ -59,12 +59,16 @@ init:
 preflight:
 	@./scripts/preflight-check.sh
 
+# Initialize Solr directories with correct permissions
+init-permissions:
+	@./scripts/init-solr-permissions.sh
+
 # Generate configuration files
 config:
 	@./scripts/generate-config.sh
 
-# Start services (with pre-flight checks)
-start: preflight
+# Start services (with pre-flight checks and permissions init)
+start: preflight init-permissions
 	@./scripts/start.sh
 
 # Stop services

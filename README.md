@@ -37,27 +37,29 @@ A standalone Docker solution for running Apache Solr optimized for Moodle search
 git clone <your-repo-url>
 cd solr-moodle-docker
 
-# 2. Run pre-flight checks (validates Docker, ports, disk, memory)
-./scripts/preflight-check.sh
-
-# 3. Initialize environment
+# 2. Initialize environment
 make init
 
-# 4. Configure (edit .env file)
+# 3. Configure (edit .env file - set passwords!)
 nano .env
 
-# 5. Generate configuration
+# 4. Generate configuration
 make config
 
-# 6. Start Solr
+# 5. Start Solr (includes preflight checks + permissions setup)
 make start
 
-# 7. Create Moodle core
+# 6. Create Moodle core
 make create-core
 
-# 8. Check health
+# 7. Check health
 make health
 ```
+
+**Note**: `make start` automatically:
+- Runs pre-flight checks (Docker, ports, disk, memory)
+- Initializes Solr directories with correct permissions (UID 8983)
+- Starts all containers
 
 Solr is now running at: http://localhost:8983
 
@@ -152,13 +154,14 @@ BACKUP_RETENTION_DAYS=30
 ├── docker-compose.yml        # Main orchestration file
 ├── .env.example             # Environment template
 ├── Makefile                 # Convenient commands
-├── scripts/                 # Management scripts
-│   ├── lib/                # Shared utilities
-│   ├── generate-config.sh  # Config generator
-│   ├── hash-password.py    # Password hasher
-│   ├── health.sh           # Health checker
-│   ├── backup.sh           # Backup script
-│   └── setup-secrets.sh    # Docker Secrets setup
+├── scripts/                      # Management scripts
+│   ├── lib/                     # Shared utilities
+│   ├── generate-config.sh       # Config generator
+│   ├── hash-password.py         # Password hasher
+│   ├── health.sh                # Health checker
+│   ├── backup.sh                # Backup script
+│   ├── init-solr-permissions.sh # Permissions initializer (auto-run)
+│   └── setup-secrets.sh         # Docker Secrets setup
 ├── config/                  # Solr configuration
 │   ├── moodle_schema.xml   # Moodle search schema
 │   ├── solrconfig.xml      # Solr config
@@ -181,7 +184,8 @@ All commands via Makefile:
 
 ```bash
 # Main Operations
-make start               # Start all services
+make start               # Start all services (auto-runs preflight + permissions)
+make init-permissions    # Manually initialize Solr directories (if needed)
 make stop                # Stop all services
 make restart             # Restart all services
 make logs                # Show Solr logs
