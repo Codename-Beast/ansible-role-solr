@@ -19,7 +19,7 @@ All notable changes to this project will be documented in this file.
 
 ### Summary
 
-Complete overhaul of Docker deployment system with fixes for filesystem permissions, authentication, and Solr 9.x compatibility. Successfully deployed and tested on production XEN server with Fedora 42.
+Complete overhaul of Docker deployment system with fixes for filesystem permissions, authentication, and Solr 9.x compatibility. Successfully deployed and tested on production Debian server with Fedora 42.
 
 ### Fixed
 
@@ -163,7 +163,7 @@ Complete overhaul of Docker deployment system with fixes for filesystem permissi
 ### Testing
 
 **Test Environment**:
-- OS: Fedora 42 (XEN Server)
+- OS: Debian
 - Docker: 28.5.1
 - Docker Compose: 2.40.3
 - Filesystem: ext4 (with custom mount paths)
@@ -201,7 +201,7 @@ Complete overhaul of Docker deployment system with fixes for filesystem permissi
 
 ### Deployment Notes
 
-- System successfully deployed on production XEN server
+- System successfully deployed on Debian server
 - All Docker volumes managed by Docker (no host filesystem issues)
 - Works on systems with custom mount paths and filesystem restrictions
 - Compatible with systems where `chown` operations are restricted
