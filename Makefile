@@ -67,8 +67,9 @@ init-permissions:
 config:
 	@./scripts/generate-config.sh
 
-# Start services (with pre-flight checks and permissions init)
-start: preflight init-permissions
+# Start services (with pre-flight checks)
+# Note: Permission initialization not needed with Docker named volumes
+start: preflight
 	@./scripts/start.sh
 
 # Stop services
