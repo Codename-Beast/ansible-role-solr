@@ -19,6 +19,84 @@ apk add --no-cache jq libxml2-utils 2>&1 | grep -v 'fetch\|OK:' || true
 echo "[2/6] Creating directory structure..."
 mkdir -p /var/solr/data /var/solr/data/configs /var/solr/data/lang /var/solr/backup/configs
 mkdir -p /var/solr/logs /var/solr/backups
+mkdir -p /var/solr/data/configsets
+
+# Copy _default configSet if not exists (needed for core creation)
+if [ ! -d /var/solr/data/configsets/_default ]; then
+    echo "[2b/6] Copying _default configSet..."
+    # We'll create a minimal configSet with just the essentials
+    # The actual schema will be uploaded via API after core creation
+    mkdir -p /var/solr/data/configsets/_default/conf
+
+    # Create minimal solrconfig.xml (will be replaced by schema upload)
+    cat > /var/solr/data/configsets/_default/conf/solrconfig.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8" ?>
+<config>
+  <luceneMatchVersion>9.9</luceneMatchVersion>
+  <dataDir>${solr.data.dir:}</dataDir>
+  <directoryFactory name="DirectoryFactory" class="${solr.directoryFactory:solr.NRTCachingDirectoryFactory}"/>
+  <codecFactory class="solr.SchemaCodecFactory"/>
+  <schemaFactory class="ManagedIndexSchemaFactory">
+    <bool name="mutable">true</bool>
+    <str name="managedSchemaResourceName">managed-schema.xml</str>
+  </schemaFactory>
+  <updateHandler class="solr.DirectUpdateHandler2">
+    <updateLog>
+      <str name="dir">${solr.ulog.dir:}</str>
+    </updateLog>
+    <autoCommit>
+      <maxTime>${solr.autoCommit.maxTime:15000}</maxTime>
+      <openSearcher>false</openSearcher>
+    </autoCommit>
+    <autoSoftCommit>
+      <maxTime>${solr.autoSoftCommit.maxTime:1000}</maxTime>
+    </autoSoftCommit>
+  </updateHandler>
+  <requestHandler name="/select" class="solr.SearchHandler">
+    <lst name="defaults">
+      <str name="echoParams">explicit</str>
+      <int name="rows">10</int>
+    </lst>
+  </requestHandler>
+  <requestHandler name="/update" class="solr.UpdateRequestHandler"/>
+  <requestHandler name="/admin/" class="solr.admin.AdminHandlers"/>
+  <requestHandler name="/admin/ping" class="solr.PingRequestHandler">
+    <lst name="invariants">
+      <str name="q">solrpingquery</str>
+    </lst>
+    <lst name="defaults">
+      <str name="echoParams">all</str>
+    </lst>
+  </requestHandler>
+</config>
+EOF
+
+    # Create minimal managed-schema.xml
+    cat > /var/solr/data/configsets/_default/conf/managed-schema.xml << 'EOF'
+<?xml version="1.0" encoding="UTF-8" ?>
+<schema name="default-config" version="1.6">
+  <uniqueKey>id</uniqueKey>
+  <fieldType name="string" class="solr.StrField" sortMissingLast="true"/>
+  <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+  <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100">
+    <analyzer type="index">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+    <analyzer type="query">
+      <tokenizer class="solr.StandardTokenizerFactory"/>
+      <filter class="solr.LowerCaseFilterFactory"/>
+    </analyzer>
+  </fieldType>
+  <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false"/>
+  <field name="_version_" type="plong" indexed="false" stored="false"/>
+  <field name="_root_" type="string" indexed="true" stored="false" docValues="false"/>
+  <field name="_text_" type="text_general" indexed="true" stored="false" multiValued="true"/>
+</schema>
+EOF
+
+    echo "  ✓ _default configSet created"
+fi
 
 # CRITICAL FIX: Intelligent security.json deployment
 echo "[3/6] Handling security.json deployment..."
