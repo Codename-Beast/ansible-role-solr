@@ -20,14 +20,27 @@ Endpoints:
 import json
 import os
 import sys
+import base64
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
 from urllib.error import URLError
 import socket
 
 SOLR_URL = os.getenv('SOLR_URL', 'http://solr:8983')
 CUSTOMER_NAME = os.getenv('CUSTOMER_NAME', 'default')
+SOLR_ADMIN_USER = os.getenv('SOLR_ADMIN_USER', '')
+SOLR_ADMIN_PASSWORD = os.getenv('SOLR_ADMIN_PASSWORD', '')
 PORT = 8888
+
+
+def create_auth_request(url, timeout=5):
+    """Create authenticated request if credentials are provided"""
+    request = Request(url)
+    if SOLR_ADMIN_USER and SOLR_ADMIN_PASSWORD:
+        credentials = f"{SOLR_ADMIN_USER}:{SOLR_ADMIN_PASSWORD}"
+        encoded_credentials = base64.b64encode(credentials.encode()).decode()
+        request.add_header("Authorization", f"Basic {encoded_credentials}")
+    return urlopen(request, timeout=timeout)
 
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -95,7 +108,7 @@ class HealthHandler(BaseHTTPRequestHandler):
     def check_solr(self):
         """Check if Solr is responding"""
         try:
-            response = urlopen(f"{SOLR_URL}/solr/admin/ping?wt=json", timeout=5)
+            response = create_auth_request(f"{SOLR_URL}/solr/admin/ping?wt=json")
             data = json.loads(response.read())
             return {
                 "available": True,
@@ -116,7 +129,7 @@ class HealthHandler(BaseHTTPRequestHandler):
     def get_cores(self):
         """Get list of Solr cores"""
         try:
-            response = urlopen(f"{SOLR_URL}/solr/admin/cores?action=STATUS&wt=json", timeout=5)
+            response = create_auth_request(f"{SOLR_URL}/solr/admin/cores?action=STATUS&wt=json")
             data = json.loads(response.read())
             cores = []
 
@@ -136,7 +149,7 @@ class HealthHandler(BaseHTTPRequestHandler):
     def get_system_info(self):
         """Get Solr system information"""
         try:
-            response = urlopen(f"{SOLR_URL}/solr/admin/info/system?wt=json", timeout=5)
+            response = create_auth_request(f"{SOLR_URL}/solr/admin/info/system?wt=json")
             data = json.loads(response.read())
 
             jvm = data.get("jvm", {})

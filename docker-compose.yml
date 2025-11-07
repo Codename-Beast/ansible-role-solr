@@ -111,15 +111,17 @@ services:
     volumes:
       - ./scripts/health-api.py:/app/health-api.py:ro
       - solr_data:/var/solr/data:ro       # Only needs data directory
-    command: ["python", "/app/health-api.py"]
+    command: ["sh", "-c", "apk add --no-cache curl && python /app/health-api.py"]
     networks:
       - frontend_network  # External access for health checks
     restart: unless-stopped
     environment:
       SOLR_URL: "http://solr:8983"
       CUSTOMER_NAME: ${CUSTOMER_NAME}
+      SOLR_ADMIN_USER: ${SOLR_ADMIN_USER}
+      SOLR_ADMIN_PASSWORD: ${SOLR_ADMIN_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:8888/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8888/ping || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
