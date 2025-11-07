@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Solr Configuration Generator v2.3.1
 # Generates security.json and other configuration files
-# Uses Ansible-compatible Double SHA-256 algorithm
+# Uses Double SHA-256 algorithm for password hashing
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -43,13 +43,13 @@ generate_config() {
 
     require_command "python3"
 
-    # Generate password hashes with Ansible-compatible algorithm
+    # Generate password hashes with Double SHA-256
     # Uses --reuse to check existing hashes and reuse if password matches
-    log_info "Generating password hashes (Ansible-compatible)..."
+    log_info "Generating password hashes..."
     local admin_hash support_hash customer_hash
     local security_json="$CONFIG_DIR/security.json"
 
-    # Use --reuse to implement idempotency (like Ansible does)
+    # Use --reuse to implement idempotency
     # If security.json exists and password matches, reuse existing hash
     # Otherwise generate new hash
     admin_hash=$(retry_command 3 1 python3 "$SCRIPT_DIR/hash-password.py" --reuse "$SOLR_ADMIN_USER" "$SOLR_ADMIN_PASSWORD" "$security_json") || die "Failed to hash admin password"
@@ -74,7 +74,7 @@ generate_config() {
     "generated": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
     "generator": "generate-config.sh",
     "customer": "${CUSTOMER_NAME}",
-    "algorithm": "Double SHA-256 (Ansible-compatible)"
+    "algorithm": "Double SHA-256"
   },
   "authentication": {
     "blockUnknown": true,
@@ -133,7 +133,7 @@ EOF
     echo "=========================================="
     echo "Core name: $core_name"
     echo "Config directory: $CONFIG_DIR"
-    echo "Version: 2.3.1 (Ansible-compatible)"
+    echo "Version: 2.3.1"
     echo "Algorithm: Double SHA-256 with hash reuse"
     echo ""
     echo "Next steps:"

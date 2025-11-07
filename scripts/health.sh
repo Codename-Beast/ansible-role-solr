@@ -79,7 +79,7 @@ check_system_api() {
 }
 
 check_health_api() {
-    log_info "Checking Health API (Ansible integration)..."
+    log_info "Checking Health API..."
 
     local health_port=${HEALTH_API_PORT:-8888}
 

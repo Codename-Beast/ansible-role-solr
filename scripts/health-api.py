@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Solr Health API for Ansible Feedback
+Solr Health API
 Version: 1.0.0
 
-Provides JSON status endpoint for Ansible integration:
+Provides JSON status endpoint:
 - Solr health status
 - Core information
 - System metrics
@@ -13,7 +13,7 @@ Usage:
     python health-api.py
 
 Endpoints:
-    GET /health  - Full health status (for Ansible)
+    GET /health  - Full health status
     GET /ping    - Simple ping check
 """
 
@@ -51,7 +51,7 @@ class HealthHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"status": "ok"}).encode())
 
     def handle_health(self):
-        """Comprehensive health check for Ansible"""
+        """Comprehensive health check"""
         health_data = {
             "customer": CUSTOMER_NAME,
             "version": "2.2.0",

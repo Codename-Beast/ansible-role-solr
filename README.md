@@ -2,9 +2,12 @@
 
 **Apache Solr 9.9.0 for Moodle with Docker Compose**
 
-> ⚠️ **Note**: This is the Docker-based variant. The tested and stable **Ansible version** is on the `main` branch (tested on Xen with Debian, Ansible 2.12.10).
+> 📦 **Eledia Enterprise Solution** - Standalone Docker deployment for Apache Solr optimized for Moodle search.
 
 A standalone Docker solution for running Apache Solr optimized for Moodle search. Works on bare systems as long as Docker is installed.
+
+**Author**: Codename-Beast (Eledia)
+**Version**: 3.4.0
 
 ## 🎯 Features
 
@@ -490,4 +493,13 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ for Moodle + Solr**
+## 👤 Author & Credits
+
+**Author**: Codename-Beast
+**Organization**: Eledia
+**Project**: Solr for Moodle - Docker Edition
+**Version**: 3.4.0
+
+---
+
+**© 2025 Eledia** - Built with ❤️ for Moodle + Solr

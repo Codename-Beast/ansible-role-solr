@@ -91,7 +91,7 @@ generate_password() {
 hash_password() {
     local password=$1
 
-    # Double SHA-256 hash (Ansible-compatible)
+    # Double SHA-256 hash
     echo -n "$password" | sha256sum | awk '{print $1}' | \
         xxd -r -p | sha256sum | awk '{print $1}'
 }

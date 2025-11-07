@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Solr Password Hashing Utility - Ansible-Compatible
+Solr Password Hashing Utility
 Version: 2.3.1
-Algorithm: Double SHA-256 with random salt (IDENTICAL to Ansible)
+Algorithm: Double SHA-256 with random salt
 
-This script implements the EXACT same algorithm as the Ansible role:
+This script implements Double SHA-256 hashing:
 1. Generate random salt (32 bytes)
 2. Binary concatenation: salt_bytes + password_bytes
 3. First SHA-256: sha256(salt_bytes + password_bytes)
@@ -12,7 +12,7 @@ This script implements the EXACT same algorithm as the Ansible role:
 5. Base64 encode: hash2 and salt
 6. Format: "HASH_B64 SALT_B64" (hash first, then salt)
 
-Note: This is NOT idempotent by design (random salt), but matches Ansible's behavior.
+Note: This is NOT idempotent by design (random salt).
 For idempotency, use verify_and_reuse() to check existing hashes.
 """
 
@@ -31,7 +31,7 @@ def generate_random_salt(length=32):
     Same as: openssl rand 32
 
     Args:
-        length: Salt length in bytes (default: 32, same as Ansible)
+        length: Salt length in bytes (default: 32)
 
     Returns:
         bytes: Random salt
@@ -39,11 +39,11 @@ def generate_random_salt(length=32):
     return secrets.token_bytes(length)
 
 
-def hash_password_ansible_compatible(password, salt=None):
+def hash_password(password, salt=None):
     """
-    Hash password using ANSIBLE'S EXACT ALGORITHM.
+    Hash password using Double SHA-256 algorithm.
 
-    Algorithm (from Ansible tasks/auth_management.yml lines 273-284):
+    Algorithm:
     1. salt_bytes (random or provided)
     2. password_bytes = password.encode('utf-8')
     3. combined = salt_bytes + password_bytes  # Binary concatenation
@@ -84,7 +84,6 @@ def hash_password_ansible_compatible(password, salt=None):
 def verify_password(password, existing_hash):
     """
     Verify if password matches existing hash.
-    This is how Ansible checks if hashes still match (lines 79-121).
 
     Algorithm:
     1. Extract salt from existing hash
@@ -111,7 +110,7 @@ def verify_password(password, existing_hash):
         salt = base64.b64decode(salt_b64)
 
         # Generate new hash with extracted salt
-        new_hash = hash_password_ansible_compatible(password, salt=salt)
+        new_hash = hash_password(password, salt=salt)
 
         # Compare
         return new_hash == existing_hash
@@ -123,7 +122,6 @@ def verify_password(password, existing_hash):
 def load_existing_hashes(security_json_path):
     """
     Load existing password hashes from security.json.
-    This is how Ansible re-uses existing hashes (lines 166-174).
 
     Args:
         security_json_path: Path to security.json file
@@ -148,7 +146,7 @@ def load_existing_hashes(security_json_path):
 def verify_and_reuse(username, password, security_json_path):
     """
     Check if existing hash matches password, and re-use if it does.
-    This implements Ansible's idempotency logic.
+    This implements idempotency logic.
 
     Args:
         username: Username to check
@@ -165,13 +163,13 @@ def verify_and_reuse(username, password, security_json_path):
         return existing_hash
     else:
         # Generate new hash
-        return hash_password_ansible_compatible(password)
+        return hash_password(password)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Solr Password Hasher - Ansible-Compatible',
-        epilog='Algorithm: Double SHA-256 with random salt (same as Ansible role)'
+        description='Solr Password Hasher',
+        epilog='Algorithm: Double SHA-256 with random salt'
     )
     parser.add_argument('password', nargs='?', help='Password to hash')
     parser.add_argument('--verify', nargs=2, metavar=('PASSWORD', 'HASH'),
@@ -179,7 +177,7 @@ def main():
     parser.add_argument('--reuse', nargs=3, metavar=('USERNAME', 'PASSWORD', 'SECURITY_JSON'),
                         help='Verify and reuse existing hash if it matches')
     parser.add_argument('--salt-bytes', type=int, default=32,
-                        help='Salt size in bytes (default: 32, same as Ansible)')
+                        help='Salt size in bytes (default: 32)')
 
     args = parser.parse_args()
 
@@ -200,7 +198,7 @@ def main():
 
     elif args.password:
         # Generate new hash with random salt
-        hashed = hash_password_ansible_compatible(args.password)
+        hashed = hash_password(args.password)
         print(hashed)
         sys.exit(0)
 

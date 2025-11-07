@@ -1,6 +1,11 @@
 # Changelog
 
+**Eledia Solr for Moodle - Docker Edition**
+
 All notable changes to this project will be documented in this file.
+
+**Author**: Codename-Beast (Eledia)
+**Project**: Solr 9.9.0 for Moodle with Docker Compose
 
 ## [3.3.0] - 2025-11-06
 
@@ -90,9 +95,9 @@ make tenant-backup TENANT=<tenant_id>
 ---
 
 **Version**: 3.3.0
-**Focus**: Critical Production Fixes (P0)
+**Focus**: Critical Fixes (P0)
 **Review**: Based on comprehensive code review
-**Status**: Production Ready ✅
+**Status**: Complete ✅
 
 ---
 
@@ -168,7 +173,7 @@ make tenant-backup TENANT=<tenant_id>
 - ✅ Tenants CANNOT access other tenants' cores (403 Forbidden)
 - ✅ Tenants CANNOT perform admin operations
 - ✅ Admin user retains full access for management
-- ✅ Passwords use double SHA-256 hashing (Ansible-compatible)
+- ✅ Passwords use double SHA-256 hashing
 
 **Tested Security**:
 - Cross-tenant query attempts blocked (HTTP 403)
@@ -270,10 +275,10 @@ Multi-tenancy was implemented as **user-requested feature** for legitimate use c
 
 ### 🎉 Major Milestone Release
 
-Production-ready standalone Docker solution with comprehensive features.
+Standalone Docker solution with comprehensive features.
 
 ### Complete Feature Set
-- ✅ Solr 9.9.0 + BasicAuth + RBAC + Ansible-compatible hashing
+- ✅ Solr 9.9.0 + BasicAuth + RBAC + Double SHA-256 hashing
 - ✅ Monitoring (Prometheus + Grafana + Alertmanager)
 - ✅ Query Performance Dashboard (6 panels)
 - ✅ Health Dashboard Script
@@ -289,7 +294,7 @@ Production-ready standalone Docker solution with comprehensive features.
 ## [2.6.0] - Dashboard & Tests
 ## [2.5.0] - P1 Features (Log Rotation, GC, Pre-Flight, Memory Docs)
 ## [2.4.0] - P2 Features (Network Segmentation, Grafana Templating, Runbook)
-## [2.3.1] - Ansible-Compatible Hashing (Double SHA-256)
+## [2.3.1] - Double SHA-256 Password Hashing
 ## [2.3.0] - Production Features
 ## [2.2.0] - Monitoring with Profiles
 ## [2.1.0] - Initial Monitoring

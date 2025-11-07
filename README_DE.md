@@ -1,8 +1,11 @@
 # Solr für Moodle - Docker Edition v2.5.0
 
-**Produktionsreife Apache Solr 9.9.0 Lösung für Moodle mit Docker Compose**
+**Apache Solr 9.9.0 für Moodle mit Docker Compose**
 
-Eine vollständige eigenständige Docker-Lösung. Kein Ansible erforderlich.
+> 📦 **Eledia Enterprise Lösung** - Eigenständige Docker-Lösung
+
+**Autor**: Codename-Beast (Eledia)
+**Version**: 3.4.0
 
 ## 🚀 Schnellstart
 
@@ -28,7 +31,7 @@ make health
 
 ## 📋 Funktionen v2.5.0
 
-### Produktionsbereit
+### Kernfunktionen
 - ✅ Solr 9.9.0 mit BasicAuth + RBAC
 - ✅ Automatische Backups mit Aufbewahrungsmanagement
 - ✅ Überwachung: Prometheus + Grafana + Alertmanager
@@ -40,7 +43,7 @@ make health
 - ✅ Query Performance Dashboard
 
 ### Sicherheit
-- 🔒 Double SHA-256 Password Hashing (Ansible-kompatibel)
+- 🔒 Double SHA-256 Password Hashing
 - 🔒 Drei-Stufen-RBAC (Admin, Support, Kunde)
 - 🔒 Netzwerk-Isolation (Frontend/Backend)
 - 🔒 Docker Secrets Unterstützung
