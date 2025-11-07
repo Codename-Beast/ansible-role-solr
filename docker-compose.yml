@@ -1,5 +1,3 @@
-version: '3.8'
-
 # ============================================================================
 # Solr Moodle Docker Compose v3.3.0
 #
@@ -342,12 +340,6 @@ networks:
   frontend_network:
     driver: bridge
     name: ${CUSTOMER_NAME}_frontend
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/24
-    driver_opts:
-      com.docker.network.bridge.name: ${CUSTOMER_NAME}_frontend
 
   # Backend network - Internal monitoring communication only
   # Contains: Prometheus, Alertmanager, Solr Exporter
@@ -356,10 +348,5 @@ networks:
     driver: bridge
     name: ${CUSTOMER_NAME}_backend
     internal: false  # Set to true for complete isolation
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.1.0/24
-    driver_opts:
-      com.docker.network.bridge.name: ${CUSTOMER_NAME}_backend
+
 
