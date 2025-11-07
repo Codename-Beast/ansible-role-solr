@@ -9,6 +9,9 @@ if [ -f "$PROJECT_DIR/.env" ]; then
     source "$PROJECT_DIR/.env"
 fi
 
+# Allow CONFIG_DIR to be overridden (v3.4.1)
+CONFIG_DIR="${SOLR_CONFIG_DIR:-$PROJECT_DIR/config}"
+
 SOLR_PORT=${SOLR_PORT:-8983}
 CORE_NAME="${CUSTOMER_NAME}_core"
 
@@ -46,7 +49,7 @@ echo "Uploading Moodle schema..."
 curl -sf -u "$SOLR_ADMIN_USER:$SOLR_ADMIN_PASSWORD" \
     -X POST \
     -H 'Content-type:application/xml' \
-    --data-binary @"$PROJECT_DIR/config/moodle_schema.xml" \
+    --data-binary @"$CONFIG_DIR/moodle_schema.xml" \
     "http://localhost:$SOLR_PORT/solr/$CORE_NAME/schema"
 
 echo ""

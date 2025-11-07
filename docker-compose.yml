@@ -32,7 +32,7 @@ services:
     container_name: ${CUSTOMER_NAME}_solr_init
     volumes:
       - solr_data:/var/solr
-      - ./config:/config:ro
+      - ${SOLR_CONFIG_DIR:-./config}:/config:ro
       - ./lang:/lang:ro
       - ./scripts/init-container.sh:/scripts/init.sh:ro
     command: ["/bin/sh", "/scripts/init.sh"]

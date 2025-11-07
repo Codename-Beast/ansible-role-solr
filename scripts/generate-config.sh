@@ -5,7 +5,15 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-CONFIG_DIR="$PROJECT_DIR/config"
+
+# Allow CONFIG_DIR to be overridden via .env (v3.4.1)
+# Default: $PROJECT_DIR/config
+# Override: Set SOLR_CONFIG_DIR in .env
+if [ -f "$PROJECT_DIR/.env" ]; then
+    source "$PROJECT_DIR/.env" 2>/dev/null || true
+fi
+CONFIG_DIR="${SOLR_CONFIG_DIR:-$PROJECT_DIR/config}"
+
 LOCKFILE="/tmp/solr-config-generation.lock"
 
 # Load common library

@@ -18,8 +18,11 @@ fi
 # Load environment
 source "$PROJECT_DIR/.env"
 
+# Allow CONFIG_DIR to be overridden (v3.4.1)
+CONFIG_DIR="${SOLR_CONFIG_DIR:-$PROJECT_DIR/config}"
+
 # Check if config files exist
-if [ ! -f "$PROJECT_DIR/config/security.json" ]; then
+if [ ! -f "$CONFIG_DIR/security.json" ]; then
     echo "Configuration files not found. Generating..."
     "$SCRIPT_DIR/generate-config.sh"
 fi

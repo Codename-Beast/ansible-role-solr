@@ -107,8 +107,11 @@ else
     check_fail ".env file not found - Run 'make init' first"
 fi
 
+# Allow CONFIG_DIR to be overridden (v3.4.1)
+CONFIG_DIR="${SOLR_CONFIG_DIR:-$PROJECT_DIR/config}"
+
 # security.json generated
-if [ -f "$PROJECT_DIR/config/security.json" ]; then
+if [ -f "$CONFIG_DIR/security.json" ]; then
     check_pass "security.json exists"
 else
     check_warn "security.json not found - Run 'make config' to generate"

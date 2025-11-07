@@ -96,6 +96,27 @@ make tenant-delete TENANT=prod BACKUP=true
 
 ## ⚙️ Configuration
 
+### Custom Configuration Directory (Optional)
+
+By default, configuration files are stored in `./config` relative to the project directory.
+
+To use a different location, set `SOLR_CONFIG_DIR` in your `.env`:
+
+```bash
+# Example: Store configs in a central location
+SOLR_CONFIG_DIR=/var/solr-configs/docker/config
+```
+
+**What it affects:**
+- `make config` generates files to this directory
+- Scripts read from this directory
+- Docker mounts this directory into containers
+
+**When to use:**
+- Central configuration management
+- Shared configs across multiple deployments
+- Security requirements (e.g., read-only mounted filesystems)
+
 ### Environment Variables (.env)
 
 ```bash
