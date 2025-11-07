@@ -7,7 +7,35 @@
 A standalone Docker solution for running Apache Solr optimized for Moodle search. Works on bare systems as long as Docker is installed.
 
 **Author**: Codename-Beast (Eledia)
-**Version**: 3.4.0
+**Version**: 3.5.0
+
+---
+
+## ✅ Production Ready - Successfully Tested
+
+**Status**: 🎉 **Successfully deployed and tested in production environment**
+
+**Test Environment**:
+- **OS**: Fedora 42 / XEN Server
+- **Docker**: 28.5.1
+- **Docker Compose**: 2.40.3
+- **Solr**: 9.9.0
+- **Test Date**: November 7, 2025
+
+**Verified Functionality**:
+- ✅ Solr 9.9.0 started and healthy
+- ✅ Moodle core created with 24 fields
+- ✅ Authentication working (Basic Auth)
+- ✅ Document indexing successful
+- ✅ Search queries functional
+- ✅ All permissions correct (UID 8983)
+- ✅ Zero permission errors
+- ✅ Zero authentication errors
+- ✅ Zero network conflicts
+
+📋 **Full test results and deployment details**: See [CHANGELOG.md v3.5.0](CHANGELOG.md#350---2025-11-07)
+
+---
 
 ## 🎯 Features
 
@@ -490,7 +518,7 @@ curl -u customer:password \
 
 ## 📝 Version
 
-**Current Version**: 3.4.0 (Docker branch)
+**Current Version**: 3.5.0 (Docker branch)
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
@@ -523,7 +551,7 @@ For issues and questions:
 **Author**: Codename-Beast
 **Organization**: Eledia
 **Project**: Solr for Moodle - Docker Edition
-**Version**: 3.4.0
+**Version**: 3.5.0
 
 ---
 

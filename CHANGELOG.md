@@ -7,6 +7,219 @@ All notable changes to this project will be documented in this file.
 **Author**: Codename-Beast (Eledia)
 **Project**: Solr 9.9.0 for Moodle with Docker Compose
 
+---
+
+## [3.5.0] - 2025-11-07
+
+### 🎉 Successfully Tested & Deployed
+
+**Deployment Target**: Fedora 42 / XEN Server
+**Test Status**: ✅ Full production deployment successful
+**Test Date**: November 7, 2025
+
+### Summary
+
+Complete overhaul of Docker deployment system with fixes for filesystem permissions, authentication, and Solr 9.x compatibility. Successfully deployed and tested on production XEN server with Fedora 42.
+
+### Fixed
+
+**1. Environment Configuration Parsing** (P1)
+- **Issue**: `BACKUP_SCHEDULE=0 2 * * *` without quotes caused bash parsing errors
+- **Error**: `Zeile 45: 2: Kommando nicht gefunden`
+- **Fix**: Added quotes to `.env.example`: `BACKUP_SCHEDULE="0 2 * * *"`
+- **Commit**: `ccdffa5`
+
+**2. Configurable CONFIG_DIR** (Enhancement)
+- **Issue**: Config path hardcoded to `./config`, user needed custom path
+- **Requirement**: Support `/var/solr-configs/docker/config`
+- **Fix**: Implemented `SOLR_CONFIG_DIR` environment variable
+  - Updated `scripts/generate-config.sh`
+  - Updated `scripts/create-core.sh`
+  - Updated `scripts/preflight-check.sh`
+  - Updated `docker-compose.yml`
+- **Result**: Flexible config directory placement
+- **Commit**: `bb9babf`
+
+**3. Preflight Checks Too Strict** (P1)
+- **Issue**: Disk space check blocked deployment on dev systems (14GB < 20GB)
+- **Error**: `[✗] Insufficient disk space (14GB) - Need at least 20GB`
+- **Fix**: Changed hard failures to warnings
+  - Disk space: Warning instead of error for <20GB
+  - Memory check: Fixed bash integer validation errors
+  - System now continues with warnings
+- **Commit**: `ee4af3b`
+
+**4. Bash Integer Validation Errors** (P2)
+- **Issue**: Empty `total_mem_gb` variable caused integer comparison failures
+- **Error**: `Ganzzahliger Ausdruck erwartet`
+- **Fix**: Added validation: `total_mem_gb=$(free -g | awk '/^Mem:/{print $2}' | grep -E '^[0-9]+$' || echo "0")`
+- **Result**: Safe fallback to 0 with warning message
+- **Commit**: `ee4af3b`
+
+**5. Docker Network IP Conflicts** (P0 - Deployment Blocker)
+- **Issue**: Hardcoded subnet `172.20.0.0/24` conflicted with existing networks
+- **Error**: `numerical result out of range`
+- **Fix**: Removed all `ipam` subnet configurations, let Docker auto-assign IPs
+  - Removed `driver_opts` for bridge names
+  - Removed obsolete `version: '3.8'` (Docker Compose v2)
+- **Result**: No more network conflicts on any system
+- **Commit**: `0a03004`
+
+**6. Volume Permission Issues** (P0 - Critical)
+- **Issue**: Bind mounts inherited filesystem restrictions (no `chown` allowed on NFS-like filesystems)
+- **Error**: `ERROR: Logs directory /var/solr/logs is not writable. Exiting`
+- **Root Cause**: Volume mount conflict - named volume at `/var/solr` blocked bind mounts
+- **Attempts**:
+  1. ❌ `init-solr-permissions.sh` script - worked but didn't solve container issue
+  2. ✅ **Final Solution**: Switched to Docker Named Volumes for logs/backups
+- **Fix**:
+  - Changed `solr_data` mount from `/var/solr` → `/var/solr/data`
+  - Created separate named volumes: `solr_logs`, `solr_backups`
+  - Extended `solr-init` container to initialize all volumes with correct permissions
+- **Result**: Solr can write to all directories, no filesystem restrictions
+- **Commits**: `d624d91`, `42af38d`, `e629337`, `2bfc5dc`, `e5ba542`
+
+**7. Permission Initialization Script** (Enhancement)
+- **Created**: `scripts/init-solr-permissions.sh`
+- **Features**:
+  - Auto-detects sudo requirement
+  - Sets ownership to 8983:8983 (Solr UID)
+  - Only touches Solr directories (logs, data, backups)
+  - Idempotent (safe to run multiple times)
+- **Note**: Not needed with Docker volumes, kept for compatibility
+- **Commit**: `d624d91`
+
+**8. Security.json Invalid Permission** (P1 - Solr 9.x Compatibility)
+- **Issue**: `delete` permission not valid in Solr 9.x
+- **Error**: `Permission with name delete is neither a pre-defined permission`
+- **Fix**: Removed `delete` permission from `security.json` template
+  - `update` permission already covers DELETE operations in Solr 9.x
+- **Commit**: `009ac51`
+
+**9. Health Check Authentication** (P1)
+- **Issue**: Health check failed because `/admin/ping` requires authentication
+- **Error**: Container marked unhealthy, constant restarts
+- **Fix**: Simplified health check to test HTTP port availability
+  - Changed from `/solr/admin/ping` to `/` (root endpoint)
+  - Works with authentication enabled
+- **Commit**: `f2775bc`
+
+**10. Core Creation Script Authentication** (P0 - Deployment Blocker)
+- **Issue**: `create-core.sh` waited for Solr without authentication, hung forever
+- **Error**: Script timeout after 60 seconds
+- **Fix**:
+  - Changed wait check to simple HTTP port test (no auth needed)
+  - Added broken core detection and cleanup
+  - Improved error messages with actual Solr responses
+- **Commits**: `5f71cd1`, `f519a31`
+
+**11. Missing ConfigSet** (P0 - Deployment Blocker)
+- **Issue**: `_default` configSet didn't exist in `/var/solr/data/configsets/`
+- **Error**: `Could not load configuration from directory /var/solr/data/configsets/_default`
+- **Fix**: Created complete `moodle` configSet in `init-container.sh`
+  - Minimal `solrconfig.xml` with essential handlers
+  - Full Moodle schema copied from `config/moodle_schema.xml`
+  - Stopwords files copied to `conf/lang/`
+- **Commits**: `56a4903`, `487d932`, `c6c8fa5`
+
+**12. Deprecated AdminHandlers Class** (P2)
+- **Issue**: `solr.admin.AdminHandlers` class removed in Solr 9.x
+- **Error**: `ClassNotFoundException: solr.admin.AdminHandlers`
+- **Fix**: Removed deprecated handler from `solrconfig.xml`
+- **Commit**: `487d932`
+
+**13. Missing Stopwords Files** (P1)
+- **Issue**: Schema referenced `lang/stopwords.txt` but files not in configSet
+- **Error**: `Can't find resource 'lang/stopwords.txt'`
+- **Fix**: Copy all stopwords files from `/lang` to configSet during init
+  - `stopwords.txt`, `stopwords_de.txt`, `stopwords_en.txt`
+- **Commit**: `c6c8fa5`
+
+**14. Core Creation with Moodle Schema** (Architecture Change)
+- **Issue**: Solr 9.x Managed Schema API expects JSON, not XML
+- **Error**: `JSON Parse Error: char=<,position=0`
+- **Solution**: Use Classic Schema with pre-configured `schema.xml`
+  - Changed from Managed Schema API approach to Classic Schema
+  - ConfigSet includes complete schema at creation time
+  - No post-creation schema upload needed
+- **Commit**: `98a0934`
+
+### Added
+
+- **Docker Named Volumes** for logs, backups, and data
+- **Moodle ConfigSet** with complete Solr 9.x compatible schema
+- **Improved Error Reporting** in all scripts with detailed Solr responses
+- **Automatic Permission Initialization** in init-container
+- **Idempotent Configuration** - safe to restart/redeploy
+
+### Changed
+
+- **Volume Architecture**: Named volumes instead of bind mounts
+- **Schema Deployment**: Classic schema in configSet instead of Managed Schema API
+- **Health Checks**: Simplified for authentication compatibility
+- **Preflight Checks**: Warnings instead of hard failures
+- **Network Configuration**: Auto-assigned IPs instead of hardcoded subnets
+
+### Testing
+
+**Test Environment**:
+- OS: Fedora 42 (XEN Server)
+- Docker: 28.5.1
+- Docker Compose: 2.40.3
+- Filesystem: ext4 (with custom mount paths)
+
+**Test Results**:
+```bash
+✅ Solr 9.9.0 started and healthy
+✅ Moodle core created with 24 fields
+✅ Authentication working (Basic Auth)
+✅ Document indexing successful
+✅ Search queries functional
+✅ All permissions correct (UID 8983)
+✅ No permission errors
+✅ No authentication errors
+✅ No network conflicts
+```
+
+**Test Document**:
+```json
+{
+  "id": "test_doc_1",
+  "title": "Test Moodle Document",
+  "content": "This is a test document for Moodle search",
+  "contextid": 1,
+  "courseid": 1,
+  "owneruserid": 1,
+  "modified": "2025-11-07T19:00:00Z",
+  "type": "forum_post",
+  "areaid": "mod_forum-post",
+  "itemid": 1
+}
+```
+
+**Query Result**: `numFound: 1` ✅
+
+### Deployment Notes
+
+- System successfully deployed on production XEN server
+- All Docker volumes managed by Docker (no host filesystem issues)
+- Works on systems with custom mount paths and filesystem restrictions
+- Compatible with systems where `chown` operations are restricted
+- Auto-scaling IPs prevent network conflicts in multi-container environments
+
+### Migration from 3.4.x
+
+If upgrading from 3.4.x:
+```bash
+# Remove old volumes and recreate
+docker compose down -v
+make config
+make start
+make create-core
+```
+
+---
+
 ## [3.3.0] - 2025-11-06
 
 ### 🔴 Critical Production Fixes (P0)
