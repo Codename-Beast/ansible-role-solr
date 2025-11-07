@@ -59,7 +59,6 @@ if [ ! -d /var/solr/data/configsets/_default ]; then
     </lst>
   </requestHandler>
   <requestHandler name="/update" class="solr.UpdateRequestHandler"/>
-  <requestHandler name="/admin/" class="solr.admin.AdminHandlers"/>
   <requestHandler name="/admin/ping" class="solr.PingRequestHandler">
     <lst name="invariants">
       <str name="q">solrpingquery</str>
