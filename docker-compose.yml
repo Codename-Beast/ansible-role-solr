@@ -29,7 +29,7 @@ services:
     image: alpine:3.20
     container_name: ${CUSTOMER_NAME}_solr_init
     volumes:
-      - solr_data:/var/solr
+      - solr_data:/var/solr/data          # Same as solr container
       - ${SOLR_CONFIG_DIR:-./config}:/config:ro
       - ./lang:/lang:ro
       - ./scripts/init-container.sh:/scripts/init.sh:ro
@@ -47,9 +47,9 @@ services:
     ports:
       - "${SOLR_BIND_IP:-127.0.0.1}:${SOLR_PORT:-8983}:8983"
     volumes:
-      - solr_data:/var/solr
-      - ./backups:/var/solr/backups
-      - ./logs:/var/solr/logs
+      - solr_data:/var/solr/data          # Only data directory as named volume
+      - ./backups:/var/solr/backups       # Bind mount
+      - ./logs:/var/solr/logs             # Bind mount
     environment:
       SOLR_HEAP: ${SOLR_HEAP_SIZE:-2g}
       SOLR_JAVA_MEM: "-Xms${SOLR_HEAP_SIZE:-2g} -Xmx${SOLR_HEAP_SIZE:-2g}"
@@ -108,7 +108,7 @@ services:
       - "${HEALTH_API_PORT:-8888}:8888"
     volumes:
       - ./scripts/health-api.py:/app/health-api.py:ro
-      - solr_data:/var/solr:ro
+      - solr_data:/var/solr/data:ro       # Only needs data directory
     command: ["python", "/app/health-api.py"]
     networks:
       - frontend_network  # External access for health checks
