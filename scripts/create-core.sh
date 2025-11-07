@@ -22,18 +22,26 @@ echo "=========================================="
 # Wait for Solr to be ready
 echo "Waiting for Solr to be ready..."
 for i in {1..30}; do
-    if curl -sf "http://localhost:$SOLR_PORT/solr/admin/ping?wt=json" > /dev/null 2>&1; then
+    if curl -sf "http://localhost:$SOLR_PORT/" > /dev/null 2>&1; then
         break
     fi
     sleep 2
 done
 
-# Check if core already exists
-if curl -sf -u "$SOLR_ADMIN_USER:$SOLR_ADMIN_PASSWORD" \
-    "http://localhost:$SOLR_PORT/solr/admin/cores?action=STATUS&core=$CORE_NAME&wt=json" | \
-    grep -q "\"$CORE_NAME\""; then
-    echo "Core '$CORE_NAME' already exists"
+# Check if core already exists AND is functional
+CORE_STATUS=$(curl -sf -u "$SOLR_ADMIN_USER:$SOLR_ADMIN_PASSWORD" \
+    "http://localhost:$SOLR_PORT/solr/admin/cores?action=STATUS&core=$CORE_NAME&wt=json")
+
+if echo "$CORE_STATUS" | grep -q "\"instanceDir\""; then
+    echo "Core '$CORE_NAME' already exists and is functional"
     exit 0
+fi
+
+# If core is registered but empty (broken), unload it first
+if echo "$CORE_STATUS" | grep -q "\"$CORE_NAME\""; then
+    echo "Removing broken core registration..."
+    curl -sf -u "$SOLR_ADMIN_USER:$SOLR_ADMIN_PASSWORD" \
+        "http://localhost:$SOLR_PORT/solr/admin/cores?action=UNLOAD&core=$CORE_NAME&deleteInstanceDir=true&wt=json" > /dev/null || true
 fi
 
 echo "Creating core: $CORE_NAME"
