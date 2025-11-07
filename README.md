@@ -16,7 +16,7 @@ A standalone Docker solution for running Apache Solr optimized for Moodle search
 **Status**: 🎉 **Successfully deployed and tested in production environment**
 
 **Test Environment**:
-- **OS**: Fedora 42 / XEN Server
+- **OS**: Linux Debian
 - **Docker**: 28.5.1
 - **Docker Compose**: 2.40.3
 - **Solr**: 9.9.0
@@ -56,7 +56,7 @@ A standalone Docker solution for running Apache Solr optimized for Moodle search
 - Docker Compose v2.0+
 - 4GB RAM minimum (8GB recommended)
 - 20GB disk space
-- Linux/macOS/Windows with WSL2
+- Linux(Tested)/macOS/Windows with WSL2
 
 ## 🚀 Quick Start
 
