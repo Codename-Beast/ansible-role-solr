@@ -65,6 +65,19 @@ if [ ! -d /var/solr/data/configsets/moodle ]; then
 </config>
 EOF
 
+    # Copy stopwords files
+    mkdir -p /var/solr/data/configsets/moodle/conf/lang
+    if [ -f /lang/stopwords.txt ]; then
+        cp /lang/stopwords.txt /var/solr/data/configsets/moodle/conf/lang/
+        echo "  ✓ Stopwords files copied"
+    fi
+    if [ -f /lang/stopwords_de.txt ]; then
+        cp /lang/stopwords_de.txt /var/solr/data/configsets/moodle/conf/lang/
+    fi
+    if [ -f /lang/stopwords_en.txt ]; then
+        cp /lang/stopwords_en.txt /var/solr/data/configsets/moodle/conf/lang/
+    fi
+
     # Copy Moodle schema from config directory
     if [ -f /config/moodle_schema.xml ]; then
         cp /config/moodle_schema.xml /var/solr/data/configsets/moodle/conf/schema.xml
