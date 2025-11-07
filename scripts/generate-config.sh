@@ -108,7 +108,6 @@ generate_config() {
       { "name": "collection-admin-edit", "role": "admin" },
       { "name": "core-admin-read", "role": "admin" },
       { "name": "core-admin-edit", "role": "admin" },
-      { "name": "delete", "collection": "${core_name}", "role": ["admin"] },
       { "name": "metrics", "path": "/admin/metrics", "role": ["admin", "support"] },
       { "name": "backup", "path": "/admin/cores", "role": ["admin"] },
       { "name": "logging", "path": "/admin/logging", "role": ["admin", "support"] },
