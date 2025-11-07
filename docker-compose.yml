@@ -47,9 +47,9 @@ services:
     ports:
       - "${SOLR_BIND_IP:-127.0.0.1}:${SOLR_PORT:-8983}:8983"
     volumes:
-      - solr_data:/var/solr/data          # Only data directory as named volume
-      - ./backups:/var/solr/backups       # Bind mount
-      - ./logs:/var/solr/logs             # Bind mount
+      - solr_data:/var/solr/data          # Data directory as named volume
+      - solr_logs:/var/solr/logs          # Logs as named volume (fixes permission issues)
+      - solr_backups:/var/solr/backups    # Backups as named volume
     environment:
       SOLR_HEAP: ${SOLR_HEAP_SIZE:-2g}
       SOLR_JAVA_MEM: "-Xms${SOLR_HEAP_SIZE:-2g} -Xmx${SOLR_HEAP_SIZE:-2g}"
@@ -271,8 +271,8 @@ services:
       - ./scripts/backup-cron.sh:/scripts/backup-cron.sh:ro
       - ./scripts/lib:/scripts/lib:ro
       - ./config/backup-crontab:/etc/crontabs/root:ro
-      - solr_data:/var/solr:ro
-      - ./backups:/var/solr/backups
+      - solr_data:/var/solr/data:ro
+      - solr_backups:/var/solr/backups
     environment:
       CUSTOMER_NAME: ${CUSTOMER_NAME}
       SOLR_HOST: "solr:8983"
@@ -299,7 +299,7 @@ services:
     depends_on:
       - solr
     volumes:
-      - ./logs:/var/solr/logs
+      - solr_logs:/var/solr/logs
       - ./config/logrotate.conf:/etc/logrotate.d/solr:ro
       - ./config/logrotate-crontab:/etc/crontabs/root:ro
     command: sh -c "apk add --no-cache logrotate && crond -f -l 2"
@@ -320,6 +320,12 @@ volumes:
   solr_data:
     driver: local
     name: ${CUSTOMER_NAME}_solr_data
+  solr_logs:
+    driver: local
+    name: ${CUSTOMER_NAME}_solr_logs
+  solr_backups:
+    driver: local
+    name: ${CUSTOMER_NAME}_solr_backups
   prometheus_data:
     driver: local
     name: ${CUSTOMER_NAME}_prometheus_data
