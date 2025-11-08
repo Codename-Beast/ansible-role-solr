@@ -36,6 +36,18 @@ PASSED=0
 # TEST HELPERS
 # ============================================================================
 
+# Docker Compose wrapper - supports both plugin and standalone
+docker_compose() {
+    if command -v docker >/dev/null 2>&1 && docker_compose version >/dev/null 2>&1; then
+        docker_compose "$@"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        docker-compose "$@"
+    else
+        echo "ERROR: Docker Compose not found" >&2
+        return 1
+    fi
+}
+
 test_case() {
     local name=$1
     local command=$2
@@ -98,10 +110,10 @@ test_case "Docker daemon running" \
     "docker info"
 
 test_case "Docker Compose available" \
-    "docker compose version"
+    "docker_compose version"
 
 test_case "Docker Compose config valid" \
-    "cd $PROJECT_DIR && docker compose config --quiet"
+    "cd $PROJECT_DIR && docker_compose config --quiet"
 
 echo ""
 
@@ -113,23 +125,23 @@ log_info "Test Category 2: Container Status"
 echo ""
 
 test_case "Solr container running" \
-    "docker compose ps solr | grep -q 'Up'"
+    "docker_compose ps solr | grep -q 'Up'"
 
 test_case "Solr init completed successfully" \
-    "docker compose ps -a solr-init | grep -q 'Exited (0)' || docker compose ps -a solr-init | grep -q 'Completed'"
+    "docker_compose ps -a solr-init | grep -q 'Exited (0)' || docker_compose ps -a solr-init | grep -q 'Completed'"
 
 test_case "Health API container running" \
-    "docker compose ps health-api | grep -q 'Up'"
+    "docker_compose ps health-api | grep -q 'Up'"
 
 # Optional monitoring services
-if docker compose ps prometheus 2>/dev/null | grep -q Up; then
+if docker_compose ps prometheus 2>/dev/null | grep -q Up; then
     test_case "Prometheus container running" \
-        "docker compose ps prometheus | grep -q 'Up'"
+        "docker_compose ps prometheus | grep -q 'Up'"
 fi
 
-if docker compose ps grafana 2>/dev/null | grep -q Up; then
+if docker_compose ps grafana 2>/dev/null | grep -q Up; then
     test_case "Grafana container running" \
-        "docker compose ps grafana | grep -q 'Up'"
+        "docker_compose ps grafana | grep -q 'Up'"
 fi
 
 echo ""
@@ -304,7 +316,7 @@ echo ""
 # TEST 11: Monitoring (if enabled)
 # ============================================================================
 
-if docker compose ps prometheus 2>/dev/null | grep -q Up; then
+if docker_compose ps prometheus 2>/dev/null | grep -q Up; then
     log_info "Test Category 11: Monitoring"
     echo ""
 
@@ -314,12 +326,12 @@ if docker compose ps prometheus 2>/dev/null | grep -q Up; then
     test_case "Prometheus targets accessible" \
         "curl -sf -m 5 http://localhost:${PROMETHEUS_PORT:-9090}/api/v1/targets"
 
-    if docker compose ps grafana 2>/dev/null | grep -q Up; then
+    if docker_compose ps grafana 2>/dev/null | grep -q Up; then
         test_case "Grafana health endpoint" \
             "curl -sf -m 5 http://localhost:${GRAFANA_PORT:-3000}/api/health"
     fi
 
-    if docker compose ps solr-exporter 2>/dev/null | grep -q Up; then
+    if docker_compose ps solr-exporter 2>/dev/null | grep -q Up; then
         test_case "Solr Exporter metrics endpoint" \
             "curl -sf -m 5 http://localhost:${EXPORTER_PORT:-9854}/metrics | grep -q solr_"
     fi
@@ -331,12 +343,12 @@ fi
 # TEST 12: Backup (if enabled)
 # ============================================================================
 
-if docker compose ps backup-cron 2>/dev/null | grep -q Up; then
+if docker_compose ps backup-cron 2>/dev/null | grep -q Up; then
     log_info "Test Category 12: Backup"
     echo ""
 
     test_case "Backup container running" \
-        "docker compose ps backup-cron | grep -q 'Up'"
+        "docker_compose ps backup-cron | grep -q 'Up'"
 
     test_case "Backup directory exists" \
         "test -d $PROJECT_DIR/backups"

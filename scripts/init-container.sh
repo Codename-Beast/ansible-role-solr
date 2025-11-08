@@ -244,6 +244,8 @@ deploy_file /lang/stopwords_en.txt /var/solr/data/lang/stopwords_en.txt
 # Set permissions
 echo "Setting permissions..."
 chown -R 8983:8983 /var/solr
+chmod -R 755 /var/solr/logs
+chmod -R 755 /var/solr/backups
 chmod 600 /var/solr/data/security.json 2>/dev/null || true
 
 echo "========================================="

@@ -70,12 +70,17 @@ else
     check_fail "Docker not found - Install Docker first"
 fi
 
-# Docker Compose v2 installed
+# Docker Compose v2 installed (check both plugin and standalone)
 if docker compose version >/dev/null 2>&1; then
+    # Plugin variant (docker compose)
     compose_version=$(docker compose version --short 2>/dev/null || docker compose version | awk '{print $NF}')
-    check_pass "Docker Compose v2 installed (version: $compose_version)"
+    check_pass "Docker Compose v2 installed as plugin (version: $compose_version)"
+elif command -v docker-compose >/dev/null 2>&1; then
+    # Standalone variant (docker-compose)
+    compose_version=$(docker-compose --version | awk '{print $NF}' | tr -d 'v')
+    check_pass "Docker Compose v2 installed as standalone (version: $compose_version)"
 else
-    check_fail "Docker Compose v2 not found - Required for this project"
+    check_fail "Docker Compose v2 not found - Install docker-compose or docker compose plugin"
 fi
 
 # Docker daemon running

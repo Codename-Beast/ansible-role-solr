@@ -60,10 +60,17 @@ sudo ln -s $(which docker-compose) /usr/libexec/docker/cli-plugins/docker-compos
 ## 📋 Requirements
 
 - Docker Engine 20.10+
-- Docker Compose v2.0+
+- Docker Compose v2.0+ (both plugin and standalone binary supported)
 - 4GB RAM minimum (8GB recommended)
 - 20GB disk space
-- Tested on Linux/HC
+- Linux (Tested: Debian, Ubuntu, Hetzner Cloud)/macOS/Windows with WSL2
+
+### Tested Environments
+
+✅ **Hetzner Cloud**: CX11, CX21, CX31
+✅ **Debian**: 10, 11, 12
+✅ **Ubuntu**: 20.04, 22.04
+✅ **Docker Compose**: Both `docker compose` (plugin) and `docker-compose` (standalone) work
 
 ## 🚀 Quick Start
 

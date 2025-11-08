@@ -9,6 +9,52 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [3.5.1] - 2025-11-08
+
+### Fixed
+
+**Docker Compose Compatibility** (P1)
+- **Issue**: Preflight checks failed when Docker Compose was installed as standalone binary (`docker-compose`) instead of plugin (`docker compose`)
+- **Error**: `Docker Compose v2 not found - Required for this project` even though `docker-compose --version` worked
+- **Fix**: Updated preflight-check.sh to support both installation methods
+  - Checks for plugin variant first (`docker compose`)
+  - Falls back to standalone binary (`docker-compose`)
+  - Both variants now accepted and validated
+- **Fix**: Updated integration tests to use wrapper function `docker_compose()` that supports both variants
+- **Impact**: Works on all systems regardless of Docker Compose installation method
+
+**Init Container Permission Denied** (P0 - Critical)
+- **Issue**: Init container failed to start with "Permission denied" error when executing init script on Fedora/SELinux systems
+- **Error**: `/bin/sh: can't open '/init.sh': Permission denied`
+- **Root Cause**: SELinux prevented container from accessing bind-mounted script without proper label
+- **Fix**: Added SELinux label flag to volume mount
+  - Before: `./scripts/init-container.sh:/init.sh:ro` (read-only mount)
+  - After: `./scripts/init-container.sh:/init.sh:z` (SELinux shared label)
+  - Removed read-only restriction to allow execution
+  - Added `:z` flag for SELinux compatibility
+- **Impact**: Works on Fedora, RHEL, CentOS, and all SELinux-enabled systems
+- **Reference**: Docker SELinux labels (`:z` = shared, `:Z` = private)
+
+**Solr Logs Not Writable** (P0 - Critical)
+- **Issue**: Solr container failed to start with "Logs directory /var/solr/logs is not writable. Exiting"
+- **Error**: Anonymous volume created at `/var/solr` was overriding named volumes for `/var/solr/logs`
+- **Root Cause**: Solr Docker image has `VOLUME /var/solr` in Dockerfile, causing Docker to create anonymous volume that masks child mounts
+- **Fix**: Added explicit named volume for `/var/solr` parent directory
+  - Added `solr_home:/var/solr` volume to establish proper hierarchy
+  - Child volumes (`solr_data`, `solr_logs`, `solr_backups`) now mount correctly
+  - Permissions from init-container now apply correctly
+- **Impact**: Fixes logs permission issues on all systems
+- **Technical Details**: Volume mount order matters - parent must be defined before children in Docker Compose
+
+### Added
+
+**Hetzner Cloud Support**
+- Confirmed compatibility with Hetzner Cloud servers (CX11, CX21, CX31)
+- Added tested environments section to README
+- Works seamlessly on Debian/Ubuntu cloud instances
+
+---
+
 ## [3.5.0] - 2025-11-07
 
 ### 🎉 Successfully Tested & Deployed
