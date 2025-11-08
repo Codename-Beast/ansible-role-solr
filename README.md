@@ -2,21 +2,28 @@
 
 **Apache Solr 9.9.0 for Moodle with Docker Compose**
 
-> 📦 **Eledia Enterprise Solution** - Standalone Docker deployment for Apache Solr optimized for Moodle search.
+> 📦 **Eledia Solution** - Standalone Docker deployment for Apache Solr optimized for Moodle search.
 
 A standalone Docker solution for running Apache Solr optimized for Moodle search. Works on bare systems as long as Docker is installed.
 
-**Author**: Codename-Beast (Eledia)
+**Author**: Codename-Beast(BSC) (Eledia)
 **Version**: 3.5.0
 
 ---
+##  Known Issues (Minimal)
+docker compose maybe not found , buts its a easy fix 
+Symlink macht beides verfügbar
+```
+sudo mkdir -p /usr/libexec/docker/cli-plugins
+sudo ln -s $(which docker-compose) /usr/libexec/docker/cli-plugins/docker-compose
+```
+## ✅ Successfully Tested
 
-## ✅ Production Ready - Successfully Tested
-
-**Status**: 🎉 **Successfully deployed and tested in production environment**
+**Status**: 
+**Successfully deployed and tested in production environment**
 
 **Test Environment**:
-- **OS**: Linux Debian
+- **OS**: Linux Tested on(Debian, HC-Cloud)
 - **Docker**: 28.5.1
 - **Docker Compose**: 2.40.3
 - **Solr**: 9.9.0
@@ -56,7 +63,7 @@ A standalone Docker solution for running Apache Solr optimized for Moodle search
 - Docker Compose v2.0+
 - 4GB RAM minimum (8GB recommended)
 - 20GB disk space
-- Linux(Tested)/macOS/Windows with WSL2
+- Tested on Linux/HC
 
 ## 🚀 Quick Start
 
@@ -450,11 +457,10 @@ curl http://localhost:8983/solr/admin/ping
 
 ### Optimization Tips
 
-1. **Use SSD storage** for data directory
-2. **Increase heap** for large indexes (>10M documents)
-3. **Enable monitoring** to track performance
-4. **Regular backups** prevent data loss
-5. **Update Solr** regularly for security patches
+1. **Increase heap** for large indexes (>10M documents)
+2. **Enable monitoring** to track performance
+3. **Regular backups** prevent data loss
+4. **Update Solr** regularly for security patches
 
 ## 🔄 Updating
 
@@ -548,11 +554,11 @@ For issues and questions:
 
 ## 👤 Author & Credits
 
-**Author**: Codename-Beast
-**Organization**: Eledia
+**Author**: Codename-Beast(BSC)
+**Organization**: Eledia GmbH
 **Project**: Solr for Moodle - Docker Edition
 **Version**: 3.5.0
 
 ---
 
-**© 2025 Eledia** - Built with ❤️ for Moodle + Solr
+**© 2025 Codename-Beast(BSC) & Eledia** - Built with ❤️ for Moodle + Solr
