@@ -316,13 +316,13 @@
   when: not can_skip
 
 - name: solr-deployment - Wait for Solr container to be running (not healthy)
-  docker_container_info:
-    name: "{{ solr_container_name }}"
-  register: container_info
+  command: docker inspect --format='{{ '{{' }}.State.Status{{ '}}' }}' {{ solr_container_name }}
+  register: container_status_check
   retries: "{{ solr_container_start_retries }}"
   delay: 5
-  until: container_info.container.State.Status == "running"
-  failed_when: container_info.container.State.Status != "running" 
+  until: container_status_check.stdout | trim == "running"
+  failed_when: container_status_check.stdout | trim != "running"
+  changed_when: false 
 
 - name: solr-deployment - Wait for Solr HTTP port to be open 
   wait_for: 
@@ -336,14 +336,14 @@
     seconds: 10 
 
 - name: solr-deployment - Check container health status (non-blocking)
-  docker_container_info:
-    name: "{{ solr_container_name }}"
+  command: docker inspect --format='{{ '{{' }}if .State.Health{{ '}}' }}{{ '{{' }}.State.Health.Status{{ '}}' }}{{ '{{' }}else{{ '}}' }}no-healthcheck{{ '{{' }}end{{ '}}' }}' {{ solr_container_name }}
   register: container_health_info
   failed_when: false
+  changed_when: false
 
 - name: solr-deployment - Display health status
   debug:
-    msg: "Container health status: {{ container_health_info.container.State.Health.Status | default('no healthcheck') }}" 
+    msg: "Container health status: {{ container_health_info.stdout | default('unknown') }}" 
 
 - name: solr-deployment - Wait for Solr HTTP endpoint
   uri:
@@ -374,8 +374,8 @@
       details:
         container_name: "{{ solr_container_name }}"
         init_container: "{{ solr_container_name }}_powerinit"
-        container_status: "{{ container_info.container.State.Status }}"
-        health_status: "{{ container_health_info.container.State.Health.Status | default('no healthcheck') }}"
+        container_status: "{{ container_status_check.stdout | trim }}"
+        health_status: "{{ container_health_info.stdout | default('no healthcheck') }}"
         http_status: "{{ solr_http_check.status }}"
         auth_status: "{{ 'active' if auth_active_check.status == 401 else 'inactive' }}"
         security_json_deployed: true
@@ -401,8 +401,8 @@
       - "========================================"
       - "Container: {{ solr_container_name }}"
       - "Init-Container: {{ solr_container_name }}_powerinit (completed)"
-      - "Container Status: {{ container_info.container.State.Status }}"
-      - "Health Status: {{ container_health_info.container.State.Health.Status | default('no healthcheck') }}"
+      - "Container Status: {{ container_status_check.stdout | trim }}"
+      - "Health Status: {{ container_health_info.stdout | default('no healthcheck') }}"
       - "HTTP Status: {{ solr_http_check.status }}"
       - "Authentication: {{ 'ACTIVE' if auth_active_check.status == 401 else 'INACTIVE' }}"
       - ""
