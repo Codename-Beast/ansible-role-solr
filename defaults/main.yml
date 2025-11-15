@@ -29,8 +29,8 @@
 # ============================================================================
 # IMPORTANT: Use these names in host_vars:
 #   solr_admin_password: "your_password"
-#   solr_support_password: "your_password"  
-#   solr_customer_password: "your_password"
+#   solr_support_password: "your_password"
+#   solr_moodle_password: "your_password"
 
 solr_admin_user: "admin"
 solr_admin_password: ""  # Auto-generated if empty
@@ -40,9 +40,9 @@ solr_support_user: "support"
 solr_support_password: ""  # Auto-generated if empty
 solr_support_password_hash: ""
 
-solr_customer_user: "customer"
-solr_customer_password: ""  # Auto-generated if empty
-solr_customer_password_hash: ""
+solr_moodle_user: "moodle"
+solr_moodle_password: ""  # Auto-generated if empty
+solr_moodle_password_hash: ""
 
 solr_auth_enabled: true
 solr_auth_type: "basic"
@@ -151,7 +151,7 @@ solr_backup_configs_before_update: true
 # ============================================================================
 # Core name sanitization (max 50 chars including "_core" suffix, Solr allows up to 255)
 # Logic: Take first 45 chars of domain/customer_name, sanitize, add "_core" suffix
-solr_core_name_raw: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else customer_name | default('default') }}"
+solr_core_name_raw: "{{ solr_app_domain.split('.')[0] if solr_app_domain is defined else customer_name | default('default') }}"
 solr_core_name_base: "{{ solr_core_name_raw[:45] | regex_replace('[^a-zA-Z0-9_]', '_') | lower }}"
 solr_core_name: "{{ solr_core_name_base }}_core"
 solr_core_config: "moodle_configs"
@@ -203,7 +203,7 @@ solr_webserver: "apache"
 # SSL CONFIGURATION
 # ============================================================================
 solr_ssl_enabled: false
-solr_ssl_cert_path: "/etc/letsencrypt/live/{{ moodle_app_domain | default('localhost') }}"
+solr_ssl_cert_path: "/etc/letsencrypt/live/{{ solr_app_domain | default('localhost') }}"
 # ============================================================================
 # SOLR SETTINGS
 # ============================================================================
@@ -276,17 +276,17 @@ docker_compose_version: "2.0"
 # ============================================================================
 # AUTOMATIC CUSTOMER NAME
 # ============================================================================
-customer_name: "{{ moodle_app_domain.split('.')[0] if moodle_app_domain is defined else 'default_core' }}"
+customer_name: "{{ solr_app_domain.split('.')[0] if solr_app_domain is defined else 'default_core' }}"
 # ============================================================================
-# MOODLE PATHS
+# APPLICATION PATHS
 # ============================================================================
 moodle_solr_host: "localhost"
 moodle_solr_port: "{{ solr_port }}"
 moodle_solr_secure: false
-moodle_solr_username: "{{ solr_customer_user }}"
+moodle_solr_username: "{{ solr_moodle_user }}"
 moodle_env: "public_html"
 moodle_eledia_path: "/home/vhosts/moodle"
-moodle_config_path: "{{ moodle_eledia_path }}/{{ moodle_app_domain }}/{{ moodle_env }}/config.php"
+moodle_config_path: "{{ moodle_eledia_path }}/{{ solr_app_domain }}/{{ moodle_env }}/config.php"
 # ============================================================================
 # RUNDECK INTEGRATION
 # ============================================================================
@@ -305,7 +305,7 @@ admin_email: ""
 # ============================================================================
 # USER MANAGEMENT
 # ============================================================================
-# Additional Solr users beyond the built-in admin/support/customer
+# Additional Solr users beyond the built-in admin/support/moodle
 # Each user should have: username, password, and optionally roles
 # If roles are not specified, user will receive the per-core admin role
 solr_additional_users: []

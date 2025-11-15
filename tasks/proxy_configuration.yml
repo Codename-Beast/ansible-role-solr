@@ -99,7 +99,7 @@
       
       {% if solr_ssl_enabled and ssl_cert_check.stat.exists %}
       <VirtualHost *:443>
-        ServerName {{ moodle_app_domain }}
+        ServerName {{ solr_app_domain }}
         
         SSLEngine on
         SSLCertificateFile {{ solr_ssl_cert_path }}/fullchain.pem
@@ -176,7 +176,7 @@
         ssl_cert_exists: "{{ ssl_cert_check.stat.exists if solr_ssl_enabled else false }}"
         apache_config_test: "{{ 'PASSED' if 'Syntax OK' in apache_test.stderr else 'WARNING' }}"
         proxy_test: "{{ 'PASSED' if proxy_test.status == 200 else 'FAILED' }}"
-        proxy_url: "http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+        proxy_url: "http://{{ solr_app_domain }}{{ solr_proxy_path }}"
 
 - name: proxy_config - Display Rundeck output
   debug:
@@ -194,5 +194,5 @@
       - "SSL certificate: {{ 'FOUND' if ssl_cert_check.stat.exists else 'NOT FOUND' }}"
       - "Apache config test: {{ 'PASSED' if 'Syntax OK' in apache_test.stderr else 'WARNING' }}"
       - "Proxy test: {{ 'PASSED' if proxy_test.status == 200 else 'FAILED' }}"
-      - "Proxy URL: http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+      - "Proxy URL: http://{{ solr_app_domain }}{{ solr_proxy_path }}"
   when: not rundeck_integration_enabled | default(false)

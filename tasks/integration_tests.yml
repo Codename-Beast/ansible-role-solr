@@ -164,8 +164,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/admin/cores"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     status_code: 403
   register: permission_test

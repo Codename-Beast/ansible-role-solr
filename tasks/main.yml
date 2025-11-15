@@ -72,7 +72,7 @@
     - needs_api_update | default(false)
     - admin_password_hash is defined
     - support_password_hash is defined
-    - customer_password_hash is defined
+    - moodle_password_hash is defined
   tags:
     - install-solr-auth
     - install-solr-deployment
@@ -88,7 +88,7 @@
     that:
       - solr_admin_password is defined and solr_admin_password | length > 0
       - solr_support_password is defined and solr_support_password | length > 0
-      - solr_customer_password is defined and solr_customer_password | length > 0
+      - solr_moodle_password is defined and solr_moodle_password | length > 0
     fail_msg: |
       Cannot persist undefined or empty passwords to host_vars.
       This indicates a bug in auth_management.yml.

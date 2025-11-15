@@ -51,8 +51,8 @@
   assert:
     that:
       - customer_name is defined
-      - moodle_app_domain is defined
-    fail_msg: "Required variables missing: customer_name, moodle_app_domain"
+      - solr_app_domain is defined
+    fail_msg: "Required variables missing: customer_name, solr_app_domain"
     success_msg: "Required variables check passed"
 
 - name: preflight-check - Check for port conflicts
@@ -74,9 +74,9 @@
     that:
       - customer_name is defined
       - customer_name | length > 0
-      - moodle_app_domain is defined
-      - moodle_app_domain | length > 0
-    fail_msg: "Required variables missing: customer_name and/or moodle_app_domain"
+      - solr_app_domain is defined
+      - solr_app_domain | length > 0
+    fail_msg: "Required variables missing: customer_name and/or solr_app_domain"
     success_msg: "Required variables present"
 
 - name: preflight-check - Validate customer name format
@@ -89,9 +89,9 @@
 - name: preflight-check - Validate domain format
   assert:
     that:
-      - moodle_app_domain is match('^[a-z0-9.-]+\.[a-z]{2,}$')
-    fail_msg: "moodle_app_domain must be a valid domain (e.g., example.com)"
-    success_msg: "moodle_app_domain format valid"
+      - solr_app_domain is match('^[a-z0-9.-]+\.[a-z]{2,}$')
+    fail_msg: "solr_app_domain must be a valid domain (e.g., example.com)"
+    success_msg: "solr_app_domain format valid"
 
 - name: preflight-check - Validate password strength (if provided)
   assert:
@@ -102,7 +102,7 @@
   loop:
     - { name: "Admin", password: "{{ solr_admin_password | default('') }}" }
     - { name: "Support", password: "{{ solr_support_password | default('') }}" }
-    - { name: "Customer", password: "{{ solr_customer_password | default('') }}" }
+    - { name: "Customer", password: "{{ solr_moodle_password | default('') }}" }
   when:
     - item.password is defined
     - item.password | string | length > 0
@@ -171,6 +171,6 @@
       - "Docker Compose: {{ 'INSTALLED' if docker_compose_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Port {{ solr_port }}: {{ 'AVAILABLE' if 'PORT_FREE' in port_check.stdout else 'IN USE (WARNING)' }}"
       - "Customer: {{ customer_name }}"
-      - "Domain: {{ moodle_app_domain }}"
+      - "Domain: {{ solr_app_domain }}"
       - "=========================================="
   when: not rundeck_integration_enabled | default(false)

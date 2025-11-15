@@ -1,6 +1,6 @@
 ---
 # Version: 1.1.0
-# Description: Manage dynamic Solr users beyond the built-in admin/support/customer.
+# Description: Manage dynamic Solr users beyond the built-in admin/support/moodle.
 # Fixes/Improvements:
 # 1. Introduced support for additional users via ``solr_additional_users`` and automatic per-core admin roles.
 # 2. Securely generates double SHA256 hashed credentials with random salts.

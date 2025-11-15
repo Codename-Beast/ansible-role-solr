@@ -9,7 +9,7 @@
     that:
       - admin_password_hash is defined
       - support_password_hash is defined
-      - customer_password_hash is defined
+      - moodle_password_hash is defined
     fail_msg: |
       CRITICAL: Cannot update credentials via API - password hashes not defined.
       This means auth_management.yml did not generate new hashes.

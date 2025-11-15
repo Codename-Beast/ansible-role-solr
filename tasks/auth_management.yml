@@ -48,9 +48,9 @@
       - name: support
         username: "{{ solr_support_user | default('support') }}"
         password: "{{ solr_support_password | default('') }}"
-      - name: customer
-        username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password | default('') }}"
+      - name: moodle
+        username: "{{ solr_moodle_user | default('customer') }}"
+        password: "{{ solr_moodle_password | default('') }}"
 
 - name: auth-mgmt - Read existing security.json
   slurp:
@@ -167,7 +167,7 @@
   set_fact:
     admin_password_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user | default('admin')] }}"
     support_password_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user | default('support')] }}"
-    customer_password_hash: "{{ security_json_parsed.authentication.credentials[solr_customer_user | default('customer')] }}"
+    moodle_password_hash: "{{ security_json_parsed.authentication.credentials[solr_moodle_user | default('customer')] }}"
   when:
     - skip_auth
     - existing_security_json.stat.exists
@@ -196,7 +196,7 @@
       loop:
         - { name: "admin", password: "{{ solr_admin_password | default('') }}" }
         - { name: "support", password: "{{ solr_support_password | default('') }}" }
-        - { name: "customer", password: "{{ solr_customer_password | default('') }}" }
+        - { name: "customer", password: "{{ solr_moodle_password | default('') }}" }
       loop_control:
         label: "{{ item.name }}"
 
@@ -205,7 +205,7 @@
     passwords_from_hostvars:
       admin_defined: "{{ solr_admin_password is defined and solr_admin_password | length > 0 }}"
       support_defined: "{{ solr_support_password is defined and solr_support_password | length > 0 }}"
-      customer_defined: "{{ solr_customer_password is defined and solr_customer_password | length > 0 }}"
+      customer_defined: "{{ solr_moodle_password is defined and solr_moodle_password | length > 0 }}"
   when: not skip_auth
 
 - name: auth-mgmt - Display password source
@@ -234,7 +234,7 @@
       Please define passwords in host_vars/{{ inventory_hostname }}:
         solr_admin_password: "your_secure_password"
         solr_support_password: "your_secure_password"
-        solr_customer_password: "your_secure_password"
+        solr_moodle_password: "your_secure_password"
     success_msg: "All passwords loaded from host_vars"
   when: not skip_auth
 
@@ -247,9 +247,9 @@
       - name: support
         username: "{{ solr_support_user | default('support') }}"
         password: "{{ solr_support_password }}"
-      - name: customer
-        username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password }}"
+      - name: moodle
+        username: "{{ solr_moodle_user | default('customer') }}"
+        password: "{{ solr_moodle_password }}"
   no_log: true
   when: not skip_auth
 
@@ -299,13 +299,13 @@
   set_fact:
     solr_admin_password: "{{ auth_users_with_passwords[0].password }}"
     solr_support_password: "{{ auth_users_with_passwords[1].password }}"
-    solr_customer_password: "{{ auth_users_with_passwords[2].password }}"
+    solr_moodle_password: "{{ auth_users_with_passwords[2].password }}"
     admin_password: "{{ auth_users_with_passwords[0].password }}"
     support_password: "{{ auth_users_with_passwords[1].password }}"
     customer_password: "{{ auth_users_with_passwords[2].password }}"
     admin_password_hash: "{{ generated_hashes.results[0].stdout }}"
     support_password_hash: "{{ generated_hashes.results[1].stdout }}"
-    customer_password_hash: "{{ generated_hashes.results[2].stdout }}"
+    moodle_password_hash: "{{ generated_hashes.results[2].stdout }}"
   no_log: true
   when: not skip_auth
 

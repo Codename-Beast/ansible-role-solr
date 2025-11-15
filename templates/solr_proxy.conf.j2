@@ -18,7 +18,7 @@
     # Headers
     RequestHeader set X-Forwarded-Proto "https"
     RequestHeader set X-Forwarded-Port "443"
-    RequestHeader set X-Forwarded-Host "{{ moodle_app_domain | default(ansible_fqdn) }}"
+    RequestHeader set X-Forwarded-Host "{{ solr_app_domain | default(ansible_fqdn) }}"
     
     # Security headers
     Header always set X-Frame-Options "SAMEORIGIN"

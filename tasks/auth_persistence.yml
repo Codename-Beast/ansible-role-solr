@@ -56,11 +56,11 @@
 
       solr_admin_password: "{{ solr_admin_password }}"
       solr_support_password: "{{ solr_support_password }}"
-      solr_customer_password: "{{ solr_customer_password }}"
+      solr_moodle_password: "{{ solr_moodle_password }}"
 
       solr_admin_user: "{{ solr_admin_user | default('admin') }}"
       solr_support_user: "{{ solr_support_user | default('support') }}"
-      solr_customer_user: "{{ solr_customer_user | default('customer') }}"
+      solr_moodle_user: "{{ solr_moodle_user | default('customer') }}"
 
       solr_core_name_override: "{{ solr_core_name }}"
       solr_port: {{ solr_port }}

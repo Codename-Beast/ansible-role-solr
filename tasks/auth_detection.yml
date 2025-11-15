@@ -12,10 +12,10 @@
     skip_auth: false
     solr_admin_password: "{{ solr_admin_password | default('') }}"
     solr_support_password: "{{ solr_support_password | default('') }}"
-    solr_customer_password: "{{ solr_customer_password | default('') }}"
+    solr_moodle_password: "{{ solr_moodle_password | default('') }}"
     solr_admin_user: "{{ solr_admin_user | default('admin') }}"
     solr_support_user: "{{ solr_support_user | default('support') }}"
-    solr_customer_user: "{{ solr_customer_user | default('customer') }}"
+    solr_moodle_user: "{{ solr_moodle_user | default('customer') }}"
 
 - name: Read existing security.json
   when: existing_security_json.stat.exists
@@ -34,7 +34,7 @@
   set_fact:
     existing_admin_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user] | default('') }}"
     existing_support_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user] | default('') }}"
-    existing_customer_hash: "{{ security_json_parsed.authentication.credentials[solr_customer_user] | default('') }}"
+    existing_customer_hash: "{{ security_json_parsed.authentication.credentials[solr_moodle_user] | default('') }}"
 
 - name: Create temp directory for verification
   file:
@@ -155,7 +155,7 @@
 - name: Verify customer hash
   when:
     - existing_security_json.stat.exists
-    - solr_customer_password | length > 0
+    - solr_moodle_password | length > 0
     - existing_customer_hash | length > 0
 
   block:
@@ -175,7 +175,7 @@
           fi 
           
           echo "{{ customer_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/customer_salt.bin
-          printf '%s' "{{ solr_customer_password }}" > {{ verify_dir }}/customer_pass.bin
+          printf '%s' "{{ solr_moodle_password }}" > {{ verify_dir }}/customer_pass.bin
           cat {{ verify_dir }}/customer_salt.bin {{ verify_dir }}/customer_pass.bin > {{ verify_dir }}/customer_combined.bin
           openssl dgst -sha256 -binary {{ verify_dir }}/customer_combined.bin > {{ verify_dir }}/customer_hash1.bin
           openssl dgst -sha256 -binary {{ verify_dir }}/customer_hash1.bin > {{ verify_dir }}/customer_hash2.bin
@@ -195,7 +195,7 @@
     mismatch_customer: true
   when:
     - existing_security_json.stat.exists
-    - solr_customer_password | length == 0 or existing_customer_hash | length == 0
+    - solr_moodle_password | length == 0 or existing_customer_hash | length == 0
 
 - name: Cleanup verification temp directory
   file:

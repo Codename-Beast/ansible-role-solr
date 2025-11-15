@@ -2,7 +2,7 @@
  Security configuration template for Solr.
  Fixes/Improvements:
  1. Updated permission names to align with the official Solr rule-based authorization plugin; removed deprecated ones (e.g. delete/backup).
- 2. Added per-core role definitions (admin, customer, support) to enable fine-grained access control to individual cores.
+ 2. Added per-core role definitions (admin, moodle, support) to enable fine-grained access control to individual cores.
  3. Integrated dynamic additional users via ``solr_additional_users`` and corresponding hashed credentials.
  4. Documented variable usage and structure to aid maintainers and promote clarity.
  5. Ensured backward compatibility by preserving existing built-in roles and credentials.
@@ -14,7 +14,7 @@
     "credentials": {
       "{{ solr_admin_user | default('admin') }}": "{{ admin_password_hash }}",
       "{{ solr_support_user | default('support') }}": "{{ support_password_hash }}",
-      "{{ solr_customer_user | default('customer') }}": "{{ customer_password_hash }}"{% if solr_additional_user_hashes is defined and solr_additional_user_hashes|length > 0 %},{% endif %}
+      "{{ solr_moodle_user | default('moodle') }}": "{{ moodle_password_hash }}"{% if solr_additional_user_hashes is defined and solr_additional_user_hashes|length > 0 %},{% endif %}
 {% if solr_additional_user_hashes is defined %}
 {% for username, hash in solr_additional_user_hashes.items() %}
       ,"{{ username }}": "{{ hash }}"{% if not loop.last %},{% endif %}
@@ -51,11 +51,11 @@
         "role": ["{{ solr_core_admin_role | default(solr_core_admin_role_prefix ~ '-' ~ solr_core_name) }}"]
       },
       {
-        "name": "core-{{ solr_core_name }}-customer",
+        "name": "core-{{ solr_core_name }}-moodle",
         "collection": "{{ solr_core_name }}",
         "path": ["/*"],
         "method": ["GET", "HEAD", "POST", "DELETE"],
-        "role": ["customer"]
+        "role": ["moodle"]
       },
       {
         "name": "core-{{ solr_core_name }}-support",
@@ -68,7 +68,7 @@
     "user-role": {
       "{{ solr_admin_user | default('admin') }}": ["admin"],
       "{{ solr_support_user | default('support') }}": ["support"],
-      "{{ solr_customer_user | default('customer') }}": ["customer"]{% if solr_additional_user_roles is defined and solr_additional_user_roles|length > 0 %},{% endif %}
+      "{{ solr_moodle_user | default('moodle') }}": ["moodle"]{% if solr_additional_user_roles is defined and solr_additional_user_roles|length > 0 %},{% endif %}
 {% if solr_additional_user_roles is defined %}
 {% for username, roles in solr_additional_user_roles.items() %}
       ,"{{ username }}": {{ roles | to_json }}{% if not loop.last %},{% endif %}
