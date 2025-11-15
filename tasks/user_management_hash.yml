@@ -1,0 +1,44 @@
+---
+# Description: Generate password hash for a single additional user
+# This file is included by user_management.yml for each user
+
+- name: user-management - Generate random salt for {{ additional_user.username }}
+  command: openssl rand -base64 {{ solr_hash_salt_bytes }}
+  register: user_salt_output
+  changed_when: false
+  no_log: true
+
+- name: user-management - Store salt for {{ additional_user.username }}
+  set_fact:
+    user_salt: "{{ user_salt_output.stdout }}"
+  no_log: true
+
+- name: user-management - Generate first SHA256 hash for {{ additional_user.username }}
+  shell: echo -n "{{ user_salt }}{{ additional_user.password }}" | sha256sum | awk '{print $1}'
+  register: user_first_hash
+  changed_when: false
+  no_log: true
+
+- name: user-management - Generate second SHA256 hash for {{ additional_user.username }}
+  shell: echo -n "{{ user_first_hash.stdout }}" | sha256sum | awk '{print $1}'
+  register: user_second_hash
+  changed_when: false
+  no_log: true
+
+- name: user-management - Combine salt and double hash for {{ additional_user.username }}
+  set_fact:
+    user_combined_hash: "{{ user_salt }} {{ user_second_hash.stdout }}"
+  no_log: true
+
+- name: user-management - Determine roles for {{ additional_user.username }}
+  set_fact:
+    user_roles: "{{ additional_user.roles | default([solr_core_admin_role_prefix ~ '-' ~ solr_core_name]) }}"
+
+- name: user-management - Add user hash to dictionary
+  set_fact:
+    solr_additional_user_hashes: "{{ solr_additional_user_hashes | combine({additional_user.username: user_combined_hash}) }}"
+  no_log: true
+
+- name: user-management - Add user roles to dictionary
+  set_fact:
+    solr_additional_user_roles: "{{ solr_additional_user_roles | combine({additional_user.username: user_roles}) }}"

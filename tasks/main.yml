@@ -39,6 +39,16 @@
   tags:
     - install-solr-auth
 
+- name: install-solr - Additional user management
+  include_tasks: user_management.yml
+  when:
+    - solr_auth_enabled | default(true)
+    - solr_additional_users is defined
+    - solr_additional_users | length > 0
+  tags:
+    - install-solr-auth
+    - install-solr-users
+
 - name: install-solr - Configuration management
   include_tasks: config_management.yml
   tags:

@@ -1,6 +1,19 @@
 ---
-# Version: 1.5.0
+#######################################################################
+# Default variable definitions for Solr role enhancements.
+# Fixes/Improvements:
+# 1. Added ``solr_additional_users`` to allow provisioning of extra Solr users.
+# 2. Added ``solr_core_admin_role_prefix`` to configure per-core administrator role names.
+# 3. Provided documentation comments for each variable to aid understanding.
+# 4. Ensured sensible defaults (empty list and "core-admin") for backward compatibility.
+# 5. Maintains existing behaviour for pre-defined users while enabling extensibility.
+#######################################################################
+# Version: 1.6.0
 # Description: Default variables for Solr installation
+# Changelog v1.6.0:
+#   - ADDED: Dynamic user management via solr_additional_users
+#   - ADDED: Per-core admin role prefix configuration
+#   - ADDED: Support for multi-tenant user provisioning
 # Changelog v1.5.0:
 #   - ADDED: Config file management for init-container
 #   - ADDED: Core name sanitization (max 10 chars)
@@ -289,3 +302,21 @@ rundeck_webhook_secret: ""
 # ============================================================================
 notification_enabled: false
 admin_email: ""
+# ============================================================================
+# USER MANAGEMENT
+# ============================================================================
+# Additional Solr users beyond the built-in admin/support/customer
+# Each user should have: username, password, and optionally roles
+# If roles are not specified, user will receive the per-core admin role
+solr_additional_users: []
+# Example:
+# solr_additional_users:
+#   - username: "tenant1_admin"
+#     password: "secure_password"
+#     roles: ["core-admin-tenant1"]
+#   - username: "tenant2_admin"
+#     password: "secure_password"
+#     # roles will default to ["core-admin-<core_name>"]
+
+# Prefix for automatically generated per-core administrator roles
+solr_core_admin_role_prefix: "core-admin"

@@ -1,0 +1,43 @@
+---
+# Version: 1.1.0
+# Description: Manage dynamic Solr users beyond the built-in admin/support/customer.
+# Fixes/Improvements:
+# 1. Introduced support for additional users via ``solr_additional_users`` and automatic per-core admin roles.
+# 2. Securely generates double SHA256 hashed credentials with random salts.
+# 3. Assigns default or custom roles to new users and cleans up temporary files.
+# 4. Exposes user and role mappings as Ansible facts for integration with ``security.json``.
+# 5. Provides warnings for incomplete user definitions to aid troubleshooting.
+
+- name: user-management - Initialize additional user hashes dictionary
+  set_fact:
+    solr_additional_user_hashes: {}
+    solr_additional_user_roles: {}
+  when: solr_additional_users is defined and solr_additional_users | length > 0
+
+- name: user-management - Process additional users
+  block:
+    - name: user-management - Generate secure credentials for additional users
+      include_tasks: user_management_hash.yml
+      loop: "{{ solr_additional_users }}"
+      loop_control:
+        loop_var: additional_user
+      when:
+        - additional_user.username is defined
+        - additional_user.password is defined
+
+    - name: user-management - Warn about incomplete user definitions
+      debug:
+        msg: "WARNING: User entry missing username or password - skipping: {{ item }}"
+      loop: "{{ solr_additional_users }}"
+      when: item.username is not defined or item.password is not defined
+  when: solr_additional_users is defined and solr_additional_users | length > 0
+
+- name: user-management - Debug additional user facts
+  debug:
+    msg:
+      - "Additional users configured: {{ solr_additional_user_hashes.keys() | list }}"
+      - "Role mappings: {{ solr_additional_user_roles }}"
+  when:
+    - solr_additional_users is defined
+    - solr_additional_users | length > 0
+    - solr_additional_user_hashes is defined
