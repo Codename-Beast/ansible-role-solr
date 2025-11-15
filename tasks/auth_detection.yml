@@ -1,0 +1,220 @@
+---
+# Version: 1.3.2 - FIXED: Inline platform detection 
+# Purpose: Check whether stored hashes match the plaintext passwords in host_vars.
+
+- name: Check if security.json exists
+  stat:
+    path: "{{ solr_config_dir }}/security.json"
+  register: existing_security_json
+
+- name: Initialise detection variables
+  set_fact:
+    skip_auth: false
+    solr_admin_password: "{{ solr_admin_password | default('') }}"
+    solr_support_password: "{{ solr_support_password | default('') }}"
+    solr_customer_password: "{{ solr_customer_password | default('') }}"
+    solr_admin_user: "{{ solr_admin_user | default('admin') }}"
+    solr_support_user: "{{ solr_support_user | default('support') }}"
+    solr_customer_user: "{{ solr_customer_user | default('customer') }}"
+
+- name: Read existing security.json
+  when: existing_security_json.stat.exists
+  slurp:
+    src: "{{ solr_config_dir }}/security.json"
+  register: security_json_content
+  become: true
+
+- name: Parse existing security.json
+  when: existing_security_json.stat.exists
+  set_fact:
+    security_json_parsed: "{{ security_json_content.content | b64decode | from_json }}"
+
+- name: Extract existing hashes
+  when: existing_security_json.stat.exists
+  set_fact:
+    existing_admin_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user] | default('') }}"
+    existing_support_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user] | default('') }}"
+    existing_customer_hash: "{{ security_json_parsed.authentication.credentials[solr_customer_user] | default('') }}"
+
+- name: Create temp directory for verification
+  file:
+    path: /tmp/solr_verify_{{ ansible_date_time.epoch }}
+    state: directory
+    mode: '0700'
+  register: verify_temp_dir
+  when: existing_security_json.stat.exists
+
+- name: Set verify temp directory fact
+  set_fact:
+    verify_dir: "{{ verify_temp_dir.path }}"
+  when: existing_security_json.stat.exists
+
+# Validate admin password
+- name: Verify admin hash
+  when:
+    - existing_security_json.stat.exists
+    - solr_admin_password | length > 0
+    - existing_admin_hash | length > 0
+  block:
+    - name: Extract admin salt from existing hash
+      set_fact:
+        admin_existing_salt_b64: "{{ existing_admin_hash.split(' ')[1] }}"
+      
+    - name: Compute expected admin hash with binary concatenation 
+      shell: 
+        cmd: | 
+          set -e 
+          
+          # Detect base64 command inline 
+          if base64 --help 2>&1 | grep -q 'wrap'; then 
+            BASE64_CMD="base64 -w0" 
+          else 
+            BASE64_CMD="base64" 
+          fi 
+          
+          # Decode salt from base64 to binary
+          echo "{{ admin_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/admin_salt.bin
+          
+          # Write password as binary
+          printf '%s' "{{ solr_admin_password }}" > {{ verify_dir }}/admin_pass.bin
+          
+          # Binary concatenation
+          cat {{ verify_dir }}/admin_salt.bin {{ verify_dir }}/admin_pass.bin > {{ verify_dir }}/admin_combined.bin
+          
+          # Double SHA256
+          openssl dgst -sha256 -binary {{ verify_dir }}/admin_combined.bin > {{ verify_dir }}/admin_hash1.bin
+          openssl dgst -sha256 -binary {{ verify_dir }}/admin_hash1.bin > {{ verify_dir }}/admin_hash2.bin
+          
+          # Base64 encode (platform independent)
+          HASH_B64=$(${BASE64_CMD} < {{ verify_dir }}/admin_hash2.bin | tr -d '\n\r') 
+          
+          # Output format: "HASH SALT"
+          echo "${HASH_B64} {{ admin_existing_salt_b64 }}"
+        executable: /bin/bash 
+      register: admin_expected_hash
+      changed_when: false
+      no_log: true
+    
+    - name: Set admin mismatch fact
+      set_fact:
+        mismatch_admin: "{{ admin_expected_hash.stdout != existing_admin_hash }}"
+
+- name: Mark admin mismatched when no plaintext or no existing hash
+  set_fact:
+    mismatch_admin: true
+  when:
+    - existing_security_json.stat.exists
+    - solr_admin_password | length == 0 or existing_admin_hash | length == 0
+
+# Validate support password
+- name: Verify support hash (CROSS-PLATFORM) 
+  when:
+    - existing_security_json.stat.exists
+    - solr_admin_password | length > 0
+    - existing_admin_hash | length > 0
+  block:
+    - name: Extract support salt from existing hash
+      set_fact:
+        support_existing_salt_b64: "{{ existing_support_hash.split(' ')[1] }}"
+      
+    - name: Compute expected support hash with binary concatenation 
+      shell: 
+        cmd: | 
+          set -e 
+          
+          if base64 --help 2>&1 | grep -q 'wrap'; then 
+            BASE64_CMD="base64 -w0" 
+          else 
+            BASE64_CMD="base64" 
+          fi 
+          
+          echo "{{ support_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/support_salt.bin
+          printf '%s' "{{ solr_support_password }}" > {{ verify_dir }}/support_pass.bin
+          cat {{ verify_dir }}/support_salt.bin {{ verify_dir }}/support_pass.bin > {{ verify_dir }}/support_combined.bin
+          openssl dgst -sha256 -binary {{ verify_dir }}/support_combined.bin > {{ verify_dir }}/support_hash1.bin
+          openssl dgst -sha256 -binary {{ verify_dir }}/support_hash1.bin > {{ verify_dir }}/support_hash2.bin
+          HASH_B64=$(${BASE64_CMD} < {{ verify_dir }}/support_hash2.bin | tr -d '\n\r') 
+          echo "${HASH_B64} {{ support_existing_salt_b64 }}"
+        executable: /bin/bash 
+      register: support_expected_hash
+      changed_when: false
+      no_log: true
+    
+    - name: Set support mismatch fact
+      set_fact:
+        mismatch_support: "{{ support_expected_hash.stdout != existing_support_hash }}"
+
+- name: Mark support mismatched when no plaintext or no existing hash
+  set_fact:
+    mismatch_support: true
+  when:
+    - existing_security_json.stat.exists
+    - solr_support_password | length == 0 or existing_support_hash | length == 0
+
+# Validate customer password
+- name: Verify customer hash
+  when:
+    - existing_security_json.stat.exists
+    - solr_customer_password | length > 0
+    - existing_customer_hash | length > 0
+
+  block:
+    - name: Extract customer salt from existing hash
+      set_fact:
+        customer_existing_salt_b64: "{{ existing_customer_hash.split(' ')[1] }}"
+      
+    - name: Compute expected customer hash with binary concatenation 
+      shell: 
+        cmd: | 
+          set -e 
+          
+          if base64 --help 2>&1 | grep -q 'wrap'; then 
+            BASE64_CMD="base64 -w0" 
+          else 
+            BASE64_CMD="base64" 
+          fi 
+          
+          echo "{{ customer_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/customer_salt.bin
+          printf '%s' "{{ solr_customer_password }}" > {{ verify_dir }}/customer_pass.bin
+          cat {{ verify_dir }}/customer_salt.bin {{ verify_dir }}/customer_pass.bin > {{ verify_dir }}/customer_combined.bin
+          openssl dgst -sha256 -binary {{ verify_dir }}/customer_combined.bin > {{ verify_dir }}/customer_hash1.bin
+          openssl dgst -sha256 -binary {{ verify_dir }}/customer_hash1.bin > {{ verify_dir }}/customer_hash2.bin
+          HASH_B64=$(${BASE64_CMD} < {{ verify_dir }}/customer_hash2.bin | tr -d '\n\r') 
+          echo "${HASH_B64} {{ customer_existing_salt_b64 }}"
+        executable: /bin/bash 
+      register: customer_expected_hash
+      changed_when: false
+      no_log: true
+    
+    - name: Set customer mismatch fact
+      set_fact:
+        mismatch_customer: "{{ customer_expected_hash.stdout != existing_customer_hash }}"
+
+- name: Mark customer mismatched when no plaintext or no existing hash
+  set_fact:
+    mismatch_customer: true
+  when:
+    - existing_security_json.stat.exists
+    - solr_customer_password | length == 0 or existing_customer_hash | length == 0
+
+- name: Cleanup verification temp directory
+  file:
+    path: "{{ verify_dir }}"
+    state: absent
+  when: existing_security_json.stat.exists
+
+# Determine whether to skip hashing
+- name: Determine skip_auth flag
+  set_fact:
+    skip_auth: "{{ existing_security_json.stat.exists and (not mismatch_admin | default(true)) and (not mismatch_support | default(true)) and (not mismatch_customer | default(true)) }}"
+
+- name: Display detection result
+  debug:
+    msg:
+      - "AUTH DETECTION COMPLETED"
+      - "Platform detection: Inline per command" 
+      - "security.json exists: {{ existing_security_json.stat.exists }}"
+      - "Admin hash matches: {{ not mismatch_admin | default(true) if existing_security_json.stat.exists else 'N/A' }}"
+      - "Support hash matches: {{ not mismatch_support | default(true) if existing_security_json.stat.exists else 'N/A' }}"
+      - "Customer hash matches: {{ not mismatch_customer | default(true) if existing_security_json.stat.exists else 'N/A' }}"
+      - "Skip auth regeneration: {{ skip_auth }}"

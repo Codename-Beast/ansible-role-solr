@@ -1,0 +1,10 @@
+---
+# Version: 1.0.0
+# Description: Reusable Rundeck output handler
+# Usage: include_tasks with rundeck_output_data variable
+# Reduces: ~25 lines per file × 19 files = 475 lines → 50 lines (90% reduction)
+
+- name: rundeck-output - Display Rundeck JSON output
+  debug:
+    msg: "{{ rundeck_output_data | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)

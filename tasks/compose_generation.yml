@@ -1,0 +1,86 @@
+---
+# Version: 1.3.1
+# Description: Generate Docker Compose configuration with init-container pattern
+# Changelog v1.3.1:
+#   - FIXED: Full idempotency support for unlimited re-runs
+# Changelog v1.1:
+#   - NEW: Init-container pattern for security.json deployment
+#   - Named volume strategy (no bind mounts)
+#   - Ensures security.json deployed BEFORE Solr starts
+#   - Validates compose file syntax
+
+- name: install-solr - Ensure compose directory exists
+  file:
+    path: "{{ solr_compose_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: install-solr - Verify security.json exists before compose generation
+  stat:
+    path: "{{ solr_config_dir }}/security.json"
+  register: security_json_check
+  failed_when: not security_json_check.stat.exists
+
+- name: install-solr - Generate docker-compose.yml from template
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ solr_compose_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  register: compose_generated
+
+- name: install-solr - Validate docker-compose.yml syntax
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml config
+  register: compose_validation
+  changed_when: false
+  failed_when: compose_validation.rc != 0
+
+- name: install-solr - Create .env file for docker-compose
+  template:
+    src: docker-compose.env.j2
+    dest: "{{ solr_compose_dir }}/.env"
+    owner: root
+    group: root
+    mode: '0600'
+  become: true
+
+- name: install-solr - Create Rundeck output
+  set_fact:
+    compose_generation_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Docker Compose configuration generated"
+      details:
+        compose_file: "{{ solr_compose_dir }}/docker-compose.yml"
+        env_file: "{{ solr_compose_dir }}/.env"
+        security_json: "{{ solr_config_dir }}/security.json"
+        services:
+          - "solr-init"
+          - "solr"
+        volumes:
+          - "{{ solr_volume_name }}"
+        networks:
+          - "{{ solr_network_name }}"
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ compose_generation_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "DOCKER COMPOSE CONFIGURATION GENERATED"
+      - "Compose file: {{ solr_compose_dir }}/docker-compose.yml"
+      - "Environment file: {{ solr_compose_dir }}/.env"
+      - "Services: solr-init (init-container), solr (main)"
+      - "Volume: {{ solr_volume_name }}"
+      - "Network: {{ solr_network_name }}"
+      - "Security JSON: {{ solr_config_dir }}/security.json"
+      - "Syntax validation: PASSED"
+  when: not rundeck_integration_enabled | default(false)

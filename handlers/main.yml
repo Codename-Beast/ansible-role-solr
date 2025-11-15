@@ -1,0 +1,111 @@
+---
+# Version: 1.3.2
+# Description: Event handlers for Solr installation
+# Changelog v1.3.2:
+#   - ADDED: Solr core reload handler (no restart)
+#   - ADDED: Security reload via API handler
+#   - ADDED: Container health check handler
+#   - ADDED: Emergency backup handler
+#   - IMPROVED: Error handling and logging
+#   - FIXED: Use community.docker modules
+
+- name: restart solr container
+  community.docker.docker_container:
+    name: "{{ solr_container_name }}"
+    restart: true
+    state: started
+  register: restart_result
+  failed_when: restart_result.failed
+  notify:
+    - verify solr health
+    - log handler execution
+
+- name: reload solr core
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=RELOAD&core={{ solr_core_name }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_reload_result
+  failed_when: core_reload_result.status != 200
+  notify: log handler execution
+
+- name: reload security config via api
+  command: >
+    docker exec {{ solr_container_name }}
+    curl -X POST
+    -H 'Content-Type: application/json'
+    --user {{ solr_admin_user }}:{{ solr_admin_password }}
+    'http://localhost:8983/solr/admin/authentication'
+    -d '{"set-user": {"{{ solr_admin_user }}": "{{ admin_password_hash }}"}}'
+  register: security_reload_result
+  failed_when: security_reload_result.rc != 0
+  notify: log handler execution
+
+- name: verify solr health
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+    timeout: 30
+  register: health_check_result
+  retries: 5
+  delay: 10
+  until: health_check_result.status == 200
+  failed_when: health_check_result.status != 200
+  notify: log handler execution
+
+- name: emergency backup
+  shell: |
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    docker exec {{ solr_container_name }} \
+      sh -c "
+        if solr status | grep -q '{{ solr_core_name }}'; then
+          solr backup -c {{ solr_core_name }} \
+            -d /var/solr/backup \
+            -name emergency_backup_${TIMESTAMP} || exit 1
+        else
+          echo 'Core not found, skipping backup'
+          exit 0
+        fi
+      "
+  when: solr_backup_enabled | default(true)
+  register: emergency_backup_result
+  failed_when: emergency_backup_result.rc != 0
+  notify: log handler execution
+
+- name: reload apache
+  systemd:
+    name: apache2
+    state: reloaded
+  when: solr_webserver == "apache"
+  register: apache_reload_result
+  failed_when: apache_reload_result.failed
+  notify: log handler execution
+
+- name: reload nginx
+  systemd:
+    name: nginx
+    state: reloaded
+  when: solr_webserver == "nginx"
+  register: nginx_reload_result
+  failed_when: nginx_reload_result.failed
+  notify: log handler execution
+
+- name: restart docker
+  systemd:
+    name: docker
+    state: restarted
+    daemon_reload: true
+  register: docker_restart_result
+  failed_when: docker_restart_result.failed
+  notify: log handler execution
+
+- name: log handler execution
+  debug:
+    msg: "Handler '{{ ansible_handler_name }}' executed at {{ ansible_date_time.iso8601 }}"

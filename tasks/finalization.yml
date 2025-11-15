@@ -1,0 +1,365 @@
+---
+# Version: 1.3.1
+# Description: Finalization tasks for Solr installation
+# Changelog v1.3.1:
+#   - FIXED: Full idempotency support for unlimited re-runs
+# Changelog v1.1:
+#   - Deployment summary
+#   - Backup credential files
+#   - Create documentation
+#   - Optional notification
+#   - Add More Infos
+
+- name: install-solr - Gather final deployment information
+  set_fact:
+    deployment_info:
+      customer: "{{ customer_name }}"
+      domain: "{{ moodle_app_domain }}"
+      solr_version: "{{ solr_version }}"
+      container_name: "{{ solr_container_name }}"
+      core_name: "{{ solr_core_name }}"
+      solr_url: "http://localhost:{{ solr_port }}/solr"
+      proxy_url: "http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+      auth_enabled: "{{ solr_auth_enabled | default(true) }}"
+      ssl_enabled: "{{ solr_ssl_enabled | default(true) }}"
+      backup_enabled: "{{ solr_backup_enabled | default(true) }}"
+      Deployment ID: "{{ ansible_date_time.epoch }}-{{ inventory_hostname }}"
+      Deployment Host: "{{ ansible_hostname }}"
+      Deployment Time: "{{ ansible_date_time.date }} {{ ansible_date_time.time }}"
+      Ansible Controller ID: "{{ ansible_user_id | default('Woher soll ich das wissen?')}}"
+
+- name: install-solr - Get container resource usage
+  shell: docker stats {{ solr_container_name }} --no-stream --format "table {{ '{{.MemUsage}}' }}"
+  register: container_stats
+  changed_when: false
+  failed_when: false
+
+- name: install-solr - Get Docker volume size
+  shell: docker volume inspect {{ solr_volume_name }} -f "{{ '{{.Mountpoint}}' }}" | xargs du -sh | cut -f1
+  register: volume_size
+  changed_when: false
+  failed_when: false
+
+- name: install-solr - Create deployment documentation
+  copy:
+    content: |
+      # Solr Deployment Summary
+      
+      **Executed Date:** {{ ansible_date_time.iso8601 }}
+      
+      ## Customer Information
+      - Customer Name: {{ customer_name }}
+      - Domain: {{ moodle_app_domain }}
+      
+      ## Solr Configuration
+      - Solr Version: {{ solr_version | default('ERROR')}}
+      - Container Name: {{ solr_container_name }} | default('eledia_default')
+      - Volume Name: {{ solr_volume_name }}
+      - Core Name: {{ solr_core_name }}
+      
+      ## Network Configuration
+      - Internal URL: http://localhost:{{ solr_port }}/solr
+      - Proxy URL: http://{{ moodle_app_domain }}{{ solr_proxy_path }}
+      - Proxy Path: {{ solr_proxy_path }}
+      
+      ## Security
+      - Authentication: {{ 'ENABLED' if solr_auth_enabled | default(true) else 'DISABLED' }}
+      - SSL/TLS: {{ 'ENABLED' if solr_ssl_enabled | default(true) else 'DISABLED' }}
+      - Admin User: {{ solr_admin_user }}
+      - Support User: {{ solr_support_user }}
+      - Customer User: {{ solr_customer_user }}
+      
+      ## System Resources
+      - Heap Size: {{ solr_heap_size }}
+      - Memory Limit: {{ solr_memory_limit }}
+      - CPU Quota: {{ solr_cpu_quota }}/{{ solr_cpu_period }}
+      - Memory Usage: {{ container_stats.stdout if container_stats.rc == 0 else 'N/A' }}
+      - Volume Size: {{ volume_size.stdout if volume_size.rc == 0 else 'N/A' }}
+      
+      ## Directories
+      - Compose Directory: {{ solr_compose_dir }}
+      - Config Directory: {{ solr_config_dir }}
+      - Backup Directory: {{ solr_backup_dir }}
+      - Log Directory: {{ solr_log_dir }}
+      
+      ## Core Configuration
+      - Config Set: {{ solr_core_config }}
+      - Max Boolean Clauses: {{ solr_max_boolean_clauses }}
+      - Auto-Commit Time: {{ solr_auto_commit_time }}ms
+      - Auto Soft-Commit Time: {{ solr_auto_soft_commit_time }}ms
+      
+      ## Backup Configuration
+      - Backup Enabled: {{ 'YES' if solr_backup_enabled | default(true) else 'NO' }}
+      - Backup Retention: {{ solr_backup_retention }} days
+      - Backup Credentials: {{ 'YES' if solr_backup_credentials else 'NO' }}
+      
+      ## Rundeck Integration awaiting kKeck
+      - Rundeck Integration: {{ 'ENABLED' if rundeck_integration_enabled | default(false) else 'DISABLED' }}
+      {% if rundeck_integration_enabled | default(false) %}
+      - Rundeck Project: {{ rundeck_project_name }}
+      - Webhook: {{ 'ENABLED' if rundeck_webhook_enabled else 'DISABLED' }}
+      {% endif %}
+      
+      ## Management Commands
+      
+      ### Docker Commands
+      ```bash
+      # View container logs
+      docker logs {{ solr_container_name }}
+      
+      # View container stats
+      docker stats {{ solr_container_name }}
+      
+      # Restart container
+      docker restart {{ solr_container_name }}
+      
+      # Stop container
+      docker stop {{ solr_container_name }}
+      
+      # Start container
+      docker start {{ solr_container_name }}
+      
+      # Access Solr shell
+      docker exec -it {{ solr_container_name }} bash
+      ```
+      
+      ### Docker Compose Commands
+      ```bash
+      # Start services
+      cd {{ solr_compose_dir }} && docker compose up -d
+      
+      # Stop services
+      cd {{ solr_compose_dir }} && docker compose down
+      
+      # View logs
+      cd {{ solr_compose_dir }} && docker compose logs -f
+      
+      # Restart services
+      cd {{ solr_compose_dir }} && docker compose restart
+      ```
+      
+      ### Solr API Examples
+      ```bash
+      # Admin ping (requires admin credentials)
+      curl -u {{ solr_admin_user }}:PASSWORD http://localhost:{{ solr_port }}/solr/admin/ping
+      
+      # Core status
+      curl -u {{ solr_admin_user }}:PASSWORD http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS
+      
+      # Search query (with customer credentials)
+      curl -u {{ solr_customer_user }}:PASSWORD "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
+      ```
+      
+      ## Credential Files Location
+      - Credentials: {{ solr_config_dir }}/credentials.yml
+      - Security JSON: {{ solr_config_dir }}/security.json
+      
+      ## Important Notes
+      - All credentials are stored in {{ solr_config_dir }}/credentials.yml still for Dev use 
+      - Backup this file securely
+      - Never commit credentials to version control
+      - Change default passwords in production
+      - Review firewall rules to restrict access
+      
+      ---
+      Generated by Ansible install-solr role
+    dest: "{{ solr_compose_dir }}/DEPLOYMENT_INFO.md"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: install-solr - Create quick reference card
+  copy:
+    content: |
+      # Solr Quick Reference - {{ customer_name }}
+      Deployment ID: {{ ansible_date_time.epoch }}-{{ inventory_hostname }}
+      Deployment Host: {{ ansible_hostname }}
+      last Ansible Controller ID: {{ ansible_user_id | default('Woher soll ich das wissen?')}}
+      Deployment Time: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+      Solr URL: http://localhost:{{ solr_port }}/solr
+      Core URL: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}
+      Proxy URL: http://{{ moodle_app_domain }}{{ solr_proxy_path }}
+      
+      Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}
+      
+      Admin User: {{ solr_admin_user }}
+      Support User: {{ solr_support_user }}
+      Customer User: {{ solr_customer_user }}
+      
+      Credentials file: {{ solr_config_dir }}/credentials.yml
+      
+      Container: {{ solr_container_name }}
+      Volume: {{ solr_volume_name }}
+      Core: {{ solr_core_name }}
+      
+      Logs: docker logs {{ solr_container_name }}
+      Stats: docker stats {{ solr_container_name }}
+      Restart: docker restart {{ solr_container_name }}
+    dest: "{{ solr_compose_dir }}/QUICK_REFERENCE.txt"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+
+- name: install-solr - Set proper ownership for compose directory
+  file:
+    path: "{{ solr_compose_dir }}"
+    owner: root
+    group: root
+    recurse: yes
+  become: true
+
+- name: install-solr - Create systemd service for Docker Compose (optional)
+  copy:
+    content: |
+      [Unit]
+      Description=Solr Container for {{ customer_name }}
+      Requires=docker.service
+      After=docker.service
+      
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      WorkingDirectory={{ solr_compose_dir }}
+      ExecStart=/usr/bin/docker compose up -d
+      ExecStop=/usr/bin/docker compose down
+      
+      [Install]
+      WantedBy=multi-user.target
+    dest: "/etc/systemd/system/solr-{{ customer_name }}.service"
+    owner: root
+    group: root
+    mode: '0644'
+  become: true
+  when: solr_create_systemd_service | default(false)
+
+- name: install-solr - Enable systemd service
+  systemd:
+    name: "solr-{{ customer_name }}"
+    enabled: yes
+    daemon_reload: yes
+  become: true
+  when: solr_create_systemd_service | default(false)
+
+- name: install-solr - Send notification email (if enabled)
+  mail:
+    host: localhost
+    port: 25
+    subject: "Solr Deployment Completed - {{ customer_name }}"
+    body: |
+      Solr has been successfully deployed for {{ customer_name }}.
+      
+      Domain: {{ moodle_app_domain }}
+      Solr Version: {{ solr_version }}
+      Core Name: {{ solr_core_name }}
+      
+      Internal URL: http://localhost:{{ solr_port }}/solr
+      Proxy URL: http://{{ moodle_app_domain }}{{ solr_proxy_path }}
+      
+      Please check the deployment documentation at:
+      {{ solr_compose_dir }}/DEPLOYMENT_INFO.md
+      
+      Deployment Date: {{ ansible_date_time.iso8601 }}
+      Deployed By: {{ ansible_user_id }}@{{ ansible_hostname }}
+    to: "{{ admin_email }}"
+    charset: utf8
+  when:
+    - notification_enabled | default(false)
+    - admin_email | default('') != ''
+  ignore_errors: yes
+
+- name: install-solr - Create Rundeck output
+  set_fact:
+    finalization_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Solr installation finalized successfully"
+      deployment:
+        customer: "{{ customer_name }}"
+        domain: "{{ moodle_app_domain }}"
+        solr_version: "{{ solr_version }}"
+        container: "{{ solr_container_name }}"
+        core: "{{ solr_core_name }}"
+        volume: "{{ solr_volume_name }}"
+      urls:
+        internal: "http://localhost:{{ solr_port }}/solr"
+        core: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
+        proxy: "http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+        admin_ui: "http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
+      resources:
+        memory_usage: "{{ container_stats.stdout if container_stats.rc == 0 else 'N/A' }}"
+        volume_size: "{{ volume_size.stdout if volume_size.rc == 0 else 'N/A' }}"
+        heap_size: "{{ solr_heap_size }}"
+        memory_limit: "{{ solr_memory_limit }}"
+      documentation:
+        deployment_info: "{{ solr_compose_dir }}/DEPLOYMENT_INFO.md"
+        quick_reference: "{{ solr_compose_dir }}/QUICK_REFERENCE.txt"
+        credentials: "{{ solr_config_dir }}/credentials.yml"
+      deployment_info:
+
+      next_steps:
+        - "Review deployment documentation"
+        - "Test Solr connectivity from Moodle"
+        - "Configure Moodle search plugin"
+        - "Set up backup schedule"
+        - "Review security settings"
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ finalization_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display Happy final summary maybe? 
+  debug:
+    msg:
+      - "==============================================="
+      - "SOLR INSTALLATION COMPLETED SUCCESSFULLY"
+      - "==============================================="
+      - ""
+      - "Customer: {{ customer_name }}"
+      - "Domain: {{ moodle_app_domain }}"
+      - "Solr Version: {{ solr_version }}"
+      - ""
+      - "URLS:"
+      - "  Internal: http://localhost:{{ solr_port }}/solr"
+      - "  Core: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
+      - "  Proxy: http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+      - "  Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
+      - ""
+      - "CREDENTIALS:"
+      - "  Admin User: {{ solr_admin_user }}"
+      - "  Support User: {{ solr_support_user }}"
+      - "  Customer User: {{ solr_customer_user }}"
+      - "  Credentials File: {{ solr_config_dir }}/credentials.yml"
+      - ""
+      - "CONTAINER:"
+      - "  Name: {{ solr_container_name }}"
+      - "  Core: {{ solr_core_name }}"
+      - "  Volume: {{ solr_volume_name }}"
+      - "  Memory: {{ container_stats.stdout if container_stats.rc == 0 else 'N/A' }}"
+      - "  Volume Size: {{ volume_size.stdout if volume_size.rc == 0 else 'N/A' }}"
+      - ""
+      - "DOCUMENTATION:"
+      - "  Deployment Info: {{ solr_compose_dir }}/DEPLOYMENT_INFO.md"
+      - "  Quick Reference: {{ solr_compose_dir }}/QUICK_REFERENCE.txt"
+      - ""
+      - "NEXT STEPS:"
+      - "  1. Review deployment documentation"
+      - "  2. Test Solr connectivity from Moodle"
+      - "  3. Configure Moodle search plugin with:"
+      - "     - Host: {{ moodle_solr_host }}"
+      - "     - Port: {{ solr_port }}"
+      - "     - Core: {{ solr_core_name }}"
+      - "     - Username: {{ solr_customer_user }}"
+      - "     - Password: (see credentials.yml)"
+      - "  4. Set up backup schedule"
+      - "  5. Review security and firewall settings"
+      - "#20262025 first test success_rate Woow"
+      - "MANAGEMENT COMMANDS:"
+      - "  View logs: docker logs {{ solr_container_name }}"
+      - "  Restart: docker restart {{ solr_container_name }}"
+      - "  Stats: docker stats {{ solr_container_name }}"
+      - ""
+      - "==============================================="
+  when: not rundeck_integration_enabled | default(false)

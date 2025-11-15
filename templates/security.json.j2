@@ -1,0 +1,38 @@
+{
+  "authentication": {
+    "blockUnknown": true,
+    "class": "solr.BasicAuthPlugin",
+    "credentials": {
+      "{{ solr_admin_user | default('admin') }}": "{{ admin_password_hash }}",
+      "{{ solr_support_user | default('support') }}": "{{ support_password_hash }}",
+      "{{ solr_customer_user | default('customer') }}": "{{ customer_password_hash }}"
+    },
+    "realm": "{{ solr_auth_realm | default('Solr Eledia') }}",
+    "forwardCredentials": {{ solr_forward_credentials | default('false') | lower }}
+  },
+  "authorization": {
+    "class": "solr.RuleBasedAuthorizationPlugin",
+    "permissions": [
+      { "name": "health-check-ping", "path": "/admin/ping", "role": null },
+      { "name": "health-check-detailed", "path": "/admin/health", "role": null },
+      { "name": "health-check-simple", "path": "/admin/healthcheck", "role": null },
+      { "name": "security-read",          "role": "admin" },
+      { "name": "security-edit",          "role": "admin" },
+      { "name": "schema-edit",            "role": "admin" },
+      { "name": "config-edit",            "role": "admin" },
+      { "name": "collection-admin-edit",  "role": "admin" },
+      { "name": "core-admin-read",        "role": "admin" },
+      { "name": "core-admin-edit",        "role": "admin" },
+      { "name": "metrics",                "path": "/admin/metrics", "role": ["admin", "support"] },
+      { "name": "backup",                 "path": "/admin/cores", "role": ["admin"] },
+      { "name": "logging",                "path": "/admin/logging", "role": ["admin", "support"] },
+      { "name": "read",    "collection": "{{ solr_core_name }}", "role": ["admin", "support", "customer"] },
+      { "name": "update",  "collection": "{{ solr_core_name }}", "role": ["admin", "customer"] }
+    ],
+    "user-role": {
+      "{{ solr_admin_user | default('admin') }}":   ["admin"],
+      "{{ solr_support_user | default('support') }}": ["support"],
+      "{{ solr_customer_user | default('customer') }}":["customer"]
+    }
+  }
+}

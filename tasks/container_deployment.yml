@@ -1,0 +1,425 @@
+---
+# Version: 1.3.2
+# Description: Deploy Solr container with full idempotency and rollback
+# Changelog v1.3.2:
+#   - CRITICAL: Added rollback mechanism (block/rescue/always)
+#   - IMPROVED: Error handling with detailed logging
+#   - ADDED: Container state backup before deployment
+#   - FIXED: Better error recovery
+# Changelog v1.3.1:
+#   - FIXED: True idempotency - only restart if configs actually changed
+#   - FIXED: Skip deployment if container running and configs match
+#   - ADDED: Separate start vs restart logic 
+
+- name: solr-deployment - Check if services are already running
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml ps --services --filter status=running
+  register: running_services
+  changed_when: false
+  failed_when: false
+
+- name: solr-deployment - Calculate checksums for all new config files
+  stat:
+    path: "{{ solr_config_dir }}/{{ item.name }}"
+    checksum_algorithm: sha256
+  loop: "{{ solr_config_files }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: new_config_checksums
+  become: true
+
+- name: solr-deployment - Separate security.json from other configs
+  set_fact:
+    security_json_checksum: "{{ new_config_checksums.results | selectattr('item.name', 'equalto', 'security.json') | map(attribute='stat.checksum') | first }}"
+    other_config_checksums: "{{ new_config_checksums.results | rejectattr('item.name', 'equalto', 'security.json') | list }}"
+
+- name: solr-deployment - Get existing config checksums from container (excluding security.json)
+  shell: |
+    docker exec {{ solr_container_name }} sh -c "
+    if [ -f '{{ item.item.dest_path }}/{{ item.item.name }}' ]; then
+      sha256sum {{ item.item.dest_path }}/{{ item.item.name }} | awk '{print \$1}'
+    else
+      echo 'not_found'
+    fi
+    "
+  loop: "{{ other_config_checksums }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  register: existing_other_config_checksums
+  changed_when: false
+  failed_when: false
+  when: running_services.stdout_lines | length > 0
+
+- name: solr-deployment - Get existing security.json checksum from container
+  shell: |
+    docker exec {{ solr_container_name }} sh -c "
+    if [ -f '/var/solr/data/security.json' ]; then
+      sha256sum /var/solr/data/security.json | awk '{print \$1}'
+    else
+      echo 'not_found'
+    fi
+    "
+  register: existing_security_json_checksum
+  changed_when: false
+  failed_when: false
+  when: running_services.stdout_lines | length > 0
+
+- name: solr-deployment - Initialize config change flags
+  set_fact:
+    config_changed: false
+    security_json_changed: false
+    other_configs_changed: false
+
+- name: solr-deployment - Detect security.json changes
+  set_fact:
+    security_json_changed: true
+  when:
+    - running_services.stdout_lines | length > 0
+    - existing_security_json_checksum is defined
+    - security_json_checksum != (existing_security_json_checksum.stdout | trim)
+
+- name: solr-deployment - Validate checksum list lengths match before zip
+  assert:
+    that:
+      - other_config_checksums | length == existing_other_config_checksums.results | length
+    fail_msg: "Config checksum list length mismatch: new={{ other_config_checksums | length }}, existing={{ existing_other_config_checksums.results | length }}"
+    success_msg: "Checksum list lengths match"
+  when:
+    - running_services.stdout_lines | length > 0
+    - existing_other_config_checksums is defined
+    - existing_other_config_checksums.results is defined
+    - existing_other_config_checksums.results | length > 0
+
+- name: solr-deployment - Detect other config changes by comparing checksums
+  set_fact:
+    other_configs_changed: true
+  when:
+    - running_services.stdout_lines | length > 0
+    - existing_other_config_checksums is defined
+    - existing_other_config_checksums.results is defined
+    - existing_other_config_checksums.results | length > 0
+    - item.0.stat.checksum != item.1.stdout | trim
+  loop: "{{ other_config_checksums | zip(existing_other_config_checksums.results | default([])) | list }}"
+  loop_control:
+    label: "{{ item.0.item.name }}"
+
+- name: solr-deployment - Log checksum comparison errors (if any)
+  debug:
+    msg: "WARNING: Checksum comparison skipped or failed - existing_other_config_checksums not properly defined"
+  when:
+    - running_services.stdout_lines | length > 0
+    - (existing_other_config_checksums is not defined or existing_other_config_checksums.results is not defined)
+
+- name: solr-deployment - Set overall config_changed flag
+  set_fact:
+    config_changed: "{{ security_json_changed or other_configs_changed }}"
+    security_json_only_changed: "{{ security_json_changed and not other_configs_changed }}"
+
+- name: solr-deployment - Determine deployment action needed
+  set_fact:
+    needs_restart: "{{ (running_services.stdout_lines | length > 0) and (solr_force_recreate | default(false) or other_configs_changed | default(false)) }}"
+    needs_start: "{{ running_services.stdout_lines | length == 0 }}"
+    can_skip: "{{ (running_services.stdout_lines | length > 0) and not config_changed and not solr_force_recreate | default(false) }}"
+    needs_api_update: "{{ security_json_only_changed | default(false) and (running_services.stdout_lines | length > 0) }}"
+
+- name: solr-deployment - Display deployment decision
+  debug:
+    msg:
+      - "========================================"
+      - "DEPLOYMENT DECISION"
+      - "========================================"
+      - "Container status:"
+      - "  Running: {{ running_services.stdout_lines | length > 0 }}"
+      - "  Config changed: {{ config_changed }}"
+      - "  Security.json only: {{ security_json_only_changed | default(false) }}"
+      - "  Other configs changed: {{ other_configs_changed | default(false) }}"
+      - "  Force recreate: {{ solr_force_recreate | default(false) }}"
+      - ""
+      - "Action:"
+      - "  Will restart: {{ needs_restart }}"
+      - "  Will start: {{ needs_start }}"
+      - "  Will skip: {{ can_skip }}"
+      - "  Will API update: {{ needs_api_update }}"
+      - "========================================"
+
+- name: solr-deployment - Skip deployment (already running, no changes)
+  debug:
+    msg: "Container running and configs unchanged - SKIPPING deployment"
+  when: can_skip
+
+# ============================================================================
+# ROLLBACK-PROTECTED DEPLOYMENT BLOCK
+# ============================================================================
+- name: solr-deployment - Protected deployment with rollback capability
+  block:
+    # Backup current container state before any changes
+    - name: solr-deployment - Backup current container config (if exists)
+      shell: |
+        if docker ps -a | grep -q {{ solr_container_name }}; then
+          if docker exec {{ solr_container_name }} tar czf /tmp/solr_backup_$(date +%s).tar.gz \
+              /var/solr/data/security.json \
+              /var/solr/data/configs 2>&1; then
+            echo "backup_created"
+          else
+            echo "backup_failed"
+          fi
+        else
+          echo "no_container"
+        fi
+      register: container_backup
+      changed_when: false
+      failed_when: container_backup.stdout is defined and 'backup_failed' in container_backup.stdout
+      when: running_services.stdout_lines | length > 0
+
+    - name: solr-deployment - Log backup status
+      debug:
+        msg: "Container backup: {{ container_backup.stdout | default('skipped') }}"
+
+    - name: solr-deployment - Stop services for restart
+      command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml down
+      when: needs_restart
+      become: true
+      register: compose_down
+      failed_when: compose_down.rc != 0
+
+  rescue:
+    - name: solr-deployment - RESCUE - Deployment failed, attempting recovery
+      debug:
+        msg:
+          - "!!! DEPLOYMENT FAILED !!!"
+          - "Error occurred during container deployment"
+          - "Attempting to restore previous state..."
+
+    - name: solr-deployment - RESCUE - Try to restart old container (if it exists)
+      command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml up -d
+      become: true
+      register: rescue_restart
+      failed_when: false
+      when: container_backup.stdout | default('') == 'backup_created'
+
+    - name: solr-deployment - RESCUE - Log recovery attempt result
+      debug:
+        msg: "Recovery attempt: {{ 'SUCCESS' if rescue_restart.rc | default(1) == 0 else 'FAILED' }}"
+      when: container_backup.stdout | default('') == 'backup_created'
+
+    - name: solr-deployment - RESCUE - Fail with clear error message
+      fail:
+        msg: |
+          CRITICAL DEPLOYMENT FAILURE
+          ===========================
+          The Solr container deployment failed.
+
+          Error details: {{ ansible_failed_result.msg | default('Unknown error') }}
+
+          Recovery status: {{ 'Attempted' if container_backup.stdout | default('') == 'backup_created' else 'Not attempted (no backup available)' }}
+
+          Manual intervention required:
+          1. Check docker compose logs: docker compose -f {{ solr_compose_dir }}/docker-compose.yml logs
+          2. Check init container logs: docker logs {{ solr_container_name }}_powerinit
+          3. Verify configs in {{ solr_config_dir }}/
+          4. Try manual deployment: cd {{ solr_compose_dir }} && docker compose up -d
+
+          For support, provide this error message and the logs mentioned above.
+
+  when: not can_skip
+
+- name: solr-deployment - Check if volume exists
+  community.docker.docker_volume_info:
+    name: "{{ solr_volume_name }}"
+  register: volume_inspect
+  failed_when: false
+
+- name: solr-deployment - Remove volume if force recreate
+  docker_volume:
+    name: "{{ solr_volume_name }}"
+    state: absent
+  when:
+    - volume_inspect.volume is defined
+    - solr_force_recreate | default(false)
+  become: true
+  register: volume_removed
+
+- name: solr-deployment - Display volume removal result
+  debug:
+    msg: "Volume {{ solr_volume_name }} removed: {{ 'YES' if volume_removed is defined and volume_removed.changed else 'Not removed' }}"
+
+- name: solr-deployment - Remove orphaned volume directory if exists
+  file:
+    path: /opt/solr/data
+    state: absent
+  become: true
+  when: solr_force_recreate | default(false)
+
+- name: solr-deployment - Pull Solr images
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml pull
+  when: solr_force_pull | default(false)
+  become: true
+  register: compose_pull
+
+- name: solr-deployment - Start init-container and Solr stack
+  command: docker compose -f {{ solr_compose_dir }}/docker-compose.yml up -d
+  become: true
+  register: compose_up
+  when: not can_skip
+
+- name: solr-deployment - Display compose up result
+  debug:
+    msg:
+      - "Compose up return code: {{ compose_up.rc }}"
+      - "Init container should start first"
+      - "Action: {{ 'Restarted' if needs_restart else 'Started' if needs_start else 'Skipped' }}"
+  when: not can_skip
+
+- name: solr-deployment - Wait for init-container to complete
+  command: docker wait {{ solr_container_name }}_powerinit
+  register: init_container_wait
+  failed_when: init_container_wait.stdout != '0'
+  timeout: "{{ solr_init_container_timeout | default(60) }}"
+  when: not can_skip
+
+- name: solr-deployment - Check init-container logs
+  command: docker logs {{ solr_container_name }}_powerinit
+  register: init_logs
+  changed_when: false
+  when: not can_skip
+
+- name: solr-deployment - Display init-container logs
+  debug:
+    msg: "{{ init_logs.stdout_lines }}"
+  when: not can_skip
+
+- name: solr-deployment - Verify security.json exists in container
+  command: docker exec {{ solr_container_name }} test -f /var/solr/data/security.json
+  register: security_json_in_container
+  retries: 5
+  delay: 3
+  until: security_json_in_container.rc == 0
+  failed_when: security_json_in_container.rc != 0
+  when: not can_skip
+
+- name: solr-deployment - Get deployed security.json checksum from container
+  command: docker exec {{ solr_container_name }} sha256sum /var/solr/data/security.json
+  register: deployed_checksum
+  changed_when: false
+  when: not can_skip
+
+- name: solr-deployment - Extract deployed checksum
+  set_fact:
+    deployed_checksum_value: "{{ deployed_checksum.stdout.split(' ')[0] if deployed_checksum is defined and deployed_checksum.stdout is defined else 'skipped' }}"
+  when: not can_skip
+
+- name: solr-deployment - Validate security.json checksum matches expected
+  assert:
+    that:
+      - new_config_checksums.results[0].stat.checksum == deployed_checksum_value
+    fail_msg: "security.json checksum mismatch! Expected: {{ new_config_checksums.results[0].stat.checksum }}, Got: {{ deployed_checksum_value }}"
+    success_msg: "security.json deployed correctly with matching checksum"
+  when: not can_skip
+
+- name: solr-deployment - Wait for Solr container to be running (not healthy)
+  docker_container_info:
+    name: "{{ solr_container_name }}"
+  register: container_info
+  retries: "{{ solr_container_start_retries }}"
+  delay: 5
+  until: container_info.container.State.Status == "running"
+  failed_when: container_info.container.State.Status != "running" 
+
+- name: solr-deployment - Wait for Solr HTTP port to be open 
+  wait_for: 
+    host: 127.0.0.1 
+    port: "{{ solr_port }}" 
+    state: started 
+    timeout: 60 
+
+- name: solr-deployment - Give Solr time to initialize 
+  pause: 
+    seconds: 10 
+
+- name: solr-deployment - Check container health status (non-blocking)
+  docker_container_info:
+    name: "{{ solr_container_name }}"
+  register: container_health_info
+  failed_when: false
+
+- name: solr-deployment - Display health status
+  debug:
+    msg: "Container health status: {{ container_health_info.container.State.Health.Status | default('no healthcheck') }}" 
+
+- name: solr-deployment - Wait for Solr HTTP endpoint
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    status_code:
+      - 200
+      - 401
+  register: solr_http_check
+  retries: 10
+  delay: 3
+  until: solr_http_check.status in [200, 401]
+
+- name: solr-deployment - Verify authentication is active
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    status_code: 401
+  register: auth_active_check
+  failed_when: auth_active_check.status != 401
+
+- name: solr-deployment - Create Rundeck output
+  set_fact:
+    container_deployment_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Solr container deployed with all configurations"
+      details:
+        container_name: "{{ solr_container_name }}"
+        init_container: "{{ solr_container_name }}_powerinit"
+        container_status: "{{ container_info.container.State.Status }}"
+        health_status: "{{ container_health_info.container.State.Health.Status | default('no healthcheck') }}"
+        http_status: "{{ solr_http_check.status }}"
+        auth_status: "{{ 'active' if auth_active_check.status == 401 else 'inactive' }}"
+        security_json_deployed: true
+        security_json_checksum_expected: "{{ new_config_checksums.results[0].stat.checksum }}"
+        security_json_checksum_actual: "{{ deployed_checksum_value }}"
+        security_json_checksum_match: "{{ new_config_checksums.results[0].stat.checksum == deployed_checksum_value }}"
+        config_files_deployed: "{{ solr_config_files | length }}"
+        config_files_list: "{{ solr_config_files | map(attribute='name') | list }}"
+        port: "{{ solr_port }}"
+        restart_triggered: "{{ config_changed | default(false) }}"
+        volume_removed: "{{ volume_removed.changed if volume_removed is defined else false }}"
+
+- name: solr-deployment - Display Rundeck output
+  debug:
+    msg: "{{ container_deployment_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: solr-deployment - Display standard summary
+  debug:
+    msg:
+      - "========================================"
+      - "SOLR CONTAINER DEPLOYED SUCCESSFULLY"
+      - "========================================"
+      - "Container: {{ solr_container_name }}"
+      - "Init-Container: {{ solr_container_name }}_powerinit (completed)"
+      - "Container Status: {{ container_info.container.State.Status }}"
+      - "Health Status: {{ container_health_info.container.State.Health.Status | default('no healthcheck') }}"
+      - "HTTP Status: {{ solr_http_check.status }}"
+      - "Authentication: {{ 'ACTIVE' if auth_active_check.status == 401 else 'INACTIVE' }}"
+      - ""
+      - "CONFIG FILES DEPLOYED:"
+      - "  Total files: {{ solr_config_files | length }}"
+      - "  Files: {{ solr_config_files | map(attribute='name') | join(', ') }}"
+      - ""
+      - "SECURITY.JSON VALIDATION:"
+      - "  Expected checksum: {{ new_config_checksums.results[0].stat.checksum }}"
+      - "  Deployed checksum: {{ deployed_checksum_value }}"
+      - "  Match: {{ 'YES' if new_config_checksums.results[0].stat.checksum == deployed_checksum_value else 'NO' }}"
+      - ""
+      - "DEPLOYMENT DECISIONS:"
+      - "  Restart due to config change: {{ 'YES' if config_changed | default(false) else 'NO' }}"
+      - "  Volume removed: {{ 'YES' if (volume_removed is defined and volume_removed.changed) else 'NO' }}"
+      - "  Force recreate: {{ 'YES' if solr_force_recreate | default(false) else 'NO' }}"
+      - ""
+      - "Port: {{ solr_port }}"
+      - "========================================"
+  when: not rundeck_integration_enabled | default(false)

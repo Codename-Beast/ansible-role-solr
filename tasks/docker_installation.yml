@@ -1,0 +1,142 @@
+---
+# Version: 1.1.0
+# Description: Docker and Docker Compose installation
+# Changelog v1.1:
+#   - Docker CE installation from official repository
+#   - Docker Compose Plugin installation
+#   - Supports Debian
+
+- name: install-solr - Check if Docker is already installed
+  command: docker --version
+  register: docker_check
+  changed_when: false
+  failed_when: false
+
+- name: install-solr - Display Docker already installed
+  debug:
+    msg:
+      - "Docker is already installed: {{ docker_check.stdout }}"
+      - "Skipping Docker installation"
+  when: docker_check.rc == 0
+
+- name: install-solr - Remove old Docker versions
+  apt:
+    name:
+      - docker
+      - docker-engine
+      - docker.io
+      - containerd
+      - runc
+    state: absent
+  become: true
+  when: docker_check.rc != 0
+
+- name: install-solr - Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+    state: present
+  become: true
+  when: docker_check.rc != 0
+
+- name: install-solr - Add Docker repository
+  apt_repository:
+    repo: "deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  become: true
+  when: docker_check.rc != 0
+
+- name: install-solr - Update apt cache after adding Docker repository
+  apt:
+    update_cache: yes
+  become: true
+  when: docker_check.rc != 0
+
+- name: install-solr - Install Docker CE and Docker Compose Plugin
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+  become: true
+  when: docker_check.rc != 0
+
+- name: install-solr - Start and enable Docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+  become: true
+
+- name: install-solr - Verify Docker installation
+  command: docker --version
+  register: docker_version
+  changed_when: false
+
+- name: install-solr - Verify Docker Compose installation
+  command: docker compose version
+  register: docker_compose_version
+  changed_when: false
+
+- name: install-solr - Check Docker service status
+  systemd:
+    name: docker
+  register: docker_service # wie oft wird die variable docker_service verwendet
+  become: true
+
+- name: install-solr - Add current user to docker group (if not root)
+  user:
+    name: "{{ ansible_user_id }}"
+    groups: docker
+    append: yes
+  become: true
+  when: ansible_user_id != 'root'
+
+- name: install-solr - Test Docker connectivity
+  command: docker ps
+  register: docker_test
+  changed_when: false
+  failed_when: docker_test.rc != 0
+
+- name: install-solr - Pull Solr image
+  command: docker pull solr:{{ solr_version }}
+  register: docker_pull
+  changed_when: "'Downloaded' in docker_pull.stdout or 'Pulling' in docker_pull.stdout"
+  when: solr_force_pull | default(false) or docker_check.rc != 0
+  become: true
+
+- name: install-solr - Create Rundeck output
+  set_fact:
+    docker_installation_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Docker installation completed"
+      details:
+        docker_version: "{{ docker_version.stdout }}"
+        docker_compose_version: "{{ docker_compose_version.stdout }}"
+        docker_service_active: "{{ docker_service.status.ActiveState == 'active' }}"
+        docker_service_enabled: "{{ docker_service.status.UnitFileState == 'enabled' }}"
+        solr_image_version: "{{ solr_version }}"
+        solr_image_pulled: "{{ docker_pull.changed if docker_pull is defined else false }}"
+        docker_group_updated: "{{ ansible_user_id != 'root' }}"
+
+- name: install-solr - Display Rundeck output
+  debug:
+    msg: "{{ docker_installation_result | to_nice_json }}"
+  when: rundeck_integration_enabled | default(false)
+
+- name: install-solr - Display standard summary
+  debug:
+    msg:
+      - "DOCKER INSTALLATION COMPLETED"
+      - "Docker version: {{ docker_version.stdout }}"
+      - "Docker Compose version: {{ docker_compose_version.stdout }}"
+      - "Docker service: {{ 'ACTIVE' if docker_service.status.ActiveState == 'active' else 'INACTIVE' }}"
+      - "Docker service enabled: {{ 'YES' if docker_service.status.UnitFileState == 'enabled' else 'NO' }}"
+      - "Solr image: solr:{{ solr_version }}"
+      - "Image pulled: {{ 'YES' if docker_pull is defined and docker_pull.changed else 'NO (already present or not forced)' }}"
+      - "NOTE: If user was added to docker group, logout/login may be required"
+  when: not rundeck_integration_enabled | default(false)

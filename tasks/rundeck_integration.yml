@@ -1,0 +1,131 @@
+---
+# Version: 1.1.0
+# Description: Rundeck integration for Solr monitoring and automation
+# Changelog v1.1:
+#   - NEW: Rundeck API integration
+#   - Job registration for health checks, backups, restarts
+#   - Webhook receiver setup
+#   - Credential export for Rundeck access
+
+- name: install-solr - Validate Rundeck integration variables
+  assert:
+    that:
+      - rundeck_api_url is defined
+      - rundeck_api_url | length > 0
+      - rundeck_api_token is defined
+      - rundeck_api_token | length > 0
+      - rundeck_project_name is defined
+      - rundeck_project_name | length > 0
+    fail_msg: "Rundeck integration requires: rundeck_api_url, rundeck_api_token, rundeck_project_name"
+    success_msg: "Rundeck variables validated"
+
+- name: install-solr - Create Rundeck job definitions directory
+  file:
+    path: /tmp/rundeck_jobs
+    state: directory
+    mode: '0755'
+
+- name: install-solr - Generate health check job definition
+  template:
+    src: rundeck_health_check_job.yml.j2
+    dest: /tmp/rundeck_jobs/solr_health_check.yml
+    mode: '0644'
+
+- name: install-solr - Generate backup job definition
+  template:
+    src: rundeck_backup_job.yml.j2
+    dest: /tmp/rundeck_jobs/solr_backup.yml
+    mode: '0644'
+
+- name: install-solr - Generate restart job definition
+  template:
+    src: rundeck_restart_job.yml.j2
+    dest: /tmp/rundeck_jobs/solr_restart.yml
+    mode: '0644'
+
+- name: install-solr - Register health check job in Rundeck
+  uri:
+    url: "{{ rundeck_api_url }}/api/{{ rundeck_api_version | default('40') }}/project/{{ rundeck_project_name }}/jobs/import"
+    method: POST
+    headers:
+      X-Rundeck-Auth-Token: "{{ rundeck_api_token }}"
+      Content-Type: application/yaml
+    body: "{{ lookup('file', '/tmp/rundeck_jobs/solr_health_check.yml') }}"
+    status_code:
+      - 200
+      - 201
+  register: health_job_registration
+  failed_when: false
+
+- name: install-solr - Register backup job in Rundeck
+  uri:
+    url: "{{ rundeck_api_url }}/api/{{ rundeck_api_version | default('40') }}/project/{{ rundeck_project_name }}/jobs/import"
+    method: POST
+    headers:
+      X-Rundeck-Auth-Token: "{{ rundeck_api_token }}"
+      Content-Type: application/yaml
+    body: "{{ lookup('file', '/tmp/rundeck_jobs/solr_backup.yml') }}"
+    status_code:
+      - 200
+      - 201
+  register: backup_job_registration
+  failed_when: false
+
+- name: install-solr - Register restart job in Rundeck
+  uri:
+    url: "{{ rundeck_api_url }}/api/{{ rundeck_api_version | default('40') }}/project/{{ rundeck_project_name }}/jobs/import"
+    method: POST
+    headers:
+      X-Rundeck-Auth-Token: "{{ rundeck_api_token }}"
+      Content-Type: application/yaml
+    body: "{{ lookup('file', '/tmp/rundeck_jobs/solr_restart.yml') }}"
+    status_code:
+      - 200
+      - 201
+  register: restart_job_registration
+  failed_when: false
+
+- name: install-solr - Create health check endpoint script
+  template:
+    src: health_check_endpoint.sh.j2
+    dest: /usr/local/bin/solr_health_check
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+
+- name: install-solr - Create webhook receiver script
+  template:
+    src: rundeck_webhook_receiver.sh.j2
+    dest: /usr/local/bin/solr_rundeck_webhook
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: rundeck_webhook_enabled | default(false)
+
+- name: install-solr - Create Rundeck integration summary
+  set_fact:
+    rundeck_integration_result:
+      status: "success"
+      timestamp: "{{ ansible_date_time.iso8601 }}"
+      message: "Rundeck integration configured"
+      details:
+        api_url: "{{ rundeck_api_url }}"
+        project: "{{ rundeck_project_name }}"
+        jobs_registered:
+          health_check: "{{ 'success' if health_job_registration.status in [200, 201] else 'failed' }}"
+          backup: "{{ 'success' if backup_job_registration.status in [200, 201] else 'failed' }}"
+          restart: "{{ 'success' if restart_job_registration.status in [200, 201] else 'failed' }}"
+        webhook_enabled: "{{ rundeck_webhook_enabled | default(false) }}"
+        health_check_script: "/usr/local/bin/solr_health_check"
+        webhook_script: "{{ '/usr/local/bin/solr_rundeck_webhook' if rundeck_webhook_enabled | default(false) else 'not created' }}"
+
+- name: install-solr - Display Rundeck integration result
+  debug:
+    msg: "{{ rundeck_integration_result | to_nice_json }}"
+
+- name: install-solr - Cleanup temporary job definitions
+  file:
+    path: /tmp/rundeck_jobs
+    state: absent

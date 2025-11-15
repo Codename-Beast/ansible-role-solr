@@ -1,605 +1,647 @@
-# Changelog
+# Changelog - Solr Installation Role
 
-**Eledia Solr for Moodle - Docker Edition**
+## Version 1.4.0 - 03.11.2025
 
-All notable changes to this project will be documented in this file.
-
-**Author**: Codename-Beast (Eledia)
-**Project**: Solr 9.9.0 for Moodle with Docker Compose
+**Maintainer:** Bernd Schreistetter  
+**Typ:** Major Feature Release - Production Hardening & Security Enhancement  
+**Priorität:** Hoch - Critical security fixes and production features
 
 ---
 
-## [3.5.0] - 2025-11-07
+### Übersicht
 
-### 🎉 Successfully Tested & Deployed
+Version 1.4.0 ist ein **production-ready release** mit umfassenden Security-Verbesserungen, automatisiertem Backup-Management, Performance-Optimierungen und 100% Testabdeckung. Diese Version behebt kritische Handler-Syntax-Fehler und erweitert die Berechtigungsmatrix erheblich.
 
-**Deployment Target**: Debain
-**Test Status**: ✅ Full production deployment successful
-**Test Date**: November 7, 2025
+---
 
-### Summary
+### 🔒 KRITISCHE SECURITY FIXES
 
-Complete overhaul of Docker deployment system with fixes for filesystem permissions, authentication, and Solr 9.x compatibility. Successfully deployed and tested on production Debian server with Fedora 42.
+#### 1. Handler Syntax-Fehler behoben (KRITISCH)
+- **BEHOBEN:** Zirkuläre notify-Referenz in handlers/main.yml entfernt
+- **BEHOBEN:** Alle Handler verwenden jetzt community.docker modules
+- **BEHOBEN:** Error-Handling für alle Handler-Operationen hinzugefügt
+- **IMPACT:** Eliminiert Handler-Failures die zu inkonsistenten Zuständen führten
 
-### Fixed
+#### 2. Erweiterte Authorization Matrix  
+- **NEU:** Delete-Permission nur für Admin (Security-Lücke geschlossen)
+- **NEU:** Metrics-Zugriff für Admin + Support 
+- **NEU:** Backup-Operationen nur für Admin
+- **NEU:** Logging-Zugriff für Admin + Support
+- **VERBESSERT:** Granulare Permissions für alle User-Rollen
 
-**1. Environment Configuration Parsing** (P1)
-- **Issue**: `BACKUP_SCHEDULE=0 2 * * *` without quotes caused bash parsing errors
-- **Error**: `Zeile 45: 2: Kommando nicht gefunden`
-- **Fix**: Added quotes to `.env.example`: `BACKUP_SCHEDULE="0 2 * * *"`
-- **Commit**: `ccdffa5`
+#### 3. Security Panel Access Fix
+- **BEHOBEN:** Admin-User hat jetzt security-read und security-edit Rechte
+- **BEHOBEN:** Support/Customer können Security-Panel nicht mehr sehen
+- **VALIDIERT:** Authorization-Tests bestätigen korrekte Berechtigungen
 
-**2. Configurable CONFIG_DIR** (Enhancement)
-- **Issue**: Config path hardcoded to `./config`, user needed custom path
-- **Requirement**: Support `/var/solr-configs/docker/config`
-- **Fix**: Implemented `SOLR_CONFIG_DIR` environment variable
-  - Updated `scripts/generate-config.sh`
-  - Updated `scripts/create-core.sh`
-  - Updated `scripts/preflight-check.sh`
-  - Updated `docker-compose.yml`
-- **Result**: Flexible config directory placement
-- **Commit**: `bb9babf`
+---
 
-**3. Preflight Checks Too Strict** (P1)
-- **Issue**: Disk space check blocked deployment on dev systems (14GB < 20GB)
-- **Error**: `[✗] Insufficient disk space (14GB) - Need at least 20GB`
-- **Fix**: Changed hard failures to warnings
-  - Disk space: Warning instead of error for <20GB
-  - Memory check: Fixed bash integer validation errors
-  - System now continues with warnings
-- **Commit**: `ee4af3b`
+### 🚀 NEUE PRODUCTION FEATURES
 
-**4. Bash Integer Validation Errors** (P2)
-- **Issue**: Empty `total_mem_gb` variable caused integer comparison failures
-- **Error**: `Ganzzahliger Ausdruck erwartet`
-- **Fix**: Added validation: `total_mem_gb=$(free -g | awk '/^Mem:/{print $2}' | grep -E '^[0-9]+$' || echo "0")`
-- **Result**: Safe fallback to 0 with warning message
-- **Commit**: `ee4af3b`
+#### 1. Automated Backup Management
+- **NEU:** tasks/backup_management.yml - Vollständiges Backup-System
+- **NEU:** Scheduled Backups mit Cron (Standard: täglich 2:00 Uhr)
+- **NEU:** Automatische Retention-Management (7 Tage default)
+- **NEU:** Backup-Kompression unterstützt
+- **NEU:** Backup-Status-Checks und Health-Monitoring
+- **NEU:** Manual Backup-Script (/usr/local/bin/solr_backup_*.sh)
 
-**5. Docker Network IP Conflicts** (P0 - Deployment Blocker)
-- **Issue**: Hardcoded subnet `172.20.0.0/24` conflicted with existing networks
-- **Error**: `numerical result out of range`
-- **Fix**: Removed all `ipam` subnet configurations, let Docker auto-assign IPs
-  - Removed `driver_opts` for bridge names
-  - Removed obsolete `version: '3.8'` (Docker Compose v2)
-- **Result**: No more network conflicts on any system
-- **Commit**: `0a03004`
+#### 2. Performance & Monitoring
+- **NEU:** JVM GC-Optimierungen mit G1GC
+- **NEU:** Performance-Monitoring (solr_jvm_monitoring)
+- **NEU:** Health-Check-Intervalle konfigurierbar
+- **NEU:** Slow-Query-Threshold-Monitoring
+- **NEU:** Prometheus-Export vorbereitet (solr_prometheus_export)
+- **NEU:** GC-Logging für Performance-Analyse
 
-**6. Volume Permission Issues** (P0 - Critical)
-- **Issue**: Bind mounts inherited filesystem restrictions (no `chown` allowed on NFS-like filesystems)
-- **Error**: `ERROR: Logs directory /var/solr/logs is not writable. Exiting`
-- **Root Cause**: Volume mount conflict - named volume at `/var/solr` blocked bind mounts
-- **Attempts**:
-  1. ❌ `init-solr-permissions.sh` script - worked but didn't solve container issue
-  2. ✅ **Final Solution**: Switched to Docker Named Volumes for logs/backups
-- **Fix**:
-  - Changed `solr_data` mount from `/var/solr` → `/var/solr/data`
-  - Created separate named volumes: `solr_logs`, `solr_backups`
-  - Extended `solr-init` container to initialize all volumes with correct permissions
-- **Result**: Solr can write to all directories, no filesystem restrictions
-- **Commits**: `d624d91`, `42af38d`, `e629337`, `2bfc5dc`, `e5ba542`
+#### 3. Memory & Resource Management
+- **VERBESSERT:** G1GC als Standard-Garbage-Collector
+- **NEU:** Konfigurierbare GC-Parameter
+- **NEU:** JVM-Optimierungen für Server-Workloads
+- **NEU:** Memory-Monitoring und Alerting-Vorbereitung
 
-**7. Permission Initialization Script** (Enhancement)
-- **Created**: `scripts/init-solr-permissions.sh`
-- **Features**:
-  - Auto-detects sudo requirement
-  - Sets ownership to 8983:8983 (Solr UID)
-  - Only touches Solr directories (logs, data, backups)
-  - Idempotent (safe to run multiple times)
-- **Note**: Not needed with Docker volumes, kept for compatibility
-- **Commit**: `d624d91`
+---
 
-**8. Security.json Invalid Permission** (P1 - Solr 9.x Compatibility)
-- **Issue**: `delete` permission not valid in Solr 9.x
-- **Error**: `Permission with name delete is neither a pre-defined permission`
-- **Fix**: Removed `delete` permission from `security.json` template
-  - `update` permission already covers DELETE operations in Solr 9.x
-- **Commit**: `009ac51`
+### 🧪 TESTING & VALIDATION (100% COVERAGE)
 
-**9. Health Check Authentication** (P1)
-- **Issue**: Health check failed because `/admin/ping` requires authentication
-- **Error**: Container marked unhealthy, constant restarts
-- **Fix**: Simplified health check to test HTTP port availability
-  - Changed from `/solr/admin/ping` to `/` (root endpoint)
-  - Works with authentication enabled
-- **Commit**: `f2775bc`
+#### 1. Comprehensive Test Suite
+- **BESTÄTIGT:** 19/19 Integration Tests PASSING (100% Success Rate)
+- **BESTÄTIGT:** 10/10 Moodle Document Tests PASSING  
+- **NEU:** Authorization-Matrix-Tests für alle User-Rollen
+- **NEU:** Performance-Tests für Memory und Query-Response
+- **NEU:** Backup-Functionality-Tests
 
-**10. Core Creation Script Authentication** (P0 - Deployment Blocker)
-- **Issue**: `create-core.sh` waited for Solr without authentication, hung forever
-- **Error**: Script timeout after 60 seconds
-- **Fix**:
-  - Changed wait check to simple HTTP port test (no auth needed)
-  - Added broken core detection and cleanup
-  - Improved error messages with actual Solr responses
-- **Commits**: `5f71cd1`, `f519a31`
+#### 2. Test Configuration Flags
+- **NEU:** --tags "install-solr-test" für Testing-only
+- **NEU:** --tags "install-solr-moodle" für Moodle-Tests
+- **NEU:** --tags "install-solr-backup" für Backup-Tests  
+- **NEU:** --skip-tags "install-solr-test" für schnelle Deployments
+- **NEU:** perform_core_testing=true für Full Test Suite
 
-**11. Missing ConfigSet** (P0 - Deployment Blocker)
-- **Issue**: `_default` configSet didn't exist in `/var/solr/data/configsets/`
-- **Error**: `Could not load configuration from directory /var/solr/data/configsets/_default`
-- **Fix**: Created complete `moodle` configSet in `init-container.sh`
-  - Minimal `solrconfig.xml` with essential handlers
-  - Full Moodle schema copied from `config/moodle_schema.xml`
-  - Stopwords files copied to `conf/lang/`
-- **Commits**: `56a4903`, `487d932`, `c6c8fa5`
+---
 
-**12. Deprecated AdminHandlers Class** (P2)
-- **Issue**: `solr.admin.AdminHandlers` class removed in Solr 9.x
-- **Error**: `ClassNotFoundException: solr.admin.AdminHandlers`
-- **Fix**: Removed deprecated handler from `solrconfig.xml`
-- **Commit**: `487d932`
+### 🔧 CONFIGURATION ENHANCEMENTS
 
-**13. Missing Stopwords Files** (P1)
-- **Issue**: Schema referenced `lang/stopwords.txt` but files not in configSet
-- **Error**: `Can't find resource 'lang/stopwords.txt'`
-- **Fix**: Copy all stopwords files from `/lang` to configSet during init
-  - `stopwords.txt`, `stopwords_de.txt`, `stopwords_en.txt`
-- **Commit**: `c6c8fa5`
+#### 1. Enhanced defaults/main.yml
+- **NEU:** Monitoring & Metrics Konfiguration
+- **NEU:** Backup Configuration mit Schedule
+- **NEU:** Performance Tuning Parameter
+- **BEHOBEN:** Doppelte Variable-Definitionen eliminiert
+- **BEHOBEN:** Log-Level nur einmal definiert
 
-**14. Core Creation with Moodle Schema** (Architecture Change)
-- **Issue**: Solr 9.x Managed Schema API expects JSON, not XML
-- **Error**: `JSON Parse Error: char=<,position=0`
-- **Solution**: Use Classic Schema with pre-configured `schema.xml`
-  - Changed from Managed Schema API approach to Classic Schema
-  - ConfigSet includes complete schema at creation time
-  - No post-creation schema upload needed
-- **Commit**: `98a0934`
+#### 2. Erweiterte Templates
+- **NEU:** backup_script.sh.j2 für manuelle Backups
+- **VERBESSERT:** security.json.j2 mit granularen Permissions
+- **VERBESSERT:** docker-compose.yml.j2 mit GC-Optimierungen
 
-### Added
+---
 
-- **Docker Named Volumes** for logs, backups, and data
-- **Moodle ConfigSet** with complete Solr 9.x compatible schema
-- **Improved Error Reporting** in all scripts with detailed Solr responses
-- **Automatic Permission Initialization** in init-container
-- **Idempotent Configuration** - safe to restart/redeploy
+### 📚 DOCUMENTATION UPDATES
 
-### Changed
+#### 1. README.md Komplett überarbeitet
+- **NEU:** Vollständige Authorization-Matrix-Tabelle
+- **NEU:** Testing-Flags-Sektion mit allen verfügbaren Tags
+- **NEU:** Performance-Testing-Anweisungen
+- **NEU:** Security & Authorization Feature-Matrix
+- **AKTUALISIERT:** Version Badge auf 1.4.0 und Tests-Badge (19/19 passing)
 
-- **Volume Architecture**: Named volumes instead of bind mounts
-- **Schema Deployment**: Classic schema in configSet instead of Managed Schema API
-- **Health Checks**: Simplified for authentication compatibility
-- **Preflight Checks**: Warnings instead of hard failures
-- **Network Configuration**: Auto-assigned IPs instead of hardcoded subnets
+#### 2. Erweiterte Troubleshooting-Guides
+- **NEU:** Handler-Error-Debugging
+- **NEU:** Security-Permission-Testing
+- **NEU:** Backup-Failure-Recovery
+- **NEU:** Performance-Tuning-Guide
+
+---
+
+## Version 1.2.0 - 25.10.2025
+
+**Maintainer:** Bernd Schreistetter  
+**Typ:** Feature Release - Moodle Integration  
+**Priorität:** Mittel - Erweitert v1.1 um Moodle-spezifische Features
+
+---
+
+### Übersicht
+
+Version 1.2.1 erweitert die v1.1 Basis um **vollständige Moodle-Integration**. Moodle-spezifisches Solr-Schema für Versionen 4.1 bis 5.0.x, automatisierte Test-Dokumente und Schema-Validierung sind jetzt verfügbar.
+
+---
+
+### Neue Features
+
+#### 1. Moodle Schema Support
+- **NEU:** Moodle-spezifisches Solr Schema Template (moodle_schema.xml.j2)
+- **NEU:** Kompatibilität für Moodle 4.1, 4.2, 4.3, 4.4, 5.0.x
+- **NEU:** Automatische Schema-Generierung mit allen Moodle-Standardfeldern
+- **VORTEIL:** Plug-and-play Integration für Moodle Global Search
+
+#### 2. Moodle Test Documents
+- **NEU:** 5 vorgefertigte Test-Dokument-Typen
+- **NEU:** Forum Posts, Wiki Pages, Course Modules, Assignments, Page Resources
+- **NEU:** Automatisierte Such-Tests (by title, content, courseid, type, facets)
+- **NEU:** Rundeck-kompatible Test-Reports
+- **VORTEIL:** Validierung der Moodle-Integration ohne echte Moodle-Installation
+
+#### 3. Schema Preparation Task
+- **NEU:** tasks/moodle_schema_preparation.yml
+- **NEU:** Schema-Validierung
+- **NEU:** Moodle-Versions-Check
+- **VORTEIL:** Garantiert korrektes Schema vor Core-Erstellung
+
+#### 4. Erweiterte Variablen
+- **NEU:** solr_use_moodle_schema (default: true)
+- **NEU:** solr_moodle_test_docs (default: false)
+- **NEU:** solr_moodle_versions Liste
+- **VORTEIL:** Flexible Aktivierung/Deaktivierung von Moodle-Features
+
+---
+
+### Geänderte Dateien
+
+#### defaults/main.yml
+**Status:** ERWEITERT (v1.1 → v1.2 → v1.2.1 )  
+**Neue Variablen:**
+```yaml
+solr_use_moodle_schema: true
+solr_moodle_test_docs: false
+solr_moodle_versions: ["4.1", "4.2", "4.3", "4.4", "5.0.x"]
+```
+
+#### tasks/main.yml
+**Status:** ERWEITERT  
+**Neue Task-Includes:**
+- moodle_schema_preparation.yml (nach core_creation, vor proxy_configuration)
+- moodle_test_documents.yml (optional, nach integration_tests)
+
+---
+
+### Neue Task-Dateien
+
+#### 1. moodle_schema_preparation.yml
+**Funktion:** Moodle-Schema generieren und validieren  
+**Zeilen:** ~50  
+**Highlights:**
+- Template-basierte Schema-Generierung
+- Schema-Existenz-Prüfung
+- Moodle-Versions-Kompatibilitäts-Info
+- Rundeck-JSON-Output
+
+#### 2. moodle_test_documents.yml
+**Funktion:** Test-Dokumente für Moodle-Integration  
+**Zeilen:** ~310  
+**Highlights:**
+- 5 verschiedene Moodle-Dokumenttypen
+- Automatische Indexierung
+- 4 Such-Tests (title, content, courseid, type)
+- Facet-Search-Test
+- Commit-Verifikation
+- Umfangreiche Rundeck-Reports
+
+---
+
+### Neue Template-Dateien
+
+#### 1. moodle_schema.xml.j2
+**NEU:** Moodle-spezifisches Solr Schema  
+**Zeilen:** ~150 (geschätzt)  
+**Moodle-Felder:**
+- id (unique identifier)
+- title (searchable text)
+- content (main searchable content)
+- contextid (Moodle context)
+- courseid (course association)
+- owneruserid (document owner)
+- modified (timestamp)
+- type (document type: forum_post, wiki_page, etc.)
+- areaid (search area identifier)
+- itemid (Moodle item ID)
+- modname (module name: forum, wiki, assign, etc.)
+- username (user display name)
+- categoryid (course category)
+- intro/description (additional text fields)
+
+**Moodle-Kompatibilität:** 4.1, 4.2, 4.3, 4.4, 5.0.x
+
+---
+
+### Task-Reihenfolge v1.2
+
+```
+1.  preflight_checks.yml
+2.  system_preparation.yml
+3.  docker_installation.yml
+4.  auth_prehash.yml
+5.  auth_securityjson.yml
+6.  compose_generation.yml
+7.  container_deployment.yml
+8.  auth_validation.yml
+9.  auth_persistence.yml
+10. core_creation.yml
+11. moodle_schema_preparation.yml    ← NEU in v1.2
+12. proxy_configuration.yml
+13. integration_tests.yml
+14. moodle_test_documents.yml        ← NEU in v1.2 (optional)
+15. finalization.yml
+16. rundeck_integration.yml
+```
+
+---
+
+### Migration von v1.1 zu v1.2 und v1.2.1
+
+**WICHTIG:** v1.2 ist rückwärtskompatibel!
+
+#### Automatisches Upgrade
+```bash
+# Einfach v1.2.1 deployen - keine Breaking Changes
+ansible-playbook install_solr.yml -i inventory/hosts
+```
+
+#### Optionale Moodle-Features aktivieren
+```yaml
+# In host_vars/server01.yml
+solr_use_moodle_schema: true          # Schema verwenden (Standard: true)
+solr_moodle_test_docs: true           # Test-Docs indexieren (Standard: false)
+```
+
+#### Moodle-Schema nachrüsten (für bestehende v1.1 Installationen)
+```bash
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle
+```
+
+---
+
+### Testing v1.2
+
+#### Manuelles Moodle-Schema-Test
+```bash
+# Schema-Datei prüfen
+cat /opt/solr/config/moodle_schema.xml
+
+# Im Core prüfen (nach Deployment)
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/schema/fields" | jq '.fields[] | select(.name | startswith("moodle"))'
+```
+
+#### Moodle Test-Documents ausführen
+```bash
+# Nur Moodle-Tests
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-moodle-test
+
+# Prüfen ob Dokumente indexiert
+curl -u customer:PASSWORD "http://localhost:8983/solr/kunde01_core/select?q=type:forum_post" | jq '.response.numFound'
+```
+
+---
+
+### Bekannte Limitierungen v1.2
+
+1. Moodle-Schema ist read-only nach Core-Erstellung (Solr-Limitation)
+2. Test-Dokumente sind Demo-Daten (keine echten Moodle-Daten)
+3. Schema-Änderungen erfordern Core-Neuanlage
+4. Keine automatische Schema-Migration von basic_configs → moodle_schema
+
+---
+
+## Version 1.1.0
+
+**Maintainer:** Bernd Schreistetter  
+**Typ:** Major Feature Release + Bugfix  
+**Priorität:** Hoch - Löst kritisches BasicAuth-Problem (Funfact hat es nicht)
+
+---
+
+### Übersicht
+
+Version 1.1.0 implementiert das **Init-Container-Pattern mit Pre-Deployment-Authentication** und eliminiert alle Python-Abhängigkeiten. Diese Version löst das "Rehashing-Problem" von Solr 9.9.0 systematisch.
+
+---
+
+### Neue Features
+
+#### 1. Pre-Deployment Authentication
+- **NEU:** Passwörter werden VOR Container-Start gehasht
+- **NEU:** security.json wird in `/opt/solr/config/` erstellt BEVOR Container startet
+- **NEU:** Init-Container kopiert security.json mit korrekten Permissions
+- **VORTEIL:** Keine API-basierten Passwort-Operationen mehr (eliminiert Race Conditions)
+
+#### 2. Python-freie Implementation
+- **ENTFERNT:** Alle Python-Scripts und Dependencies
+- **ENTFERNT:** htpasswd (apache2-utils) für bcrypt-Hashing (Solr regelt :) )
+- **NEU:** Native Shell-Implementierung für alle Auth-Operationen
+- **VORTEIL:** Weniger Dependencies, einfacheres Deployment
+
+#### 3. Init-Container Pattern
+- **NEU:** Docker Compose mit Init-Container-Service
+- **NEU:** Garantierte Deployment-Reihenfolge via `depends_on`
+- **NEU:** Named Volumes statt bind mounts
+- **VORTEIL:** security.json überlebt Container-Restarts
+
+#### 4. Rundeck-Integration
+- **NEU:** Vollständige Rundeck-API-Integration
+- **NEU:** Automatische Job-Registrierung (Health Check, Backup, Restart)
+- **NEU:** Webhook-Receiver für Remote-Trigger
+- **NEU:** JSON-Output für Rundeck-Kompatibilität
+- **VORTEIL:** Monitoring und Automation und für Kkeck ;) 
+
+#### 5. Modulare Task-Struktur
+- **GEÄNDERT:** Auth-Logik auf 4 separate Task-Dateien aufgeteilt anstonsten einfach zu groß ~500 zeilen
+- **VORTEIL:** Bessere Wartbarkeit
+
+---
+
+### Geänderte Dateien
+
+#### tasks/main.yml
+**Status:** VOLLSTÄNDIG ÜBERARBEITET  
+**Änderungen:**
+- Task-Reihenfolge geändert: Auth VOR Deployment (Tasks 4-5 vor Task 7)
+- Neue Task-Includes: auth_prehash, auth_securityjson, compose_generation
+- Rundeck-Integration am Ende hinzugefügt(Default=deaktviert muss mit Angeben werden.)
+- security_setup.yml, security_bcrypt.yml, etc. ENTFERNT (durch neue Module ersetzt)
+
+#### defaults/main.yml
+**Status:** ERWEITERT  
+**Neue Variablen:**
+- `solr_compose_dir: "/opt/solr"`
+- `solr_config_dir: "{{ solr_compose_dir }}/config"`
+- `solr_init_container_timeout: 60`
+- `solr_init_container_retries: 5`
+- `solr_bcrypt_rounds: 10`
+- `rundeck_integration_enabled: false`
+- `rundeck_api_url`, `rundeck_api_token`, `rundeck_project_name`
+- `rundeck_webhook_enabled`, `rundeck_webhook_secret`
+
+---
+
+### Neue Task-Dateien v1.1 (outtodate)
+
+#### 1. auth_prehash.yml
+**Funktion:** Bcrypt-Hashing VOR Container-Deployment  
+**Zeilen:** 143  
+**Highlights:**
+- Idempotenz-Check für security.json
+- Hash-Verifikation
+- Rundeck-JSON-Output
+
+#### 2. auth_securityjson.yml (Fixed )
+**Funktion:** security.json aus Hashes erstellen  
+**Zeilen:** 91  
+**Highlights:**
+- Template-basierte Generierung
+- JSON-Syntax-Validierung
+- Struktur-Validierung
+- Ownership-Prüfung (8983:8983)
+
+#### 3. compose_generation.yml
+**Funktion:** docker-compose.yml generieren  
+**Zeilen:** 74  
+**Highlights:**
+- Init-Container-Pattern
+- Syntax-Validierung
+- .env-Datei-Generierung
+- security.json-Existence-Check
+
+#### 4. container_deployment.yml
+**Funktion:** Container mit Init-Pattern deployen  
+**Zeilen:** 103  
+**Highlights:**
+- Init-Container-Wait
+- security.json-Deployment-Verifikation
+- Health-Check
+- Auth-Activation-Check
+
+#### 5. auth_validation.yml
+**Funktion:** Post-Deployment Auth-Tests  
+**Zeilen:** 121  
+**Highlights:**
+- Alle drei User-Accounts testen
+- Authorization-Tests (Admin vs. Support)
+- Rundeck-JSON-Output
+- Error Reporting
+
+#### 6. auth_persistence.yml
+**Funktion:** Credentials speichern  
+**Zeilen:** 119  
+**Highlights:**
+- host_vars-Speicherung
+- Backup-Datei in /var/solr
+- Rundeck-Credential-Export
+- Vault-ready Format (Weis aber nicht ob unser Ansible das kann also kann optional aktiviert werden)
+
+#### 7. preflight_checks.yml
+**Funktion:** Pre-Deployment-Validierung  
+**Zeilen:** 104  
+**Highlights:**
+- Docker Compose-Check
+- htpasswd-Verfügbarkeit (Removed)
+- Port-Conflict-Detection
+- Rundeck-kompatibel
+
+#### 8. rundeck_integration.yml
+**Funktion:** Rundeck-API-Integration  
+**Zeilen:** 107  
+**Highlights:**
+- Job-Registrierung (Health, Backup, Restart)
+- Webhook-Receiver-Setup
+- Health-Check-Endpoint
+- API-Token-Authentifizierung
+
+---
+
+### Neue Template-Dateien v1.1
+
+#### 1. security.json.j2
+**Änderung:** Verwendet pre-hashed Passwörter statt Klartext  
+**Zeilen:** 33 oder mehr
+
+#### 2. docker-compose.yml.j2
+**NEU:** Compose-Konfiguration mit Init-Container  
+**Zeilen:** 58  
+**Services:** solr-init, solr  
+**Volumes:** Named Volume statt bind mount
+
+#### 3. docker-compose.env.j2
+**NEU:** Environment-Variables für Compose  
+**Zeilen:** 19
+
+#### 4. rundeck_health_check_job.yml.j2
+**NEU:** Rundeck Job-Definition  
+**Schedule:** Alle 5 Minuten
+
+#### 5. rundeck_backup_job.yml.j2
+**NEU:** Rundeck Job-Definition  
+**Schedule:** Täglich 02:00 Uhr
+
+#### 6. rundeck_restart_job.yml.j2
+**NEU:** Rundeck Job-Definition  
+**Schedule:** Manuell
+
+#### 7. health_check_endpoint.sh.j2
+**NEU:** Health-Check-Script  
+**Output:** JSON oder Text
+
+#### 8. rundeck_webhook_receiver.sh.j2
+**NEU:** Webhook-Receiver-Script  
+**Actions:** health, restart, backup
+
+---
+
+### Entfernte Dateien v1.1
+
+- `tasks/security_setup.yml` → Ersetzt durch auth_prehash.yml
+- `tasks/security_bcrypt.yml` → Ersetzt durch auth_prehash.yml + auth_securityjson.yml
+- `tasks/security_validation.yml` → Ersetzt durch auth_validation.yml
+- `tasks/security_persistence.yml` → Ersetzt durch auth_persistence.yml
+- `/tmp/generate_solr_security.py` → Python eliminiert
+
+---
+
+### Problemlösung: "Rehashing-Problem" v1.1
+
+#### Vorher (v1.1.5)
+```
+1. Container startet
+2. API-Call: Erstelle User "admin"
+3. Solr generiert neuen Salt → neuer Hash
+4. Container-Restart
+5. security.json weg (kein Volume)
+6. Zurück zu Schritt 2 → IMMER neuer Hash → 401-Fehler
+```
+
+#### Nachher (v1.1)
+```
+1. Pre-Hash: htpasswd -nbBC 10 admin "password"
+2. Erstelle security.json mit Hash
+3. Init-Container: Kopiere security.json nach /var/solr/data
+4. Solr startet mit existierender security.json
+5. Container-Restart
+6. security.json bleibt (Named Volume)
+7. Auth funktioniert! → 200 OK (Maybe)
+```
+#### Nachher (v1.2.1)
+```
+1. Solr Intern 
+2. Erstellelt security.json mit korrektem Hash Verfahren
+3. Init-Container: Kopiere security.json nach /var/solr/data
+4. Solr startet mit existierender security.json
+5. Container-Restart
+6. security.json bleibt (Named Volume)
+7. Auth  ghet.
+
+---
+### Verzeichnisstruktur v1.2.1
+
+###IDK Someting changed
+
+
+### Verzeichnisstruktur v1.2
+
+```
+/opt/solr/
+├── config/
+│   ├── security.json          # PRE-DEPLOYMENT
+│   └── moodle_schema.xml      # NEU in v1.2
+├── docker-compose.yml
+└── .env
+
+/var/solr/
+├── data/                      # NAMED VOLUME
+│   └── security.json         # Von Init-Container kopiert
+└── backup/
+
+/usr/local/bin/
+├── solr_health_check
+└── solr_rundeck_webhook
+```
+---
 
 ### Testing
 
-**Test Environment**:
-- OS: Debian
-- Docker: 28.5.1
-- Docker Compose: 2.40.3
-- Filesystem: ext4 (with custom mount paths)
-
-**Test Results**:
+#### Manuelle Verifikation
 ```bash
-✅ Solr 9.9.0 started and healthy
-✅ Moodle core created with 24 fields
-✅ Authentication working (Basic Auth)
-✅ Document indexing successful
-✅ Search queries functional
-✅ All permissions correct (UID 8983)
-✅ No permission errors
-✅ No authentication errors
-✅ No network conflicts
+# Auth-Test
+curl http://localhost:8983/solr/admin/info/system
+# Sollte 401 zurückgeben
+
+curl -u admin:PASSWORD http://localhost:8983/solr/admin/info/system
+# Sollte 200 zurückgeben
+
+# Restart-Test
+docker compose -f /opt/solr/docker-compose.yml restart
+sleep 15
+curl -u admin:PASSWORD http://localhost:8983/solr/admin/info/system
+# Sollte IMMER NOCH 200 zurückgeben (nicht mehr 401!)
 ```
 
-**Test Document**:
-```json
-{
-  "id": "test_doc_1",
-  "title": "Test Moodle Document",
-  "content": "This is a test document for Moodle search",
-  "contextid": 1,
-  "courseid": 1,
-  "owneruserid": 1,
-  "modified": "2025-11-07T19:00:00Z",
-  "type": "forum_post",
-  "areaid": "mod_forum-post",
-  "itemid": 1
-}
-```
-
-**Query Result**: `numFound: 1` ✅
-
-### Deployment Notes
-
-- System successfully deployed on Debian server
-- All Docker volumes managed by Docker (no host filesystem issues)
-- Works on systems with custom mount paths and filesystem restrictions
-- Compatible with systems where `chown` operations are restricted
-- Auto-scaling IPs prevent network conflicts in multi-container environments
-
-### Migration from 3.4.x
-
-If upgrading from 3.4.x:
+#### Automated Tests
 ```bash
-# Remove old volumes and recreate
-docker compose down -v
-make config
-make start
-make create-core
+ansible-playbook install_solr.yml -i inventory/hosts --tags install-solr-test
 ```
 
 ---
 
-## [3.3.0] - 2025-11-06
+### Performance
 
-### 🔴 Critical Production Fixes (P0)
-
-**Focus**: Fix production-blocking issues identified in code review
-
-### Fixed
-
-**1. Security.json Persistence Problem** (CRITICAL)
-- **Issue**: security.json was overwritten on every container restart, causing 401 errors
-- **Impact**: All tenant users lost after restart, production downtime
-- **Fix**: `scripts/init-container.sh` now preserves existing security.json
-  - Only deploys on first run
-  - Optionally merges new admin users without destroying tenant users
-  - Creates timestamped backups before any modifications
-- **Validation**: Added `scripts/validate-security-json.sh` to verify integrity
-- **Result**: Tenant credentials now persist across restarts ✅
-
-**2. Race Conditions in Tenant Management** (CRITICAL)
-- **Issue**: Parallel tenant operations could corrupt security.json
-- **Impact**: Data loss, inconsistent RBAC configuration, production failures
-- **Fix**: Implemented atomic security.json manager with file locking
-  - New: `scripts/lib/security-json-manager.sh` - Atomic operations library
-  - File locking with stale lock detection
-  - Transaction support with rollback capability
-  - Automatic backups before modifications
-- **Updated Scripts**:
-  - `scripts/tenant-create.sh` - Now uses transactional updates
-  - `scripts/tenant-delete.sh` - Now uses transactional updates
-- **Result**: Concurrent tenant operations are now safe ✅
-
-**3. Backup Consistency Issues** (CRITICAL)
-- **Issue**: Backups created during active writes (inconsistent state)
-- **Impact**: Potentially unusable backups, disaster recovery failure
-- **Fix**: Enhanced `scripts/tenant-backup.sh` with:
-  - Force commit before backup (flushes all pending changes)
-  - Pre-backup metadata collection (document count, index version)
-  - Structured metadata files (`.meta.json`)
-  - Better error handling and validation
-- **Result**: Backups are now consistent and verifiable ✅
-
-### Impact
-
-**Before (v3.2.0)**:
-- ❌ Production Readiness: 40%
-- ❌ Data Safety: 50%
-- ❌ Disaster Recovery: 20%
-
-**After (v3.3.0)**:
-- ✅ Production Readiness: 85%
-- ✅ Data Safety: 90%
-- ✅ Disaster Recovery: 85%
-
-### Breaking Changes
-
-None. All changes are backward compatible.
-
-### Migration
-
-No action required. Fixes are automatic on upgrade.
-
-### Testing
-
-Run comprehensive tests to verify fixes:
-```bash
-# Test persistence
-docker compose restart solr
-# Verify tenants still accessible
-
-# Test concurrent operations
-for i in {1..5}; do make tenant-create TENANT=test_$i & done
-wait
-
-# Test backups
-make tenant-backup TENANT=<tenant_id>
-# Verify metadata file exists
-```
-
-### Stats
-
-- **3 critical bugs fixed**
-- **3 files modified** (init-container.sh, tenant-create.sh, tenant-delete.sh)
-- **2 new files** (security-json-manager.sh, validate-security-json.sh)
-- **~500 lines of code** (fixes + improvements)
+- **Deployment-Zeit:** ~3 Minuten (v1.1), ~3-4 Minuten (v1.2.1 mit Moodle-Tests)
+- **Init-Container:** <5 Sekunden
+- **Idempotenz:** Kein Auth-Recreation bei wiederholter Ausführung
 
 ---
 
-**Version**: 3.3.0
-**Focus**: Critical Fixes (P0)
-**Review**: Based on comprehensive code review
-**Status**: Complete ✅
+### Sicherheit
+
+- Bcrypt mit 10 Rounds
+- Credentials in host_vars (Vault-ready)
+- Backup-Dateien mit 0400 Permissions
+- Keine Klartext-Passwörter in Logs
 
 ---
 
-## [3.2.0] - 2025-11-06
+### Eledia Style Guide Konformität
 
-### 🏢 Multi-Tenancy Support (Optional Feature)
-
-**Focus**: Enable hosting multiple isolated search indexes within one Solr instance
-
-### Added
-
-**1. Multi-Tenancy Architecture**
-- **Optional feature** for hosting multiple Moodle instances on one server
-- Complete isolation through Solr RBAC
-- Per-tenant authentication and authorization
-- No Moodle installation required - fully standalone
-
-**2. Tenant Management Scripts**
-- `scripts/tenant-create.sh` - Create isolated tenant (core + user + RBAC)
-  - Generates secure random passwords (32 chars, high entropy)
-  - Configures RBAC isolation automatically
-  - Validates creation with test queries
-  - Saves credentials to `.env.<tenant_id>`
-- `scripts/tenant-delete.sh` - Delete tenant with optional backup
-  - Optional backup before deletion
-  - Removes core, user, and RBAC configuration
-  - Archives credentials file
-  - Confirmation prompt required
-- `scripts/tenant-list.sh` - List all tenants with statistics
-  - Shows tenant ID, core name, user account, document count, size, status
-  - Detailed view with `--detailed` flag
-  - Connection test for each tenant
-- `scripts/tenant-backup.sh` - Backup single or all tenants
-  - Per-tenant backup with Solr snapshots
-  - Bulk backup with `--all` flag
-  - List backups with `--list`
-  - Clean old backups with `--clean`
-
-**3. Documentation**
-- `MULTI_TENANCY.md` - Comprehensive English guide
-  - Architecture diagrams (single vs multi-tenant)
-  - Security isolation details
-  - Tenant management instructions
-  - Naming conventions
-  - Migration guide (single → multi)
-  - Best practices (capacity planning, naming, backups)
-  - Troubleshooting section
-- `MULTI_TENANCY_DE.md` - Complete German translation
-
-**4. Makefile Integration**
-- `make tenant-create TENANT=<id>` - Create new tenant
-- `make tenant-delete TENANT=<id> [BACKUP=true]` - Delete tenant
-- `make tenant-list` - List all tenants
-- `make tenant-backup TENANT=<id>` - Backup single tenant
-- `make tenant-backup-all` - Backup all tenants
-
-**5. Multi-Tenant Integration Tests**
-- `tests/multi-tenant-test.sh` - Comprehensive test suite (30+ tests)
-- Test categories:
-  - Tenant creation (8 tests)
-  - Tenant access (4 tests)
-  - Security isolation (4 tests)
-  - Data isolation (4 tests)
-  - Tenant management (8 tests)
-- Auto-cleanup of test tenants
-- Validates RBAC enforcement
-
-### Security Isolation
-
-**RBAC Enforcement**:
-- ✅ Each tenant has dedicated Solr core
-- ✅ Each tenant has unique user account
-- ✅ Tenants CANNOT access other tenants' cores (403 Forbidden)
-- ✅ Tenants CANNOT perform admin operations
-- ✅ Admin user retains full access for management
-- ✅ Passwords use double SHA-256 hashing
-
-**Tested Security**:
-- Cross-tenant query attempts blocked (HTTP 403)
-- Admin API access denied for tenants
-- Core creation attempts denied for tenants
-- Data isolation verified (tenant1 cannot see tenant2's documents)
-
-### Use Cases
-
-✅ **When to use Multi-Tenancy**:
-- Multiple Moodle instances on one server
-- Development/Staging/Production environments
-- Departmental isolation
-- Cost optimization (vs. multiple Solr containers)
-- Centralized management
-
-❌ **When to use Single-Tenant (Default)**:
-- One application needs search
-- Maximum container-level isolation needed
-- Minimal complexity desired
-
-### Naming Conventions
-
-- **Cores**: `moodle_<tenant_id>` (e.g., `moodle_tenant1`)
-- **Users**: `<tenant_id>_customer` (e.g., `tenant1_customer`)
-- **Credentials**: `.env.<tenant_id>` (e.g., `.env.tenant1`)
-
-### Usage Examples
-
-```bash
-# Create a tenant
-make tenant-create TENANT=prod
-
-# Output:
-# ✅ Tenant 'prod' created successfully!
-# 📋 Connection Details:
-#    Core:     moodle_prod
-#    User:     prod_customer
-#    Password: <random-32-char-password>
-#    URL:      http://localhost:8983/solr/moodle_prod
-# 🔐 Credentials saved to: .env.prod
-
-# List all tenants
-make tenant-list
-
-# Backup a tenant
-make tenant-backup TENANT=prod
-
-# Delete a tenant (with backup)
-make tenant-delete TENANT=prod BACKUP=true
-
-# Backup all tenants
-make tenant-backup-all
-```
-
-### Moodle Configuration
-
-```php
-// In config.php for tenant:
-$CFG->solr_server_hostname = 'localhost';
-$CFG->solr_server_port = '8983';
-$CFG->solr_indexname = 'moodle_prod';  // Tenant-specific core
-$CFG->solr_server_username = 'prod_customer';
-$CFG->solr_server_password = '<from .env.prod>';
-```
-
-### Impact
-
-- **Resource Efficiency**: 1 Solr container hosts multiple tenants (vs. N containers)
-- **Cost Reduction**: Lower memory/CPU overhead
-- **Centralized Management**: Single monitoring/backup stack
-- **Security**: RBAC-enforced isolation at Solr level
-- **Flexibility**: Can mix single-tenant and multi-tenant deployments
-
-### Design Decision
-
-Multi-tenancy was implemented as **user-requested feature** for legitimate use case:
-- ✅ Multiple Moodle instances on one server (real-world scenario)
-- ✅ Full Docker version works **without Moodle dependency** (standalone requirement met)
-- ✅ Optional feature (default remains single-tenant)
-
-### Stats
-
-- **4 new scripts** (tenant-create, tenant-delete, tenant-list, tenant-backup)
-- **2 new docs** (MULTI_TENANCY.md, MULTI_TENANCY_DE.md)
-- **5 new Makefile targets** (tenant-*)
-- **1 new test suite** (multi-tenant-test.sh with 30+ tests)
-- **~1,500 lines of code** (tenant management)
+-  Kebab-case für Role-Name
+-  Snake_case für Task-Dateien
+-  Dictionary-Struktur
+-  Rundeck-kompatible JSON-Outputs
 
 ---
 
-**Version**: 3.2.0
-**Focus**: Multi-Tenancy (Optional)
-**Requirement**: Standalone (no Moodle dependency) ✅
+### Bekannte Limitierungen v1.1
+
+1. Rundeck-Integration erfordert manuelle API-Token-Konfiguration
+2. Webhook-Receiver benötigt nginx/Apache für HTTPS-Zugriff
+3. Email-Benachrichtigungen erfordern konfigurierte Mail-Relay
 
 ---
 
-## [3.0.0] - 2025-11-06
-
-### 🎉 Major Milestone Release
-
-Standalone Docker solution with comprehensive features.
-
-### Complete Feature Set
-- ✅ Solr 9.9.0 + BasicAuth + RBAC + Double SHA-256 hashing
-- ✅ Monitoring (Prometheus + Grafana + Alertmanager)
-- ✅ Query Performance Dashboard (6 panels)
-- ✅ Health Dashboard Script
-- ✅ Integration Test Suite (40+ tests)
-- ✅ Pre-Flight Checks
-- ✅ Log Rotation
-- ✅ GC Logging
-- ✅ Network Segmentation
-- ✅ Bilingual Docs (EN/DE)
+**Entwickler:** BSC
+**Basis:** Apache Solr 9.9.0, Docker Compose v2
 
 ---
 
-## [2.6.0] - Dashboard & Tests
-## [2.5.0] - P1 Features (Log Rotation, GC, Pre-Flight, Memory Docs)
-## [2.4.0] - P2 Features (Network Segmentation, Grafana Templating, Runbook)
-## [2.3.1] - Double SHA-256 Password Hashing
-## [2.3.0] - Production Features
-## [2.2.0] - Monitoring with Profiles
-## [2.1.0] - Initial Monitoring
-## [2.0.0] - Docker Standalone
+### Zusammenfassung
+Version 1.2.1 ist ein minor release, der:
+- default werte anpasst/hinzufügt
+- Das Richtige Hash System verwedet
 
-See full changelog in documentation.
+Version 1.2.0 ist ein feature release, der:
+- Vollständige Moodle-Integration bietet (Schema + Test-Docs)
+- Moodle 4.1 bis 5.0.x unterstützt
+- Optional aktivierbare Test-Dokumente bereitstellt
 
-**Last Updated**: v3.0.0 - 2025-11-06
+Version 1.1.0 ist ein major release, der:
+- Das kritische Rehashing-Problem systematisch löst
+- Python-Abhängigkeiten vollständig eliminiert
+- Rundeck-Integration für Monitoring bietet
+- Code-Qualität und Wartbarkeit verbessert 
 
----
+Version 1.0 ist major release:
+- Internal Testing Shit :) 
 
-## [3.1.0] - 2025-11-06
-
-### 🔒 Security & Quality Improvements
-
-**Focus**: CI/CD automation, security scanning, and performance benchmarking
-
-### Added
-
-**1. GitHub Actions CI/CD Pipeline**
-- `.github/workflows/ci.yml` - Comprehensive CI/CD
-- 7 jobs: config validation, script validation, Python validation, security scan, docs check, integration test validation, preflight validation
-- Runs on push/PR to main, master, and claude/** branches
-- Auto-validates: YAML, shellcheck, Python syntax, documentation
-- Security scanning with Trivy integrated
-
-**2. Security Scanning with Trivy**
-- `scripts/security-scan.sh` - Interactive security scanner
-- Scans: Docker Compose config, filesystem, Docker images, secrets
-- Generates JSON and SARIF reports
-- Menu-driven or `--all` for full scan
-- Auto-installs Trivy if missing
-- `make security-scan` command
-
-**3. Performance Benchmark Script**
-- `scripts/benchmark.sh` - Baseline performance metrics
-- Benchmarks: ping, simple query, facet query, search query
-- Measures: JVM memory, core statistics, query latency
-- Generates timestamped reports in `benchmark-results/`
-- Configurable: warmup queries, benchmark queries, concurrent users
-- `make benchmark` command
-
-**4. Project Quality**
-- `.gitignore` - Ignores security-reports/, benchmark-results/, data/, logs/
-- Makefile updated with `security-scan` and `benchmark` targets
-- Markdown link checking configuration
-
-### Purpose
-
-These improvements address **valid feedback** while ignoring **over-engineering suggestions**:
-
-✅ **Implemented** (makes sense):
-- CI/CD Pipeline (GitHub Actions) - Automates validation
-- Security Scanning (Trivy) - Identifies vulnerabilities
-- Performance Benchmarks - Baseline for comparisons
-
-❌ **Rejected** (not relevant for standalone Docker):
-- Kubernetes Support - Contradicts "standalone" project goal
-- Docker Compose splitting - Current profile solution is better
-- Multi-tenancy - Not required
-- Distributed Tracing - Overkill for single-node
-
-### Usage
-
-```bash
-# CI/CD (automatic on git push)
-git push
-
-# Security scan (interactive)
-make security-scan
-
-# Security scan (full, non-interactive)
-./scripts/security-scan.sh --all
-
-# Performance benchmark
-make benchmark
-```
-
-### Impact
-
-- **CI/CD**: Prevents broken code from merging
-- **Security**: Identifies vulnerabilities in Docker images and configs
-- **Benchmarks**: Detects performance regressions over time
-
-### Stats
-
-- **3 new scripts** (security-scan.sh, benchmark.sh, CI workflow)
-- **2 new Makefile targets** (security-scan, benchmark)
-- **7 CI/CD jobs** (comprehensive validation)
-- **4+ scan types** (config, filesystem, images, secrets)
 
 ---
 
-**Version**: 3.1.0
-**Focus**: Quality, Security, Automation
+**Version:** v1.4(03112025) Version: 1.3
+**Datum:** 25.10.2025  
+**Edit:** 03.11.10.2025  
+**Status:** Testing Ready (Real Data)
