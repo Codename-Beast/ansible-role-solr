@@ -67,7 +67,7 @@
       - SSL/TLS: {{ 'ENABLED' if solr_ssl_enabled | default(true) else 'DISABLED' }}
       - Admin User: {{ solr_admin_user }}
       - Support User: {{ solr_support_user }}
-      - Customer User: {{ solr_moodle_user }}
+      - Moodle User: {{ solr_moodle_user }}
       
       ## System Resources
       - Heap Size: {{ solr_heap_size }}
@@ -182,10 +182,10 @@
       Proxy URL: http://{{ solr_app_domain }}{{ solr_proxy_path }}
       
       Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}
-      
+
       Admin User: {{ solr_admin_user }}
       Support User: {{ solr_support_user }}
-      Customer User: {{ solr_moodle_user }}
+      Moodle User: {{ solr_moodle_user }}
       
       Credentials file: {{ solr_config_dir }}/credentials.yml
       
@@ -310,7 +310,7 @@
       - "CREDENTIALS:"
       - "  Admin User: {{ solr_admin_user }}"
       - "  Support User: {{ solr_support_user }}"
-      - "  Customer User: {{ solr_moodle_user }}"
+      - "  Moodle User: {{ solr_moodle_user }}"
       - "  Credentials File: {{ solr_config_dir }}/credentials.yml"
       - ""
       - "CONTAINER:"

@@ -69,7 +69,7 @@
 - **Geschätzt: 4.5h**
 
 **03.11.2025 (So) - 00:00-03:25**
-- v3.4.0 - 100% Production Ready
+- v3.4.0 - 100% Testing Ready
 - DRY, Configurable, Enhanced UX
 - User Story Compliance Analysis
 - Eledia branding
@@ -132,7 +132,7 @@
 - Remove duplicate customer_name
 - Update to v38.0.0 CHANGELOG
 - Complete project timesheets
-- Release v3.8.0 Production Ready
+- Release v3.8.0 Testing Ready
 - Timesheet organisch gestaltet
 - **Geschätzt: 9.5h** (MEGA Final Session)
 

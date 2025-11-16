@@ -332,7 +332,7 @@ username: "{{ solr_moodle_user | default('customer') }}"
 
 ## 🚀 STATUS v3.9.2 NACH FIXES
 
-**PRODUCTION READY - NOCH CLEANER! ✅**
+**TESTING READY - NOCH CLEANER! ✅**
 
 ### Was hat sich geändert?
 - ✅ Code-Qualität verbessert (14 Zeilen toter Code entfernt)
@@ -342,7 +342,7 @@ username: "{{ solr_moodle_user | default('customer') }}"
 ### Status bleibt:
 - 🧪 **TESTING** - aus ANDEREM Grund (Kompletttest steht aus)
 - ✅ Nicht wegen Feedback (Code war vorher schon funktional)
-- ✅ Jetzt nur noch sauberer implementiert!
+- ✅ Jetzt noch besser implementiert!
 
 ---
 
