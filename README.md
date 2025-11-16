@@ -8,7 +8,7 @@
 ![Quality](https://img.shields.io/badge/code%20quality-9.2%2F10-success)
 ![Status](https://img.shields.io/badge/status-testing-yellow)
 
-Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency, zero-downtime user management, automated backup, and comprehensive monitoring.
+Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
 
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
@@ -83,7 +83,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** 🧪 **TESTING** (v3.9.2 - Fehler bei Abnahme gefixt, Kompletttest ausstehend) | **Critical Fix:** RAM-Kalkulation korrigiert | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB
+**Status:** 🧪 **TESTING** (v3.9.2 - Fehler bei Abnahme gefixt und weitere fehler behandelt | **Critical Fix:** RAM-Kalkulation korrigiert | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB
 
 ---
 
@@ -198,7 +198,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 ## 📋 Requirements
 
 ### System Requirements
-- **OS**:  Debian 10/11/12
+- **OS**:  Debian 11/12
 - **Ansible**: 2.10.12 or higher
 - **Docker**: 20.10+ with Compose v2
 - **Disk**: Minimum 10GB free space
@@ -215,9 +215,6 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 ---
 
 ## 🚀 Quick Start
-
-> **v3.8.0 Ready!** This role is production-tested and supports Solr 9.9.0 (9.10 validated) with zero-downtime deployments.
-
 ### 1. Install the Role
 ```bash
 # From Git (v3.8.0)
@@ -382,13 +379,13 @@ solr_health_check_enabled: false
 
 Deploy up to **4-5 Moodle instances** on a 16GB server, or **10 instances** on a 32GB server with automatic RAM management and password generation.
 
-#### ⚠️ RAM Calculation (KORRIGIERT v3.9.0)
+#### ⚠️ RAM Calculation (Fixed in v3.9.0)
 
 **WICHTIG:** Die vorherige Berechnung war **fundamental falsch**!
 
 **Problem:** Caches sind **PER-CORE** und multiplizieren sich (nicht geteilt)!
 
-**Korrekte Berechnung basierend auf Apache Solr Best Practices 2024/2025:**
+**Korrekte Berechnung basierend auf Research**
 
 ```
 16GB Server mit 8GB Heap:
@@ -407,7 +404,7 @@ Pro Core RAM-Bedarf (effektiv):
 EFFEKTIV PRO CORE: ~1.5-2GB (NICHT 600MB!)
 ```
 
-**Realistische Limits für Moodle mit File-Indexing:**
+**Limits für Moodle mit File-Indexing:**
 
 | Server RAM | Heap | OS Cache | Max Cores | RAM/Core | Status |
 |------------|------|----------|-----------|----------|--------|
@@ -427,7 +424,7 @@ EFFEKTIV PRO CORE: ~1.5-2GB (NICHT 600MB!)
 # Global settings (16GB Server, max 4-5 cores)
 customer_name: "school-district"
 solr_app_domain: "solr.schools.edu"
-solr_heap_size: "8g"            # KORRIGIERT: 8GB für 16GB Server
+solr_heap_size: "8g"            # 8GB für 16GB Server
 solr_memory_limit: "14g"        # Container: 8GB Heap + 6GB OS Cache
 solr_webserver: "nginx"
 solr_ssl_enabled: true
@@ -438,7 +435,7 @@ solr_cores:
     domain: "moodle.gymnasium-nord.de"
     users:
       - username: "moodle_gym_nord"
-        password: "GymNord2024SecureKey"   # 24+ chars, YAML-safe
+        password: "GymNord2024SecureKey"  
         roles: ["core-admin-gymnasium_nord_core"]
 
   - name: "realschule_sued"
@@ -466,7 +463,6 @@ solr_cores:
 **Generated passwords:**
 - 24 characters long
 - Base64-encoded (alphanumeric + safe special chars)
-- YAML-safe (no quotes needed)
 - Displayed after deployment with hostvars example
 
 **Deployment Output Example:**
@@ -1050,23 +1046,22 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 ## 📝 Changelog
 
-### v3.8.0 (2025-11-16) - Current Release 🎯
+### v3.9.2 (2025-11-16) - Current Release 🎯
 
-**Status:** ✅ Production Ready (Rating: 9.2/10)
+**Status:** ✅ 
 
 **Major Updates:**
 - ✅ Solr 9.10.0 compatibility validated (upgrade ready)
 - ✅ All critical bugs fixed (4 bugs)
 - ✅ Moodle file indexing fields completed
-- ✅ Zero-downtime user management (v3.8.0)
+- ✅ User management (v3.8.0)
 - ✅ 100% Moodle 4.1-5.0.3 compatibility
-- ✅ 19/19 integration tests + 10/10 Moodle tests passing
 
 **Critical Fixes:**
 - Fixed circular variable dependency (customer_name)
 - Fixed Moodle schema fields (solr_filecontent, solr_fileindexstatus, etc.)
 - Fixed password exposure in logs (no_log: true)
-- Fixed docker_container_info bug (replaced with docker inspect)
+- Fixed docker_container_info bug (replaced with docker inspect) <-- Abnahme fehler
 - Corrected RAM documentation (4GB OS buffer)
 
 **See:** [CHANGELOG.md](CHANGELOG.md) for complete version history
@@ -1078,7 +1073,6 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 **Bernd Schreistetter**
 - Role: DevOps Engineer / Administrator
 - Organization: Eledia Gmbh
-- Email: bernd.schreistetter@eledia.de
 
 ---
 
