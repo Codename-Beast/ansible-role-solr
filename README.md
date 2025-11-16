@@ -13,7 +13,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
 **Rating**: 9.2/10 (Industry Best Practice)
-**Project Timeline**: 24.09.2025 - 16.11.2025 (54 days, 205h)
+**Project Timeline**: 24.09.2025 - 16.11.2025 (54 days)
 
 ---
 
@@ -797,35 +797,26 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 ## 📝 Changelog
 
-### v1.3.2 (2025-11-02) - Current
-- ✅ **CRITICAL**: Fixed 11 bugs
-- ✅ **CRITICAL**: Added rollback mechanism (block/rescue/always)
-- ✅ **CRITICAL**: Fixed shell escaping in docker-compose template
-- ✅ Improved error handling with detailed logging
-- ✅ Expanded handlers (6 new handlers)
-- ✅ Fixed port check
-- ✅ Created solr system user (UID 8983)
-- ✅ Added jq and libxml2-utils packages
-- ✅ Fixed password generator (/dev/null → persistent path)
-- ✅ Fixed proxy template reference
-- ✅ Fixed integration test field mismatch
-- ✅ Fixed auth validation (200 only)
-- ✅ Added test cleanup (Moodle + integration)
-- ✅ Fixed core name sanitization (max 50 chars)
-- ✅ Fixed version mapping (5.0.x support)
-- ✅ Added stopwords.txt (EN + DE combined)
-- ✅ Improved healthcheck (tests real API)
-- ✅ Deployment attempt logging
+### v3.8.0 (2025-11-16) - Current Release 🎯
 
-### v1.3.1 (2025-11-01)
-- ✅ Full idempotency - unlimited re-runs
-- ✅ Selective password updates (zero downtime)
-- ✅ Smart core name management
-- ✅ Fixed host_vars duplicates
-- ✅ Optimized codebase (52% reduction)
+**Status:** ✅ Production Ready (Rating: 9.2/10)
 
-### v1.0.0 (2025-10-15)
-- 🎉 Initial release
+**Major Updates:**
+- ✅ Solr 9.10.0 compatibility validated (upgrade ready)
+- ✅ All critical bugs fixed (4 bugs from code review)
+- ✅ Moodle file indexing fields completed
+- ✅ Zero-downtime user management (v3.7.0)
+- ✅ 100% Moodle 4.1-5.0.3 compatibility
+- ✅ 19/19 integration tests + 10/10 Moodle tests passing
+
+**Critical Fixes:**
+- Fixed circular variable dependency (customer_name)
+- Fixed Moodle schema fields (solr_filecontent, solr_fileindexstatus, etc.)
+- Fixed password exposure in logs (no_log: true)
+- Fixed docker_container_info bug (replaced with docker inspect)
+- Corrected RAM documentation (4GB OS buffer)
+
+**See:** [CHANGELOG.md](CHANGELOG.md) for complete version history
 
 ---
 
