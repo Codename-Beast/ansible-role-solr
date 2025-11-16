@@ -1,0 +1,218 @@
+---
+# Version: 2.0.0
+# Description: Worker task for creating individual cores (Multi-Core Mode)
+# Changelog v2.0.0:
+#   - NEW: Worker task for Multi-Core Mode
+#   - Receives core_config from parent loop
+#   - Creates one core at a time
+#   - Fully idempotent
+
+# ============================================================================
+# CORE CONFIGURATION FROM LOOP
+# ============================================================================
+
+- name: core-worker - Set core variables from config
+  set_fact:
+    current_core_name: "{{ core_config.name }}_core"
+    current_core_domain: "{{ core_config.domain | default(solr_app_domain) }}"
+    current_core_config: "moodle_configs"
+  changed_when: false
+
+- name: core-worker - Display current core
+  debug:
+    msg:
+      - "=========================================="
+      - "PROCESSING CORE: {{ current_core_name }}"
+      - "=========================================="
+      - "Domain: {{ current_core_domain }}"
+      - "ConfigSet: {{ current_core_config }}"
+      - "=========================================="
+
+# ============================================================================
+# CORE STATUS CHECK
+# ============================================================================
+
+- name: core-worker - Check core registration via API
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS&core={{ current_core_name }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: core_status
+  changed_when: false
+  failed_when: false
+
+- name: core-worker - Parse core status JSON
+  set_fact:
+    core_status_json: "{{ core_status.content | default('{}') | from_json }}"
+  when: core_status.content is defined
+  changed_when: false
+
+- name: core-worker - Determine if core is registered (API)
+  set_fact:
+    core_registered: "{{ (core_status_json.status is defined) and (core_status_json.status[current_core_name] is defined) }}"
+  changed_when: false
+
+- name: core-worker - Check instance core.properties in container
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: "test -f /var/solr/data/{{ current_core_name }}/core.properties"
+  register: core_dir_check
+  failed_when: false
+  changed_when: false
+
+- name: core-worker - Set instance present flag
+  set_fact:
+    core_instance_present: "{{ core_dir_check.rc == 0 }}"
+  changed_when: false
+
+- name: core-worker - Display core status
+  debug:
+    msg:
+      - "Core name: {{ current_core_name }}"
+      - "API registered: {{ core_registered }}"
+      - "Instance exists: {{ core_instance_present }}"
+      - "Action: {{ 'SKIP (already exists)' if core_instance_present else 'CREATE' }}"
+
+# ============================================================================
+# CONFIGSET DEPLOYMENT
+# ============================================================================
+
+- name: core-worker - Prepare remote temp dir for configSet staging
+  file:
+    path: "/tmp/solr_conf_{{ current_core_config }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Stage configSet files to remote tmp
+  copy:
+    src: "files/conf/"
+    dest: "/tmp/solr_conf_{{ current_core_config }}/"
+    owner: root
+    group: root
+    mode: "0644"
+  changed_when: false
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Ensure configSet dir exists in container
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf'"
+  register: mk_cfg_dir
+  changed_when: mk_cfg_dir.rc == 0
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Push configSet into container via docker cp
+  command: >
+    docker cp /tmp/solr_conf_{{ current_core_config }}/.
+    {{ solr_container_name }}:/var/solr/data/configsets/{{ current_core_config }}/conf/
+  register: cfg_copy
+  changed_when: cfg_copy.rc == 0
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Create schema.xml from moodle_schema.xml if missing
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: >
+      sh -lc 'if [ -f /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml ]; then
+                cp /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml;
+              fi'
+  register: schema_copy
+  changed_when: schema_copy.rc == 0
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Set ownership for configSet (root inside container)
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    user: "0"
+    command: >
+      sh -lc 'chown -R 8983:8983 /var/solr/data/configsets/{{ current_core_config }}/conf &&
+              find /var/solr/data/configsets/{{ current_core_config }}/conf -type d -exec chmod 0755 {} \; &&
+              find /var/solr/data/configsets/{{ current_core_config }}/conf -type f -exec chmod 0644 {} \;'
+  register: cfg_chown
+  changed_when: cfg_chown.rc == 0
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Remove any managed-schema from configSet (safety)
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: "sh -lc 'rm -f /var/solr/data/configsets/{{ current_core_config }}/conf/managed-schema /var/solr/data/configsets/{{ current_core_config }}/conf/old_managed-schema || true'"
+  changed_when: false
+  failed_when: false
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Check configSet files in container
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: "sh -lc 'test -f /var/solr/data/configsets/{{ current_core_config }}/conf/solrconfig.xml && test -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml'"
+  register: configset_files_check
+  failed_when: configset_files_check.rc != 0
+  changed_when: false
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Ensure lang directory exists in configSet
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf/lang'"
+  changed_when: true
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+- name: core-worker - Copy lang files from deployed location to configSet
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: >
+      sh -lc 'for f in /var/solr/data/lang/*; do
+                if [ -f "$f" ]; then
+                  cp "$f" /var/solr/data/configsets/{{ current_core_config }}/conf/lang/;
+                fi;
+              done'
+  changed_when: true
+  when: not core_instance_present or solr_force_recreate_core | default(false)
+
+# ============================================================================
+# CORE CREATION
+# ============================================================================
+
+- name: core-worker - Create Solr core via API
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=CREATE&name={{ current_core_name }}&configSet={{ current_core_config }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_creation_result
+  when: not core_instance_present
+  retries: "{{ solr_core_creation_retries }}"
+  delay: "{{ solr_core_creation_delay }}"
+  until: core_creation_result.status == 200
+
+- name: core-worker - Verify core creation
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/{{ current_core_name }}/admin/ping"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  register: core_ping
+  retries: 5
+  delay: 3
+  until: core_ping.status == 200
+  when: not core_instance_present
+
+- name: core-worker - Display creation result
+  debug:
+    msg:
+      - "=========================================="
+      - "CORE CREATED: {{ current_core_name }}"
+      - "=========================================="
+      - "Status: {{ 'SUCCESS ✅' if not core_instance_present else 'ALREADY EXISTS (SKIPPED)' }}"
+      - "Domain: {{ current_core_domain }}"
+      - "URL: http://localhost:{{ solr_port }}/solr/{{ current_core_name }}/"
+      - "=========================================="

@@ -1,6 +1,10 @@
 ---
-# Version: 1.1.0
-# Description: Manage dynamic Solr users beyond the built-in admin/support/moodle.
+# Version: 2.0.0
+# Description: Manage Solr users (Single-Core & Multi-Core Mode)
+# Changelog v2.0.0:
+#   - NEW: Multi-Core Mode support
+#   - NEW: Hash generation for core-specific users
+#   - BACKWARD COMPATIBLE: Single-core additional users still work
 # Fixes/Improvements:
 # 1. Introduced support for additional users via ``solr_additional_users`` and automatic per-core admin roles.
 # 2. Securely generates double SHA256 hashed credentials with random salts.
@@ -8,13 +12,20 @@
 # 4. Exposes user and role mappings as Ansible facts for integration with ``security.json``.
 # 5. Provides warnings for incomplete user definitions to aid troubleshooting.
 
+# ============================================================================
+# INITIALIZE DICTIONARIES
+# ============================================================================
+
 - name: user-management - Initialize additional user hashes dictionary
   set_fact:
     solr_additional_user_hashes: {}
     solr_additional_user_roles: {}
-  when: solr_additional_users is defined and solr_additional_users | length > 0
 
-- name: user-management - Process additional users
+# ============================================================================
+# LEGACY SINGLE-CORE MODE: solr_additional_users
+# ============================================================================
+
+- name: user-management - Process additional users (legacy)
   block:
     - name: user-management - Generate secure credentials for additional users
       include_tasks: user_management_hash.yml
@@ -32,12 +43,46 @@
       when: item.username is not defined or item.password is not defined
   when: solr_additional_users is defined and solr_additional_users | length > 0
 
-- name: user-management - Debug additional user facts
+# ============================================================================
+# MULTI-CORE MODE: Process users from solr_cores
+# ============================================================================
+
+- name: user-management - Detect Multi-Core Mode
+  set_fact:
+    multi_core_users_active: "{{ (solr_cores | default([]) | length) > 0 }}"
+
+- name: user-management - Process Multi-Core users
+  block:
+    - name: user-management - Generate hashes for Multi-Core users
+      include_tasks: user_management_hash_multicore.yml
+      loop: "{{ solr_cores | default([]) | subelements('users', skip_missing=True) }}"
+      loop_control:
+        loop_var: core_user_item
+        label: "{{ core_user_item.0.name }}/{{ core_user_item.1.username }}"
+      when:
+        - core_user_item.1.username is defined
+        - core_user_item.1.password is defined
+
+    - name: user-management - Warn about incomplete Multi-Core user definitions
+      debug:
+        msg: "WARNING: Core '{{ item.0.name }}' user entry missing username or password - skipping"
+      loop: "{{ solr_cores | default([]) | subelements('users', skip_missing=True) }}"
+      when: item.1.username is not defined or item.1.password is not defined
+  when: multi_core_users_active
+
+# ============================================================================
+# DEBUG OUTPUT
+# ============================================================================
+
+- name: user-management - Debug user facts
   debug:
     msg:
-      - "Additional users configured: {{ solr_additional_user_hashes.keys() | list }}"
-      - "Role mappings: {{ solr_additional_user_roles }}"
+      - "=========================================="
+      - "USER MANAGEMENT SUMMARY"
+      - "=========================================="
+      - "Mode: {{ 'MULTI-CORE' if multi_core_users_active else 'SINGLE-CORE' }}"
+      - "Legacy users: {{ solr_additional_user_hashes.keys() | list | length if solr_additional_user_hashes is defined else 0 }}"
+      - "Total users configured: {{ solr_additional_user_hashes.keys() | list | length if solr_additional_user_hashes is defined else 0 }}"
+      - "=========================================="
   when:
-    - solr_additional_users is defined
-    - solr_additional_users | length > 0
     - solr_additional_user_hashes is defined

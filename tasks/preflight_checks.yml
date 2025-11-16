@@ -132,6 +132,109 @@
     success_msg: "Memory limit validation passed (limit={{ solr_memory_limit }}, heap={{ solr_heap_size }})"
 
 # ============================================================================
+# MULTI-CORE MODE VALIDATIONS (v3.9.0+)
+# ============================================================================
+
+- name: preflight-check - Detect Multi-Core Mode
+  set_fact:
+    multi_core_enabled: "{{ (solr_cores | default([]) | length) > 0 }}"
+    core_count: "{{ solr_cores | default([]) | length }}"
+  changed_when: false
+
+- name: preflight-check - Calculate estimated heap per core
+  set_fact:
+    heap_size_mb: "{{ (solr_heap_size | regex_replace('g$', '') | int) * 1024 if 'g' in solr_heap_size else (solr_heap_size | regex_replace('m$', '') | int) }}"
+    estimated_heap_per_core: "{{ ((solr_heap_size | regex_replace('g$', '') | int) * 1024 / (core_count | int)) | int }}"
+  when: multi_core_enabled | bool and core_count | int > 0
+  changed_when: false
+
+- name: preflight-check - RAM WARNING - Too many cores configured
+  debug:
+    msg:
+      - "╔════════════════════════════════════════════════════════════════╗"
+      - "║  ⚠️  RAM WARNING: TOO MANY CORES CONFIGURED                    ║"
+      - "╠════════════════════════════════════════════════════════════════╣"
+      - "║  Cores configured:     {{ core_count }} cores                  "
+      - "║  Maximum recommended:  {{ solr_max_cores_recommended }} cores (16GB server)  "
+      - "║  Absolute limit:       {{ solr_max_cores_limit }} cores        "
+      - "║                                                                ║"
+      - "║  Current heap:         {{ solr_heap_size }}                   "
+      - "║  Estimated per core:   ~{{ estimated_heap_per_core }}MB       "
+      - "║  Minimum required:     {{ solr_min_heap_per_core_mb }}MB/core "
+      - "╠════════════════════════════════════════════════════════════════╣"
+      - "║  RECOMMENDATION:                                               ║"
+      - "║  - Reduce cores to {{ solr_max_cores_recommended }} or less    "
+      - "║  - OR upgrade server RAM to 32GB                               "
+      - "║  - OR reduce heap per core (performance impact!)               ║"
+      - "╚════════════════════════════════════════════════════════════════╝"
+  when:
+    - multi_core_enabled | bool
+    - core_count | int > solr_max_cores_recommended
+
+- name: preflight-check - RAM CRITICAL - Core count exceeds absolute limit
+  fail:
+    msg: |
+      ╔════════════════════════════════════════════════════════════════╗
+      ║  ❌ CRITICAL: CORE COUNT EXCEEDS ABSOLUTE LIMIT                ║
+      ╠════════════════════════════════════════════════════════════════╣
+      ║  Cores configured:     {{ core_count }} cores
+      ║  Absolute limit:       {{ solr_max_cores_limit }} cores (16GB)
+      ║                                                                ║
+      ║  Estimated per core:   ~{{ estimated_heap_per_core }}MB
+      ║  Minimum required:     {{ solr_min_heap_per_core_mb }}MB/core
+      ╠════════════════════════════════════════════════════════════════╣
+      ║  DEPLOYMENT BLOCKED - INSUFFICIENT RAM!                        ║
+      ║                                                                ║
+      ║  ACTIONS REQUIRED:                                             ║
+      ║  1. Reduce cores to {{ solr_max_cores_limit }} or less
+      ║  2. OR upgrade server to 32GB RAM                              ║
+      ║  3. OR deploy on separate Solr instances                       ║
+      ╚════════════════════════════════════════════════════════════════╝
+  when:
+    - multi_core_enabled | bool
+    - core_count | int > solr_max_cores_limit
+
+- name: preflight-check - Validate Multi-Core configuration structure
+  assert:
+    that:
+      - item.name is defined
+      - item.name | length > 0
+      - item.name is match('^[a-z0-9_-]+$')
+    fail_msg: "Core '{{ item.name | default('UNDEFINED') }}' has invalid name. Must contain only lowercase letters, numbers, hyphens, and underscores."
+    success_msg: "Core '{{ item.name }}' name validation passed"
+  loop: "{{ solr_cores | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('UNDEFINED') }}"
+  when: multi_core_enabled | bool
+
+- name: preflight-check - Validate Multi-Core users configuration
+  assert:
+    that:
+      - item.1.username is defined
+      - item.1.username | length > 0
+      - item.1.password is defined
+      - item.1.password | length >= 12
+    fail_msg: "Core '{{ item.0.name }}' user '{{ item.1.username | default('UNDEFINED') }}' has invalid configuration"
+    success_msg: "Core '{{ item.0.name }}' user '{{ item.1.username }}' validation passed"
+  loop: "{{ solr_cores | default([]) | subelements('users', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.username | default('UNDEFINED') }}"
+  when: multi_core_enabled | bool
+
+- name: preflight-check - Display Multi-Core summary
+  debug:
+    msg:
+      - "=========================================="
+      - "MULTI-CORE MODE DETECTED"
+      - "=========================================="
+      - "Cores configured: {{ core_count }}"
+      - "Heap size: {{ solr_heap_size }}"
+      - "Est. heap per core: ~{{ estimated_heap_per_core }}MB"
+      - "RAM status: {{ 'OK ✅' if core_count | int <= solr_max_cores_recommended else 'WARNING ⚠️' }}"
+      - "=========================================="
+  when: multi_core_enabled | bool
+
+# ============================================================================
 # RUNDECK OUTPUT
 # ============================================================================
 

@@ -154,12 +154,54 @@ solr_backup_configs_before_update: true
 # ============================================================================
 # CORE CONFIGURATION
 # ============================================================================
+# SINGLE-CORE MODE (Legacy/Default)
 # Core name sanitization (max 50 chars including "_core" suffix, Solr allows up to 255)
 # Logic: Take first 45 chars of domain/customer_name, sanitize, add "_core" suffix
 solr_core_name_raw: "{{ solr_app_domain.split('.')[0] if solr_app_domain is defined else customer_name | default('default') }}"
 solr_core_name_base: "{{ solr_core_name_raw[:45] | regex_replace('[^a-zA-Z0-9_]', '_') | lower }}"
 solr_core_name: "{{ solr_core_name_base }}_core"
 solr_core_config: "moodle_configs"
+
+# ============================================================================
+# MULTI-CORE MODE (v3.9.0+)
+# ============================================================================
+# Define multiple cores for multi-tenant Moodle setups
+# Each core is isolated with its own index and can have dedicated users
+# Cores share the same Solr JVM heap (dynamically allocated)
+#
+# WICHTIG: RAM-Kalkulation für 16GB Server:
+# - Max empfohlen: 10 Cores (ca. 600MB Heap pro Core)
+# - Limit: 15 Cores (ca. 400MB Heap pro Core - Minimum!)
+# - Über 15 Cores: RAM-Upgrade auf 32GB empfohlen
+#
+# Example Configuration:
+# solr_cores:
+#   - name: "moodle_prod"
+#     domain: "moodle-prod.kunde.de"
+#     users:
+#       - username: "moodle_prod_rw"
+#         password: "{{ vault_prod_rw_password }}"
+#         roles: ["core-admin-moodle_prod_core"]
+#       - username: "moodle_prod_ro"
+#         password: "{{ vault_prod_ro_password }}"
+#         roles: ["support"]  # Read-only
+#   - name: "moodle_test"
+#     domain: "moodle-test.kunde.de"
+#     users:
+#       - username: "moodle_test"
+#         password: "{{ vault_test_password }}"
+#         roles: ["core-admin-moodle_test_core"]
+
+# Multi-Core Liste (leer = Single-Core Mode)
+solr_cores: []
+
+# Multi-Core Mode Detection (automatisch gesetzt)
+solr_multi_core_mode: "{{ (solr_cores | default([]) | length) > 0 }}"
+
+# RAM Warning Thresholds (basierend auf 16GB Server)
+solr_max_cores_recommended: 10  # Empfohlen für 16GB RAM
+solr_max_cores_limit: 15        # Absolutes Limit für 16GB RAM
+solr_min_heap_per_core_mb: 400  # Minimum Heap pro Core
 # ============================================================================
 # MONITORING & METRICS CONFIGURATION 
 # ============================================================================

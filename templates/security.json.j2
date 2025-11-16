@@ -1,12 +1,13 @@
 {#
- Security configuration template for Solr.
- Fixes/Improvements:
- 1. Updated permission names to align with the official Solr rule-based authorization plugin; removed deprecated ones (e.g. delete/backup).
- 2. Added per-core role definitions (admin, moodle, support) to enable fine-grained access control to individual cores.
- 3. Integrated dynamic additional users via ``solr_additional_users`` and corresponding hashed credentials.
- 4. Documented variable usage and structure to aid maintainers and promote clarity.
- 5. Ensured backward compatibility by preserving existing built-in roles and credentials.
+ Security configuration template for Solr (v3.9.0+)
+ Features:
+ 1. Multi-Core Support: Dynamic permissions for multiple cores
+ 2. Single-Core Backward Compatibility: Works with legacy setups
+ 3. Per-Core Access Control: Each core can have dedicated users
+ 4. Dynamic User Management: solr_additional_users support
+ 5. Automatic Role Assignment: core-admin-<corename> roles
 #}
+{% set multi_core = (solr_cores | default([]) | length) > 0 %}
 {
   "authentication": {
     "blockUnknown": true,
@@ -17,7 +18,19 @@
       "{{ solr_moodle_user | default('moodle') }}": "{{ moodle_password_hash }}"{% if solr_additional_user_hashes is defined and solr_additional_user_hashes|length > 0 %},{% endif %}
 {% if solr_additional_user_hashes is defined %}
 {% for username, hash in solr_additional_user_hashes.items() %}
-      ,"{{ username }}": "{{ hash }}"{% if not loop.last %},{% endif %}
+      ,"{{ username }}": "{{ hash }}"
+{% endfor %}
+{% endif %}
+{% if multi_core %}
+{# Multi-Core Mode: Add all users from all cores #}
+{% for core in solr_cores %}
+{% if core.users is defined %}
+{% for user in core.users %}
+{% if user.password_hash is defined %}
+      ,"{{ user.username }}": "{{ user.password_hash }}"
+{% endif %}
+{% endfor %}
+{% endif %}
 {% endfor %}
 {% endif %}
     },
@@ -42,8 +55,28 @@
       { "name": "collection-admin-read", "role": "admin" },
       { "name": "collection-admin-edit", "role": "admin" },
       { "name": "metrics-read", "role": ["admin", "support"] },
-      { "name": "health", "role": ["admin", "support"] },
+      { "name": "health", "role": ["admin", "support"] }{% if multi_core %},{% endif %}
+{% if multi_core %}
+{# Multi-Core Mode: Create permissions for each core #}
+{% for core in solr_cores %}
       {
+        "name": "core-{{ core.name }}_core-admin",
+        "collection": "{{ core.name }}_core",
+        "path": ["/*"],
+        "method": ["GET", "HEAD", "POST", "PUT", "DELETE"],
+        "role": ["core-admin-{{ core.name }}_core"]
+      },
+      {
+        "name": "core-{{ core.name }}_core-read",
+        "collection": "{{ core.name }}_core",
+        "path": ["/*"],
+        "method": ["GET", "HEAD"],
+        "role": ["support"]
+      }{% if not loop.last %},{% endif %}
+{% endfor %}
+{% else %}
+{# Single-Core Mode (Legacy) #}
+      ,{
         "name": "core-{{ solr_core_name }}-admin",
         "collection": "{{ solr_core_name }}",
         "path": ["/*"],
@@ -64,6 +97,7 @@
         "method": ["GET", "HEAD"],
         "role": ["support"]
       }
+{% endif %}
     ],
     "user-role": {
       "{{ solr_admin_user | default('admin') }}": ["admin"],
@@ -71,7 +105,17 @@
       "{{ solr_moodle_user | default('moodle') }}": ["moodle"]{% if solr_additional_user_roles is defined and solr_additional_user_roles|length > 0 %},{% endif %}
 {% if solr_additional_user_roles is defined %}
 {% for username, roles in solr_additional_user_roles.items() %}
-      ,"{{ username }}": {{ roles | to_json }}{% if not loop.last %},{% endif %}
+      ,"{{ username }}": {{ roles | to_json }}
+{% endfor %}
+{% endif %}
+{% if multi_core %}
+{# Multi-Core Mode: Add user-role mappings from cores #}
+{% for core in solr_cores %}
+{% if core.users is defined %}
+{% for user in core.users %}
+      ,"{{ user.username }}": {{ user.roles | default(['core-admin-' ~ core.name ~ '_core']) | to_json }}
+{% endfor %}
+{% endif %}
 {% endfor %}
 {% endif %}
     }

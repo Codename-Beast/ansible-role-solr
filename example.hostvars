@@ -53,8 +53,69 @@ solr_moodle_password: ""  # TODO: SETZEN!
 solr_auth_realm: "Solr Eledia"  # Default
 
 # ============================================================================
-# MULTI-TENANT USER MANAGEMENT (Optional - v38 Feature!)
+# MULTI-CORE MODE (v3.9.0+ Feature!) 🎉
 # ============================================================================
+# Deploy multiple isolated Solr cores for multi-tenant Moodle setups
+# Each core has its own index and dedicated users
+# All cores share the same JVM heap (6GB on 16GB server)
+#
+# RAM-KALKULATION FÜR 16GB SERVER:
+# - Max empfohlen: 10 Cores (ca. 600MB Heap/Core)
+# - Absolutes Limit: 15 Cores (ca. 400MB Heap/Core)
+# - Über 15 Cores: RAM-Warning wird angezeigt!
+#
+# BEISPIEL: 10 Moodle-Instanzen auf einem Solr-Server
+solr_cores: []
+# solr_cores:
+#   - name: "moodle_prod"
+#     domain: "moodle-prod.kunde.de"
+#     users:
+#       - username: "moodle_prod_rw"
+#         password: "{{ vault_moodle_prod_password }}"
+#         roles: ["core-admin-moodle_prod_core"]  # Full access
+#       - username: "moodle_prod_ro"
+#         password: "{{ vault_moodle_prod_ro }}"
+#         roles: ["support"]  # Read-only
+#
+#   - name: "moodle_test"
+#     domain: "moodle-test.kunde.de"
+#     users:
+#       - username: "moodle_test"
+#         password: "{{ vault_moodle_test_password }}"
+#         # roles auto-set to: ["core-admin-moodle_test_core"]
+#
+#   - name: "moodle_dev"
+#     domain: "moodle-dev.kunde.de"
+#     users:
+#       - username: "moodle_dev"
+#         password: "{{ vault_moodle_dev_password }}"
+#
+#   - name: "customer1"
+#     domain: "lms.customer1.com"
+#     users:
+#       - username: "customer1_moodle"
+#         password: "{{ vault_customer1_password }}"
+#
+#   - name: "customer2"
+#     domain: "learning.customer2.de"
+#     users:
+#       - username: "customer2_moodle"
+#         password: "{{ vault_customer2_password }}"
+#
+# Cores werden benannt als: <name>_core
+# Beispiel: "moodle_prod" → Core: "moodle_prod_core"
+#
+# FEATURES:
+# - ✅ Vollständige Isolation zwischen Cores
+# - ✅ Dedizierte User pro Core (oder geteilt)
+# - ✅ Nachträglich erweiterbar (idempotent)
+# - ✅ RAM-Warning bei zu vielen Cores
+# - ✅ Automatische Role-Zuweisung
+
+# ============================================================================
+# SINGLE-CORE MODE (Legacy - v3.8 und früher)
+# ============================================================================
+# Nur aktiv wenn solr_cores LEER ist!
 # Zusätzliche User (Hot-Reload mit --tags=solr-auth-reload)
 solr_additional_users: []
 # Beispiel:
