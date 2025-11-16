@@ -108,7 +108,7 @@ solr_moodle_test_docs: true
 solr_multi_version_cores: true
 
 # ============================================================================
-# APACHE REVERSE PROXY
+# WEBSERVER REVERSE PROXY (Apache + Nginx Support)
 # ============================================================================
 # Proxy aktivieren (Default: false)
 solr_proxy_enabled: false
@@ -117,16 +117,40 @@ solr_proxy_enabled: false
 solr_proxy_path: "/solr-admin"
 
 # Webserver (Default: apache)
+# Options: "apache" | "nginx"
 solr_webserver: "apache"
 
+# Additional Basic Auth auf Proxy-Level (Optional)
+solr_proxy_auth_enabled: false
+
+# Admin IP-Zugriffsbeschränkung (Default: true)
+solr_restrict_admin: true
+
+# Erlaubte IPs für Admin-Zugriff (zusätzlich zu 127.0.0.1)
+solr_admin_allowed_ips: []
+# Beispiel:
+# solr_admin_allowed_ips:
+#   - "192.168.1.100"
+#   - "10.0.0.0/24"
+
+# Config-Datei wird benannt als: solr.{{ solr_app_domain }}.conf
+# Beispiel: solr.kunde.de.conf
+
 # ============================================================================
-# SSL/TLS (Falls benötigt)
+# SSL/TLS (Let's Encrypt Integration)
 # ============================================================================
-# SSL aktivieren (Default: false - wird meist vom Proxy gehandhabt)
+# SSL aktivieren (Default: false)
 solr_ssl_enabled: false
 
 # SSL Cert Path (Default: /etc/letsencrypt/live/<domain>)
 # solr_ssl_cert_path: "/etc/letsencrypt/live/{{ solr_app_domain }}"
+
+# Let's Encrypt Installation:
+# Apache: sudo certbot --apache -d {{ solr_app_domain }}
+# Nginx:  sudo certbot --nginx -d {{ solr_app_domain }}
+# Manual: sudo certbot certonly --webroot -w /var/www/html -d {{ solr_app_domain }}
+
+# HTTPS availability wird automatisch getestet (bis zu 10 Versuche)
 
 # ============================================================================
 # DIRECTORIES

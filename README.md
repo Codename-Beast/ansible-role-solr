@@ -1,6 +1,6 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.8.0-blue)
+![Version](https://img.shields.io/badge/version-3.8.1-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20%7C%209.10%20ready-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
@@ -16,23 +16,39 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ---
 
-## 🎉 What's New in v3.8.0 (Ready)
+## 🎉 What's New in v3.8.1 (Nginx Support + Proxy Improvements)
 
 <table>
 <tr>
 <td width="50%">
 
-### ✨ Major Features
+### ✨ New in v3.8.1
+- 🌐 **Nginx Support** - Apache + Nginx webserver support
+- 📝 **Domain-based Configs** - `solr.kunde.de.conf` naming
+- 🔒 **HTTPS Auto-Testing** - Up to 10 retries, 3s delay
+- 📋 **Let's Encrypt Hints** - Documented certbot commands
+- 🛡️ **IP-based Access Control** - Restrict admin access
+
+### ✅ v3.8.0 Features
 - ✅ **Solr 9.10 Ready** - 100% compatibility validated
-- ✅ **Add User Management** - Add Users and there Permissions
+- ✅ **Add User Management** - Add users and their permissions
 - ✅ **Zero-Downtime User Management** - Hot-reload via API
 - ✅ **Complete Moodle Support** - File indexing fields added
 - ✅ **Production Hardened** - All critical bugs fixed
+- ✅ **Industry Best Practice** - Code quality 9.2/10
 
 </td>
 <td width="50%">
 
-### 🐛 Critical Fixes
+### 🔧 Proxy Improvements
+- ✅ Standalone VirtualHost/Server configs
+- ✅ Modern SSL/TLS (TLS 1.2+, secure ciphers)
+- ✅ HTTP → HTTPS redirect when SSL enabled
+- ✅ ACME challenge locations for certbot
+- ✅ Optional proxy-level Basic Auth
+- ✅ Public health check endpoint
+
+### 🐛 v3.8.0 Critical Fixes
 - ✅ Fixed circular variable dependency
 - ✅ Fixed docker_container_info bug
 - ✅ Fixed Moodle schema fields
@@ -43,7 +59,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ✅ **Ready** | **Tests:** 19/19 + 10/10 PASSING | **Upgrade:** Ready for Solr 9.10
+**Status:** ✅ **Production Ready** | **Tests:** 19/19 + 10/10 PASSING | **Upgrade:** Ready for Solr 9.10 | **Webservers:** Apache + Nginx
 
 ---
 

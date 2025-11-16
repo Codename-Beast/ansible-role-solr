@@ -7,6 +7,91 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [3.8.1] - 2025-11-16 🌐 NGINX SUPPORT + PROXY IMPROVEMENTS
+
+**Type:** Minor Release - Webserver Support Enhancement
+**Status:** ✅ **PRODUCTION READY**
+
+### ✨ NEUE FEATURES
+
+1. **Nginx Support** 🎉
+   - Vollständige Nginx-Unterstützung neben Apache
+   - Variable: `solr_webserver: "apache" | "nginx"`
+   - Automatische Webserver-Erkennung und -Konfiguration
+   - Eigenständige VirtualHost/Server Block Configs
+
+2. **Domain-basierte Config-Benennung** 📝
+   - Config-Dateien: `solr.{{ solr_app_domain }}.conf`
+   - Beispiel: `solr.kunde.de.conf`
+   - Sauber getrennte Configs pro Domain
+   - Einfacheres Management in Multi-Domain-Umgebungen
+
+3. **HTTPS Availability Testing** 🔒
+   - Automatische HTTPS-Verfügbarkeitstests (bis zu 10 Versuche)
+   - 3 Sekunden Delay zwischen Versuchen
+   - Detailliertes Reporting über benötigte Retries
+   - Fallback zu HTTP wenn SSL nicht aktiviert
+
+4. **Let's Encrypt Integration Hints** 📋
+   - Dokumentierte Certbot-Befehle in Configs
+   - Apache: `sudo certbot --apache -d {{ solr_app_domain }}`
+   - Nginx: `sudo certbot --nginx -d {{ solr_app_domain }}`
+   - Webroot: `sudo certbot certonly --webroot -w /var/www/html -d {{ solr_app_domain }}`
+   - Automatische ACME Challenge Location in beiden Webservern
+
+### 🔧 VERBESSERUNGEN
+
+1. **Eigenständige Webserver-Configs**
+   - Apache: Vollständiger VirtualHost (HTTP + HTTPS)
+   - Nginx: Vollständiger Server Block (HTTP + HTTPS)
+   - HTTP zu HTTPS Redirect bei aktiviertem SSL
+   - Moderne SSL/TLS Konfiguration (TLS 1.2+, moderne Cipher Suites)
+
+2. **IP-basierte Zugriffskontrolle**
+   - Variable: `solr_admin_allowed_ips: []`
+   - Standardmäßig nur localhost (127.0.0.1, ::1)
+   - Flexible Erweiterung um zusätzliche IPs/Netze
+   - Separater Public Health Check Endpoint
+
+3. **Erweiterte Proxy-Konfiguration**
+   - `solr_proxy_auth_enabled`: Optional zusätzliche Basic Auth
+   - `solr_restrict_admin`: IP-basierte Admin-Beschränkung
+   - Moderne Security Headers (HSTS, X-Frame-Options, etc.)
+   - Optimierte Timeouts und Buffer-Einstellungen
+
+### 📦 DATEIEN
+
+**NEU:**
+- `templates/solr_proxy_apache.conf.j2` - Vollständiger Apache VirtualHost
+- `templates/solr_proxy_nginx.conf.j2` - Vollständiger Nginx Server Block
+
+**GEÄNDERT:**
+- `tasks/proxy_configuration.yml` - Version 2.0.0 mit Nginx/Apache Support
+- `defaults/main.yml` - Erweiterte Proxy-Variablen
+- `example.hostvars` - Aktualisierte Beispiele mit allen Optionen
+
+**ENTFERNT:**
+- `templates/solr_proxy.conf.j2` - Ersetzt durch webserver-spezifische Templates
+
+### 🎯 MIGRATION VON v3.8.0
+
+Keine Breaking Changes! Alle bisherigen Konfigurationen funktionieren weiterhin.
+
+**Optional - Nginx nutzen:**
+```yaml
+solr_webserver: "nginx"
+solr_ssl_enabled: true
+```
+
+**Optional - IP-Beschränkung erweitern:**
+```yaml
+solr_admin_allowed_ips:
+  - "192.168.1.100"
+  - "10.0.0.0/24"
+```
+
+---
+
 ## [3.8.0] - 2025-11-16 🎯 PRODUCTION READY
 
 **Maintainer:** Bernd Schreistetter
