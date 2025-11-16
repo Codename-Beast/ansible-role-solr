@@ -62,8 +62,8 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </td>
 <td width="50%">
 
-### 🏢 Multi-Core Features (v3.9.2 Korrigiert)
-- ✅ **16GB Server:** Max 4 Cores @ ~2GB/Core (KORRIGIERT!)
+### 🏢 Multi-Core Features (v3.9.2)
+- ✅ **16GB Server:** Max 4 Cores @ ~2GB/Core
 - ✅ **32GB Server:** Max 10 Cores @ ~2GB/Core
 - ✅ Each core: dedicated index + users
 - ✅ Caches sind PER-CORE (nicht geteilt!)
