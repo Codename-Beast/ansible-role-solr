@@ -103,7 +103,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - ✅ **Selective Password Updates** - Change passwords without container restart (ZERO downtime)
 - ✅ **Smart Core Management** - Core name changes create new cores, old ones preserved
 - ✅ **Docker Compose v2** - Modern init-container pattern for config deployment
-- ✅ **BasicAuth Security** - Role-based access control (admin/support/customer)
+- ✅ **BasicAuth Security** - Role-based access control (admin/support/moodle)
 - ✅ **Moodle Schema** - Pre-configured for Moodle 4.1-5.0.x compatibility
 - ✅ **Automated Backups** - Scheduled backups with retention management
 - ✅ **Performance Monitoring** - JVM metrics, GC optimization, health checks
