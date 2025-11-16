@@ -35,6 +35,17 @@
     fail_msg: "Insufficient disk space. Required: {{ solr_min_disk_space_gb }}GB, Available: {{ disk_space.stdout }}GB"
     success_msg: "Disk space check passed ({{ disk_space.stdout }}GB available)"
 
+- name: preflight-check - Check available memory (Debian/Ubuntu)
+  shell: free -g | grep Mem | awk '{print $2}'
+  register: available_memory
+  changed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: preflight-check - Display available memory
+  debug:
+    msg: "Available RAM: {{ available_memory.stdout }}GB"
+  when: ansible_os_family == "Debian"
+
 - name: preflight-check - Check if Docker is installed
   command: docker --version
   register: docker_version_check
@@ -141,11 +152,21 @@
     core_count: "{{ solr_cores | default([]) | length }}"
   changed_when: false
 
-- name: preflight-check - Calculate estimated heap per core
+- name: preflight-check - Calculate heap size in MB
   set_fact:
     heap_size_mb: "{{ (solr_heap_size | regex_replace('g$', '') | int) * 1024 if 'g' in solr_heap_size else (solr_heap_size | regex_replace('m$', '') | int) }}"
-    estimated_heap_per_core: "{{ ((solr_heap_size | regex_replace('g$', '') | int) * 1024 / (core_count | int)) | int }}"
+  changed_when: false
+
+- name: preflight-check - Calculate estimated heap per core
+  set_fact:
+    estimated_heap_per_core: "{{ (heap_size_mb | int / (core_count | int)) | int }}"
   when: multi_core_enabled | bool and core_count | int > 0
+  changed_when: false
+
+- name: preflight-check - Set heap per core to full heap for single core
+  set_fact:
+    estimated_heap_per_core: "{{ heap_size_mb | int }}"
+  when: not multi_core_enabled | bool or core_count | int == 0
   changed_when: false
 
 - name: preflight-check - RAM WARNING - Too many cores configured
