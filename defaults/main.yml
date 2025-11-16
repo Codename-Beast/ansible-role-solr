@@ -34,15 +34,12 @@
 
 solr_admin_user: "admin"
 solr_admin_password: ""  # Auto-generated if empty
-solr_admin_password_hash: ""
 
 solr_support_user: "support"
 solr_support_password: ""  # Auto-generated if empty
-solr_support_password_hash: ""
 
 solr_moodle_user: "moodle"
 solr_moodle_password: ""  # Auto-generated if empty
-solr_moodle_password_hash: ""
 
 solr_auth_enabled: true
 solr_auth_type: "basic"
@@ -69,7 +66,6 @@ solr_core_creation_delay: 3  # seconds
 solr_health_check_timeout: 30
 solr_startup_wait_time: 60
 solr_init_container_timeout: 60
-solr_init_container_retries: 5
 # ============================================================================
 # SOLR INTERNAL HEALTH CHECK CONFIGURATION (Solr 9.9.0 built-in)
 # ============================================================================
@@ -225,19 +221,13 @@ solr_min_heap_per_core_mb: 1500  # Realistischer Mindestbedarf inkl. Caches
 # solr_heap_size: "20g"
 # solr_memory_limit: "28g"
 # ============================================================================
-# MONITORING & METRICS CONFIGURATION 
+# MONITORING & METRICS CONFIGURATION
 # ============================================================================
 solr_metrics_enabled: true
-solr_prometheus_export: false
 solr_health_check_interval: 30  # seconds
 # Note: solr_health_check_timeout defined in retry section above
 solr_metrics_path: "/admin/metrics"
 solr_log_level: "INFO"  # DEBUG, INFO, WARN, ERROR
-
-# Performance Monitoring
-solr_jvm_monitoring: true
-solr_gc_logging: true
-solr_slow_query_threshold: 1000  # milliseconds
 
 # ============================================================================
 # BACKUP CONFIGURATION (UPDATED)

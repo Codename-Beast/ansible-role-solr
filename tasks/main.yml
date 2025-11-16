@@ -128,12 +128,6 @@
   tags:
     - install-solr-proxy
 
-#- name: install-solr - Backup management
-#  include_tasks: backup_management.yml
-#  when: solr_backup_enabled | default(true)
-#  tags:
-#    - install-solr-backup
-
 - name: install-solr - Integration tests
   include_tasks: integration_tests.yml
   tags:
