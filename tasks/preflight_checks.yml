@@ -113,7 +113,7 @@
   loop:
     - { name: "Admin", password: "{{ solr_admin_password | default('') }}" }
     - { name: "Support", password: "{{ solr_support_password | default('') }}" }
-    - { name: "Customer", password: "{{ solr_moodle_password | default('') }}" }
+    - { name: "Moodle", password: "{{ solr_moodle_password | default('') }}" }
   when:
     - item.password is defined
     - item.password | string | length > 0

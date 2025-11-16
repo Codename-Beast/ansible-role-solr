@@ -373,7 +373,6 @@ solr_force_recreate: false
 solr_force_pull: false
 solr_force_reconfigure_auth: true
 solr_validate_deployment: true
-solr_start_command: "solr-foreground"
 # ============================================================================
 # SYSTEM REQUIREMENTS
 # ============================================================================
