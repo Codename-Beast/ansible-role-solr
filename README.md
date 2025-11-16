@@ -1,12 +1,12 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.9.0-blue)
+![Version](https://img.shields.io/badge/version-3.9.2-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
-![Solr](https://img.shields.io/badge/solr-9.9.0%20%7C%209.10%20ready-orange)
+![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-19%2F19%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-pending%20validation-yellow)
 ![Quality](https://img.shields.io/badge/code%20quality-9.2%2F10-success)
-![Status](https://img.shields.io/badge/status-production%20ready-success)
+![Status](https://img.shields.io/badge/status-testing-yellow)
 
 Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency, zero-downtime user management, automated backup, and comprehensive monitoring.
 
@@ -16,18 +16,24 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ---
 
-## 🎉 What's New in v3.9.0 (Multi-Core Support: Up to 10 Moodle Instances)
+## 🎉 What's New in v3.9.2 (Critical RAM Fix + Apache VHost)
 
 <table>
 <tr>
 <td width="50%">
 
+### ✨ New in v3.9.2 (TESTING)
+- 🔴 **CRITICAL: RAM-Kalkulation korrigiert** - 16GB → 4 Cores (war: 10 Cores)
+- 📊 **Korrigierte Werte** - ~2GB/Core statt 600MB (Caches sind PER-CORE!)
+- 🌐 **Apache VHost Generic** - Funktioniert mit jeder Domain
+- 🔐 **SSL-Awareness** - Keine HTTP-Warnings mehr in WebUI
+- 🛠️ **JVM-Konflikte behoben** - autoCommit nur noch in solrconfig.xml
+- ⚠️ **Status:** Testing - Fehler bei Abnahme gefixt, Kompletttest ausstehend
+
 ### ✨ New in v3.9.0
-- 🏢 **Multi-Core Support** - Up to 10 Moodle instances per server
-- 📊 **RAM-Aware Deployment** - Auto-calculation: ~600MB heap/core @ 10 cores
-- ⚠️ **Smart Warnings** - Warning at >10 cores, block at >15 cores
-- 🔐 **Auto-Password Generation** - Generates secure passwords if missing
-- 📋 **Credential Display** - Shows all access data after deployment
+- 🏢 **Multi-Core Support** - Isolierte Cores pro Moodle-Instanz
+- 🔐 **Auto-Password Generation** - Generiert sichere Passwörter
+- 📋 **Credential Display** - Zeigt alle Zugangsdaten nach Deployment
 
 ### ✨ New in v3.8.1
 - 🌐 **Nginx Support** - Apache + Nginx webserver support
@@ -48,13 +54,14 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </td>
 <td width="50%">
 
-### 🏢 Multi-Core Features
-- ✅ Up to 10 isolated cores per 16GB server
+### 🏢 Multi-Core Features (v3.9.2 Korrigiert)
+- ✅ **16GB Server:** Max 4 Cores @ ~2GB/Core (KORRIGIERT!)
+- ✅ **32GB Server:** Max 10 Cores @ ~2GB/Core
 - ✅ Each core: dedicated index + users
-- ✅ Heap sharing: ~600MB per core (10 cores)
+- ✅ Caches sind PER-CORE (nicht geteilt!)
 - ✅ Nachträglich erweiterbar (idempotent)
 - ✅ Automatic role assignment per core
-- ✅ RAM warnings & deployment blocking
+- ⚠️ **Alte Werte (v3.9.0) waren FALSCH!**
 
 ### 🔧 Proxy Improvements
 - ✅ Standalone VirtualHost/Server configs
@@ -76,7 +83,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ✅ **Production Ready** | **Tests:** 19/19 + 10/10 PASSING | **Upgrade:** Ready for Solr 9.10 | **Webservers:** Apache + Nginx | **Multi-Core:** Up to 10 instances
+**Status:** 🧪 **TESTING** (v3.9.2 - Fehler bei Abnahme gefixt, Kompletttest ausstehend) | **Critical Fix:** RAM-Kalkulation korrigiert | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB
 
 ---
 
