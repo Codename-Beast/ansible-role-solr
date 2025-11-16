@@ -16,7 +16,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ---
 
-## 🎉 What's New in v3.8.0 (Production Ready)
+## 🎉 What's New in v3.8.0 (Ready)
 
 <table>
 <tr>
@@ -24,10 +24,10 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ### ✨ Major Features
 - ✅ **Solr 9.10 Ready** - 100% compatibility validated
+- ✅ **Add User Management** - Add Users and there Permissions
 - ✅ **Zero-Downtime User Management** - Hot-reload via API
 - ✅ **Complete Moodle Support** - File indexing fields added
 - ✅ **Production Hardened** - All critical bugs fixed
-- ✅ **Industry Best Practice** - Code quality 9.2/10
 
 </td>
 <td width="50%">
@@ -43,7 +43,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ✅ **Production Ready** | **Tests:** 19/19 + 10/10 PASSING | **Upgrade:** Ready for Solr 9.10
+**Status:** ✅ **Ready** | **Tests:** 19/19 + 10/10 PASSING | **Upgrade:** Ready for Solr 9.10
 
 ---
 
@@ -181,7 +181,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 ### 1. Install the Role
 ```bash
 # From Git (v3.8.0)
-git clone -b claude/create-branch-v38-01Q1rF7wvFgf6Jnp9FKB1WGT \
+git clone -b branch \
   https://github.com/Codename-Beast/ansible-role-solr.git roles/solr
 
 # Or from Ansible Galaxy (when published)
@@ -242,7 +242,7 @@ solr_customer_user: "customer"           # Default: customer
 
 ### Container Configuration
 ```yaml
-solr_version: "9.9.0"  # Upgrade to 9.10.0 validated and ready (100% compatible)
+solr_version: "9.9.0"  # Upgrade to 9.10.0 validated and ready (compatible)
 solr_port: 8983                          # Solr port (default: 8983)
 solr_heap_size: "2g"                     # Java heap size
 solr_memory_limit: "2g"                  # Container memory limit
@@ -587,7 +587,7 @@ $ ansible-playbook playbook.yml
 # ✅ Output: "SKIPPING deployment - no changes detected"
 ```
 
-### Scenario 2: Password Change Only (ZERO Downtime)
+### Scenario 2: Password Change Only
 ```bash
 # Edit host_vars: solr_admin_password: "new_password"
 $ ansible-playbook playbook.yml
