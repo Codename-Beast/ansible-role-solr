@@ -2,26 +2,27 @@
 
 ## 1. Apache VirtualHost Konfiguration
 
+### Generische Config (funktioniert für JEDE Domain)
+Die Apache VHost Template (`templates/apache-vhost-solr.conf.j2`) ist generisch und funktioniert mit jeder Domain durch Jinja2-Variablen.
+
 ### Installation & Aktivierung
 ```bash
 # Apache Module aktivieren
 sudo a2enmod proxy proxy_http rewrite headers ssl
 
-# VHost Config erstellen
-sudo cp templates/apache-vhost-solr.conf.j2 /etc/apache2/sites-available/srh-ecampus-solr.conf
+# VHost Config wird durch Ansible-Role automatisch generiert
+# Verwendet folgende Variablen aus host_vars:
+# - {{ solr_app_domain }} → Beliebige Domain (z.B. srh-ecampus.de.solr.elearning-home.de)
+# - {{ solr_ssl_cert_path }} → Let's Encrypt Pfad für diese Domain
+# - {{ customer_name }} → Kunde (z.B. srhcampus)
+# - {{ solr_port }} → Docker Port (8983)
+# - {{ solr_proxy_path }} → Proxy Path (/solr)
 
-# Manuelle Anpassung (oder via Ansible template):
-# - solr_app_domain: srh-ecampus.de.solr.elearning-home.de
-# - solr_ssl_cert_path: /etc/letsencrypt/live/srh-ecampus.de.solr.elearning-home.de
-# - customer_name: srhcampus
-# - solr_port: 8983
-# - solr_proxy_path: /solr
+# Manuelle Installation (optional):
+# sudo ansible-playbook ... --tags apache-vhost
 
 # Config testen
 sudo apache2ctl configtest
-
-# VHost aktivieren
-sudo a2ensite srh-ecampus-solr.conf
 
 # Apache neu laden
 sudo systemctl reload apache2
