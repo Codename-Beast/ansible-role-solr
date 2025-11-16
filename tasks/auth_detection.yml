@@ -15,7 +15,7 @@
     solr_moodle_password: "{{ solr_moodle_password | default('') }}"
     solr_admin_user: "{{ solr_admin_user | default('admin') }}"
     solr_support_user: "{{ solr_support_user | default('support') }}"
-    solr_moodle_user: "{{ solr_moodle_user | default('customer') }}"
+    solr_moodle_user: "{{ solr_moodle_user | default('moodle') }}"
 
 - name: Read existing security.json
   when: existing_security_json.stat.exists
@@ -34,7 +34,7 @@
   set_fact:
     existing_admin_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user] | default('') }}"
     existing_support_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user] | default('') }}"
-    existing_customer_hash: "{{ security_json_parsed.authentication.credentials[solr_moodle_user] | default('') }}"
+    existing_moodle_hash: "{{ security_json_parsed.authentication.credentials[solr_moodle_user] | default('') }}"
 
 - name: Create temp directory for verification
   file:
@@ -151,19 +151,19 @@
     - existing_security_json.stat.exists
     - solr_support_password | length == 0 or existing_support_hash | length == 0
 
-# Validate customer password
-- name: Verify customer hash
+# Validate moodle password
+- name: Verify moodle hash
   when:
     - existing_security_json.stat.exists
     - solr_moodle_password | length > 0
-    - existing_customer_hash | length > 0
+    - existing_moodle_hash | length > 0
 
   block:
-    - name: Extract customer salt from existing hash
+    - name: Extract moodle salt from existing hash
       set_fact:
-        customer_existing_salt_b64: "{{ existing_customer_hash.split(' ')[1] }}"
+        moodle_existing_salt_b64: "{{ existing_moodle_hash.split(' ')[1] }}"
       
-    - name: Compute expected customer hash with binary concatenation 
+    - name: Compute expected moodle hash with binary concatenation 
       shell: 
         cmd: | 
           set -e 
@@ -174,28 +174,28 @@
             BASE64_CMD="base64" 
           fi 
           
-          echo "{{ customer_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/customer_salt.bin
-          printf '%s' "{{ solr_moodle_password }}" > {{ verify_dir }}/customer_pass.bin
-          cat {{ verify_dir }}/customer_salt.bin {{ verify_dir }}/customer_pass.bin > {{ verify_dir }}/customer_combined.bin
-          openssl dgst -sha256 -binary {{ verify_dir }}/customer_combined.bin > {{ verify_dir }}/customer_hash1.bin
-          openssl dgst -sha256 -binary {{ verify_dir }}/customer_hash1.bin > {{ verify_dir }}/customer_hash2.bin
-          HASH_B64=$(${BASE64_CMD} < {{ verify_dir }}/customer_hash2.bin | tr -d '\n\r') 
-          echo "${HASH_B64} {{ customer_existing_salt_b64 }}"
+          echo "{{ moodle_existing_salt_b64 }}" | base64 -d > {{ verify_dir }}/moodle_salt.bin
+          printf '%s' "{{ solr_moodle_password }}" > {{ verify_dir }}/moodle_pass.bin
+          cat {{ verify_dir }}/moodle_salt.bin {{ verify_dir }}/moodle_pass.bin > {{ verify_dir }}/moodle_combined.bin
+          openssl dgst -sha256 -binary {{ verify_dir }}/moodle_combined.bin > {{ verify_dir }}/moodle_hash1.bin
+          openssl dgst -sha256 -binary {{ verify_dir }}/moodle_hash1.bin > {{ verify_dir }}/moodle_hash2.bin
+          HASH_B64=$(${BASE64_CMD} < {{ verify_dir }}/moodle_hash2.bin | tr -d '\n\r') 
+          echo "${HASH_B64} {{ moodle_existing_salt_b64 }}"
         executable: /bin/bash 
-      register: customer_expected_hash
+      register: moodle_expected_hash
       changed_when: false
       no_log: true
     
-    - name: Set customer mismatch fact
+    - name: Set moodle mismatch fact
       set_fact:
-        mismatch_customer: "{{ customer_expected_hash.stdout != existing_customer_hash }}"
+        mismatch_moodle: "{{ moodle_expected_hash.stdout != existing_moodle_hash }}"
 
-- name: Mark customer mismatched when no plaintext or no existing hash
+- name: Mark moodle mismatched when no plaintext or no existing hash
   set_fact:
-    mismatch_customer: true
+    mismatch_moodle: true
   when:
     - existing_security_json.stat.exists
-    - solr_moodle_password | length == 0 or existing_customer_hash | length == 0
+    - solr_moodle_password | length == 0 or existing_moodle_hash | length == 0
 
 - name: Cleanup verification temp directory
   file:
@@ -206,7 +206,7 @@
 # Determine whether to skip hashing
 - name: Determine skip_auth flag
   set_fact:
-    skip_auth: "{{ existing_security_json.stat.exists and (not mismatch_admin | default(true)) and (not mismatch_support | default(true)) and (not mismatch_customer | default(true)) }}"
+    skip_auth: "{{ existing_security_json.stat.exists and (not mismatch_admin | default(true)) and (not mismatch_support | default(true)) and (not mismatch_moodle | default(true)) }}"
 
 - name: Display detection result
   debug:
@@ -216,5 +216,5 @@
       - "security.json exists: {{ existing_security_json.stat.exists }}"
       - "Admin hash matches: {{ not mismatch_admin | default(true) if existing_security_json.stat.exists else 'N/A' }}"
       - "Support hash matches: {{ not mismatch_support | default(true) if existing_security_json.stat.exists else 'N/A' }}"
-      - "Customer hash matches: {{ not mismatch_customer | default(true) if existing_security_json.stat.exists else 'N/A' }}"
+      - "Moodle hash matches: {{ not mismatch_moodle | default(true) if existing_security_json.stat.exists else 'N/A' }}"
       - "Skip auth regeneration: {{ skip_auth }}"

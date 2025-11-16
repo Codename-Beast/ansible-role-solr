@@ -60,7 +60,7 @@
 
       solr_admin_user: "{{ solr_admin_user | default('admin') }}"
       solr_support_user: "{{ solr_support_user | default('support') }}"
-      solr_moodle_user: "{{ solr_moodle_user | default('customer') }}"
+      solr_moodle_user: "{{ solr_moodle_user | default('moodle') }}"
 
       solr_core_name_override: "{{ solr_core_name }}"
       solr_port: {{ solr_port }}

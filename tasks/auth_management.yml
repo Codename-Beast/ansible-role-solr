@@ -258,7 +258,7 @@
       loop:
         - { name: "admin", password: "{{ solr_admin_password | default('') }}" }
         - { name: "support", password: "{{ solr_support_password | default('') }}" }
-        - { name: "customer", password: "{{ solr_moodle_password | default('') }}" }
+        - { name: "moodle", password: "{{ solr_moodle_password | default('') }}" }
       loop_control:
         label: "{{ item.name }}"
 
@@ -293,7 +293,7 @@
         username: "{{ solr_support_user | default('support') }}"
         password: "{{ solr_support_password }}"
       - name: moodle
-        username: "{{ solr_moodle_user | default('customer') }}"
+        username: "{{ solr_moodle_user | default('moodle') }}"
         password: "{{ solr_moodle_password }}"
   no_log: true
   when: not skip_auth
@@ -347,7 +347,7 @@
     solr_moodle_password: "{{ auth_users_with_passwords[2].password }}"
     admin_password: "{{ auth_users_with_passwords[0].password }}"
     support_password: "{{ auth_users_with_passwords[1].password }}"
-    customer_password: "{{ auth_users_with_passwords[2].password }}"
+    moodle_password: "{{ auth_users_with_passwords[2].password }}"
     admin_password_hash: "{{ generated_hashes.results[0].stdout }}"
     support_password_hash: "{{ generated_hashes.results[1].stdout }}"
     moodle_password_hash: "{{ generated_hashes.results[2].stdout }}"

@@ -31,8 +31,8 @@
       - name: support
         username: "{{ solr_support_user | default('support') }}"
         password: "{{ solr_support_password }}"
-      - name: customer
-        username: "{{ solr_moodle_user | default('customer') }}"
+      - name: moodle
+        username: "{{ solr_moodle_user | default('moodle') }}"
         password: "{{ solr_moodle_password }}"
 
 - name: auth-val - Test user authentication against core ping
