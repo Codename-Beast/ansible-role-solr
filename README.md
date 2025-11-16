@@ -373,32 +373,55 @@ solr_health_check_enabled: false
 
 ### Multi-Core Configuration (v3.9.0+)
 
-Deploy up to **10 Moodle instances** on a single 16GB Solr server with automatic RAM management and password generation.
+Deploy up to **4-5 Moodle instances** on a 16GB server, or **10 instances** on a 32GB server with automatic RAM management and password generation.
 
-#### RAM Calculation
+#### ⚠️ RAM Calculation (KORRIGIERT v3.9.0)
 
-The role automatically calculates heap allocation per core:
+**WICHTIG:** Die vorherige Berechnung war **fundamental falsch**!
 
-**Formula:** `Heap per core = Total Heap / Number of Cores`
+**Problem:** Caches sind **PER-CORE** und multiplizieren sich (nicht geteilt)!
 
-**Example (16GB server with 6GB heap, 10 cores):**
+**Korrekte Berechnung basierend auf Apache Solr Best Practices 2024/2025:**
+
 ```
-6144 MB ÷ 10 cores = ~614 MB per core
+16GB Server mit 8GB Heap:
+├── JVM Heap:        8GB  (Solr/Lucene operations)
+├── OS Disk Cache:   6GB  (MMapDirectory - KRITISCH!)
+└── System:          2GB  (Docker, OS processes)
+
+Pro Core RAM-Bedarf (effektiv):
+├── ramBufferSizeMB:  75-100MB (PER-CORE!)
+├── filterCache:      ~50MB    (512 entries @ 12.5MB max, PER-CORE!)
+├── queryResultCache: ~50MB    (PER-CORE!)
+├── documentCache:    ~50MB    (PER-CORE!)
+├── Misc/Temp:        4-6GB   (global, nicht pro Core)
+└── Working Memory:   Rest    (Query processing)
+
+EFFEKTIV PRO CORE: ~1.5-2GB (NICHT 600MB!)
 ```
 
-**RAM Thresholds:**
-- ✅ **1-10 cores** (Recommended): ~600MB+ per core on 16GB server
-- ⚠️ **11-15 cores** (Warning): ~400-600MB per core - may impact performance
-- ❌ **>15 cores** (Blocked): <400MB per core - deployment will fail
+**Realistische Limits für Moodle mit File-Indexing:**
+
+| Server RAM | Heap | OS Cache | Max Cores | RAM/Core | Status |
+|------------|------|----------|-----------|----------|--------|
+| **16GB** | 8GB | 6GB | **4-5** | ~1.5-2GB | ✅ Empfohlen |
+| 16GB | 8GB | 6GB | 6 | ~1GB | ⚠️ Performance-Einbußen |
+| 16GB | 8GB | 6GB | >6 | <1GB | ❌ Deployment blockiert |
+| **32GB** | 20GB | 10GB | **10** | ~1.5-2GB | ✅ Empfohlen |
+
+**Quellen:**
+- Apache Solr Memory Tuning Guide (Cloudera 2024)
+- Moodle.org: 10-20GB Heap für File-Indexing
+- Lucidworks Best Practices, Solr 9.x Performance Guide
 
 #### Multi-Core Example Configuration
 
 ```yaml
-# Global settings
+# Global settings (16GB Server, max 4-5 cores)
 customer_name: "school-district"
 solr_app_domain: "solr.schools.edu"
-solr_heap_size: "6g"           # Total heap for all cores
-solr_memory_limit: "8g"
+solr_heap_size: "8g"            # KORRIGIERT: 8GB für 16GB Server
+solr_memory_limit: "14g"        # Container: 8GB Heap + 6GB OS Cache
 solr_webserver: "nginx"
 solr_ssl_enabled: true
 
@@ -532,16 +555,16 @@ solr_force_recreate: true  # Force recreate with new version
 ansible-playbook -i inventory playbook.yml
 ```
 
-### Example 6: Multi-Core Deployment (v3.9.0+)
+### Example 6: Multi-Core Deployment (v3.9.0+ KORRIGIERT)
 
-Deploy 10 school Moodle instances on one Solr server:
+Deploy 10 school Moodle instances on one Solr server (**32GB RAM erforderlich!**):
 
 ```yaml
-# host_vars/solr-prod-01.yml
+# host_vars/solr-prod-01.yml (32GB Server für 10 Cores)
 customer_name: "schulverbund-nord"
 solr_app_domain: "solr.schulverbund.de"
-solr_heap_size: "6g"        # 6GB heap for 10 cores = ~600MB per core
-solr_memory_limit: "8g"
+solr_heap_size: "20g"       # KORRIGIERT: 20GB für 10 Cores (~1.5GB/Core effektiv)
+solr_memory_limit: "28g"    # Container: 20GB Heap + 8GB OS Cache
 
 # Define all 10 cores
 solr_cores:
@@ -570,17 +593,29 @@ ansible-playbook -i inventory playbook.yml
 
 # Result:
 # - 10 isolated cores created
-# - ~614MB heap per core
+# - ~1.5-2GB heap per core effektiv (KORRIGIERT!)
 # - Missing passwords auto-generated and displayed
 # - Each school has dedicated core + user
 ```
 
+**16GB Server Alternative (max 4 cores):**
+```yaml
+# Für 16GB Server: Nur 4 Schulen möglich
+solr_heap_size: "8g"
+solr_memory_limit: "14g"
+solr_cores:
+  - name: "gymnasium_nord"    # ... 4 cores total
+  - name: "realschule_sued"
+  - name: "grundschule_west"
+  - name: "hauptschule_ost"
+```
+
 **Add cores later (idempotent):**
 ```yaml
-# Add 11th core to existing deployment
+# Für 32GB Server: 11. Core hinzufügen
 solr_cores:
   # ... existing 10 cores ...
-  - name: "berufsschule_ost"  # NEW
+  - name: "berufsschule_ost"  # NEW (11th core)
     domain: "bs-ost.schulverbund.de"
     users:
       - username: "moodle_bs_ost"
@@ -589,7 +624,7 @@ solr_cores:
 # Re-run playbook - only new core is created, existing cores untouched
 ansible-playbook -i inventory playbook.yml
 
-# Warning displayed: >10 cores, ~560MB per core (still works)
+# Warning: >10 cores, ~1.3GB per core (Performance-Einbußen)
 ```
 
 ---

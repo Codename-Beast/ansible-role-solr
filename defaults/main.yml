@@ -169,10 +169,26 @@ solr_core_config: "moodle_configs"
 # Each core is isolated with its own index and can have dedicated users
 # Cores share the same Solr JVM heap (dynamically allocated)
 #
-# WICHTIG: RAM-Kalkulation für 16GB Server:
-# - Max empfohlen: 10 Cores (ca. 600MB Heap pro Core)
-# - Limit: 15 Cores (ca. 400MB Heap pro Core - Minimum!)
-# - Über 15 Cores: RAM-Upgrade auf 32GB empfohlen
+# WICHTIG: RAM-Kalkulation für Moodle mit File-Indexing:
+# Basierend auf Apache Solr Best Practices 2024/2025:
+#
+# 16GB Server (solr_heap_size: "8g"):
+# ├── JVM Heap:      8GB  (für Solr/Lucene)
+# ├── OS Disk Cache: 6GB  (MMapDirectory - KRITISCH!)
+# ├── System:        2GB  (Docker, OS)
+# └── Per Core:      ~1.5-2GB effektiv (nach Cache-Overhead)
+#     ├── ramBufferSizeMB: 100MB × Cores
+#     ├── filterCache:     ~50MB × Cores (512 entries @ 12.5MB max)
+#     ├── queryCache:      ~50MB × Cores
+#     ├── documentCache:   ~50MB × Cores
+#     ├── Misc/Temp:       4-6GB (global)
+#     └── Working Memory:  Rest verfügbar
+#
+# EMPFEHLUNG 16GB Server: Max 4-5 Cores (sicher)
+# EMPFEHLUNG 32GB Server: Max 10 Cores mit 20GB Heap
+#
+# Quelle: Apache Solr Memory Tuning (Cloudera), Moodle.org Forums,
+#         Lucidworks Best Practices, Solr 9.x Performance Guide
 #
 # Example Configuration:
 # solr_cores:
@@ -180,7 +196,7 @@ solr_core_config: "moodle_configs"
 #     domain: "moodle-prod.kunde.de"
 #     users:
 #       - username: "moodle_prod_rw"
-#         password: "{{ vault_prod_rw_password }}"
+#         password: "{{ vault_prod_rw_password }}"  # Or "" for auto-generate
 #         roles: ["core-admin-moodle_prod_core"]
 #       - username: "moodle_prod_ro"
 #         password: "{{ vault_prod_ro_password }}"
@@ -189,7 +205,7 @@ solr_core_config: "moodle_configs"
 #     domain: "moodle-test.kunde.de"
 #     users:
 #       - username: "moodle_test"
-#         password: "{{ vault_test_password }}"
+#         password: ""  # Auto-generate secure password
 #         roles: ["core-admin-moodle_test_core"]
 
 # Multi-Core Liste (leer = Single-Core Mode)
@@ -198,10 +214,16 @@ solr_cores: []
 # Multi-Core Mode Detection (automatisch gesetzt)
 solr_multi_core_mode: "{{ (solr_cores | default([]) | length) > 0 }}"
 
-# RAM Warning Thresholds (basierend auf 16GB Server)
-solr_max_cores_recommended: 10  # Empfohlen für 16GB RAM
-solr_max_cores_limit: 15        # Absolutes Limit für 16GB RAM
-solr_min_heap_per_core_mb: 400  # Minimum Heap pro Core
+# RAM Warning Thresholds (basierend auf Best Practices)
+# 16GB Server mit 8GB Heap:
+solr_max_cores_recommended: 4    # Sicher für 16GB RAM (8GB Heap)
+solr_max_cores_limit: 6           # Absolutes Limit für 16GB RAM
+solr_min_heap_per_core_mb: 1500  # Realistischer Mindestbedarf inkl. Caches
+
+# 32GB Server mit 20GB Heap (für 10 Cores):
+# solr_max_cores_recommended: 10
+# solr_heap_size: "20g"
+# solr_memory_limit: "28g"
 # ============================================================================
 # MONITORING & METRICS CONFIGURATION 
 # ============================================================================
@@ -229,40 +251,49 @@ solr_backup_compress: true
 solr_backup_credentials: false
 
 # ============================================================================
-# MEMORY CONFIGURATION (Optimized for 16GB Server)
+# MEMORY CONFIGURATION (Optimized for 16GB Server, v3.9.0 Corrected)
 # ============================================================================
 # Server RAM: 16GB total
 #
-# Docker Container: 12GB (allocated to Solr)
-#   ├── JVM Heap: 6GB (Solr application)
-#   └── OS File Cache: 6GB (Lucene MMapDirectory - CRITICAL for search performance!)
+# KORRIGIERT basierend auf Best Practices 2024/2025:
+# - Apache Solr Memory Tuning Guide (Cloudera)
+# - Moodle.org: 10-20GB Heap für File-Indexing empfohlen
+# - Regel: OS braucht 2× JVM Heap (8GB Heap = 16GB total minimum)
 #
-# Host OS: 4GB (outside container - system processes, Docker overhead)
+# Docker Container: 14GB (allocated to Solr)
+#   ├── JVM Heap: 8GB (Solr application + caches)
+#   └── OS File Cache: 6GB (Lucene MMapDirectory - KRITISCH!)
+#
+# Host OS: 2GB (outside container - system processes, Docker overhead)
 #
 # Memory Split Strategy:
-# - Heap: 6GB (37.5% of total) - JVM for Solr/Lucene operations
-# - File Cache: 6GB (37.5% of total) - Memory-mapped Lucene index segments
-# - OS Buffer: 4GB (25% of total) - System processes, Docker, buffers
+# - Heap: 8GB (50% of total) - JVM für Solr/Lucene + Per-Core Caches
+# - File Cache: 6GB (37.5%) - Memory-mapped Lucene index segments
+# - OS Buffer: 2GB (12.5%) - System processes, Docker
 #
 # Why this configuration?
-# 1. Lucene segments are memory-mapped (off-heap) via MMapDirectory
-# 2. OS file cache (6GB) holds frequently accessed index segments
-# 3. 6GB heap prevents long GC pauses (G1GC tuned for <200ms pauses)
-# 4. 50/50 split between heap and file cache is balanced for Moodle
-# 5. More file cache = better query performance (30%+ improvement proven)
+# 1. Lucene segments sind memory-mapped (off-heap) via MMapDirectory
+# 2. Caches sind PER-CORE: filterCache, queryCache, documentCache
+# 3. ramBufferSizeMB ist PER-CORE: 100MB × Cores
+# 4. Multi-Core braucht mehr Heap: 4 Cores × ~2GB = 8GB minimum
+# 5. OS File Cache kritisch für Query Performance (30%+ Verbesserung)
 #
-# Performance Tuning:
-# - For larger indexes (>10GB): Consider increasing container to 14GB
-#   (8GB file cache, 6GB heap, 2GB OS)
-# - For smaller indexes (<5GB): Current config is optimal
+# Multi-Core Impact (WICHTIG!):
+# Single-Core:  8GB Heap = ~7GB verfügbar für Arbeit
+# 4 Cores:      8GB Heap = ~1.5GB pro Core (nach Cache-Overhead)
+# 6 Cores:      8GB Heap = ~1GB pro Core (LIMIT!)
+#
+# Performance Tuning für mehr Cores:
+# - Für 10 Cores: 32GB Server, 20GB Heap, 8GB File Cache
 # - Monitor: docker stats, /admin/metrics, GC logs
 
-solr_heap_size: "6g"
-solr_memory_limit: "12g"  # Container limit: Heap (6g) + Off-heap (6g)
-solr_memory_swap: "12g"   # Swap limit matches memory limit
-solr_memory_reservation: "10g"  # Soft limit to prevent OOM
+solr_heap_size: "8g"
+solr_memory_limit: "14g"  # Container limit: Heap (8g) + Off-heap (6g)
+solr_memory_swap: "14g"   # Swap limit matches memory limit
+solr_memory_reservation: "12g"  # Soft limit to prevent OOM
 
-# GC & Performance Optimizations (Tuned for 6GB Heap)
+# GC & Performance Optimizations (Tuned for 8GB Heap)
+# G1GC is recommended for Solr 9.x with heaps 4GB+ (Stop-the-world <1s goal)
 solr_gc_options: >-
   -XX:+UseG1GC
   -XX:+ParallelRefProcEnabled
@@ -273,14 +304,14 @@ solr_gc_options: >-
   -XX:+DisableExplicitGC
   -XX:+AlwaysPreTouch
 
-# JVM Options
+# JVM Options (KORRIGIERT v3.9.0)
+# ENTFERNT: autoCommit/autoSoftCommit (Konflikt mit solrconfig.xml!)
+# Diese Werte werden in solrconfig.xml.j2 konfiguriert, NICHT hier
 solr_jvm_opts: >-
   -server
   -Djava.awt.headless=true
   -Dfile.encoding=UTF-8
   -Djava.net.preferIPv4Stack=true
-  -Dsolr.autoSoftCommit.maxTime=3000
-  -Dsolr.autoCommit.maxTime=60000
 
 # CPU Configuration (100% = 1 core, 400% = 4 cores)
 # Allocate 4 cores for Solr
@@ -306,17 +337,18 @@ solr_ssl_cert_path: "/etc/letsencrypt/live/{{ solr_app_domain | default('localho
 #   Nginx:  sudo certbot --nginx -d {{ solr_app_domain }}
 # HTTPS availability tested with up to 10 retries
 # ============================================================================
-# SOLR SETTINGS
+# SOLR SETTINGS (v3.9.0 Optimized)
 # ============================================================================
-solr_max_boolean_clauses: 1024
-solr_auto_commit_time: 15000  # milliseconds
-solr_auto_soft_commit_time: 1000  # milliseconds
+# maxBooleanClauses: Solr 9.x default ist 1024, aber Moodle mit edismax
+# und vielen qf/pf fields braucht höheren Wert (Best Practice: 2048-10000)
+solr_max_boolean_clauses: 2048
+solr_auto_commit_time: 15000  # milliseconds (Hard commit)
+solr_auto_soft_commit_time: 1000  # milliseconds (NRT visibility)
 # Note: solr_log_level defined in MONITORING section above
 # ============================================================================
 # MOODLE CONFIGURATION
 # ============================================================================
 solr_multi_version_cores: true
-solr_single_core_name: "{{ customer_name | default('default') }}_core"
 
 solr_moodle_versions_config:
   "4.1":
@@ -343,14 +375,6 @@ solr_moodle_versions_config:
     max_field_length: 65536
     use_legacy_date: false
     features: ["basic_search", "file_indexing", "multilang", "categories", "completion", "competencies", "outcomes", "tags"]
-
-solr_moodle_performance:
-  "4.1": { heap: "1g", cache_size: 1024 }
-  "4.2": { heap: "1g", cache_size: 1024 }
-  "4.3": { heap: "1g", cache_size: 1024 }
-  "4.4": { heap: "1g", cache_size: 1024 }
-  "5.0": { heap: "2g", cache_size: 2048 }
-  "5.0.x": { heap: "2g", cache_size: 2048 }
 
 solr_use_moodle_schema: true
 solr_moodle_test_docs: true

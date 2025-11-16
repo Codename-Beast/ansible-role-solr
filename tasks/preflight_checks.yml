@@ -233,9 +233,10 @@
     that:
       - item.1.username is defined
       - item.1.username | length > 0
-      - item.1.password is defined
-      - item.1.password | length >= 12
-    fail_msg: "Core '{{ item.0.name }}' user '{{ item.1.username | default('UNDEFINED') }}' has invalid configuration"
+      # KORRIGIERT v3.9.0: Passwort-Check entfernt!
+      # Passwörter können leer sein (Auto-Generation in auth_management.yml)
+      # Validation erfolgt NACH Generierung, nicht hier
+    fail_msg: "Core '{{ item.0.name }}' user '{{ item.1.username | default('UNDEFINED') }}' missing username"
     success_msg: "Core '{{ item.0.name }}' user '{{ item.1.username }}' validation passed"
   loop: "{{ solr_cores | default([]) | subelements('users', skip_missing=True) }}"
   loop_control:
