@@ -7,6 +7,129 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [3.9.2] - 2025-11-16 🚀 APACHE VHOST + RAM-KALKULATION FIX
+
+**Type:** Patch Release - Critical Fixes + Generic Templates
+**Status:** ✅ **PRODUCTION READY**
+
+### 🎯 CRITICAL FIXES
+
+1. **RAM-Kalkulation fundamental korrigiert**
+   - **Problem:** 16GB Server mit 10 Cores @ 600MB/Core (FALSCH!)
+   - **Fix:** 16GB Server max 4 Cores @ 1.5-2GB/Core (KORREKT!)
+   - **Grund:** Caches sind PER-CORE und multiplizieren sich
+   - **Basis:** Apache Solr Best Practices 2024/2025
+
+2. **Neue Defaults (defaults/main.yml):**
+   ```yaml
+   solr_heap_size: "8g"                # War: "6g"
+   solr_memory_limit: "14g"            # War: "12g"
+   solr_max_cores_recommended: 4       # War: 10 (!)
+   solr_max_cores_limit: 6             # War: 15 (!)
+   solr_min_heap_per_core_mb: 1500     # War: 400 (!)
+   solr_max_boolean_clauses: 2048      # War: 1024
+   ```
+
+3. **JVM-Options Konflikt behoben**
+   - **Problem:** JVM -D Flags überschrieben solrconfig.xml
+   - **Fix:** autoCommit/autoSoftCommit nur noch in solrconfig.xml
+   - Entfernt: `-Dsolr.autoSoftCommit.maxTime`, `-Dsolr.autoCommit.maxTime`
+
+### ✨ NEUE FEATURES
+
+1. **Apache VirtualHost Template - Generisch für JEDE Domain**
+   - **NEU:** `templates/apache-vhost-solr.conf.j2`
+   - Funktioniert mit beliebiger Domain (nicht nur elearning-home.de!)
+   - Let's Encrypt SSL-Integration
+   - X-Forwarded-Proto Header (SSL-Awareness!)
+   - WebSocket Support für Admin UI
+   - Security Headers (HSTS, X-Frame-Options, etc.)
+   - **Dokumentation:** `templates/APACHE_VHOST_README.md`
+
+2. **solrconfig.xml Multi-Core Aware**
+   - Dynamische ramBufferSizeMB basierend auf Core-Count:
+     - Single-Core: 100MB
+     - Multi-Core (≤4): 75MB per Core
+     - Multi-Core (>4): 50MB per Core
+   - Dynamische Cache-Größen:
+     - Single-Core: 512 entries
+     - Multi-Core: 256 entries
+
+3. **solr_additional_users mit Admin-Role**
+   - Support für role: ["admin"] in solr_additional_users
+   - Beispiel: eledia_support mit vollen Admin-Rechten
+   - security-edit Permission korrekt zugewiesen
+
+### 🐛 BUG FIXES
+
+1. **Preflight Password-Check korrigiert**
+   - **Problem:** Checks vor Auto-Generation → Blockierung
+   - **Fix:** Password-Checks für Multi-Core User entfernt
+   - Validation erfolgt NACH Generierung
+
+2. **Duplicate Variablen entfernt**
+   - Entfernt: `solr_single_core_name` (duplicate von `solr_core_name`)
+   - Entfernt: `solr_moodle_performance` (ungenutzt)
+
+3. **Docker SSL-Awareness**
+   - SOLR_URL_SCHEME=https wird korrekt gesetzt
+   - Keine HTTP-Warnings mehr in WebUI!
+   - Port 8983 nur auf 127.0.0.1 (nicht öffentlich)
+
+### 📚 DOKUMENTATION
+
+1. **Neue Dokumentation:**
+   - `templates/APACHE_VHOST_README.md` - Apache VHost Guide
+   - `SRHCAMPUS_DEPLOYMENT_CHECK.md` - Deployment Checkliste
+   - 10-Punkte Post-Deployment Checklist
+   - Troubleshooting für Apache, Docker, SSL, Auth
+
+2. **Aktualisierte Dokumentation:**
+   - README.md - Korrigierte RAM-Kalkulation mit Warnung
+   - Inline-Kommentare in templates mit Berechnungen
+
+### 📊 PERFORMANCE IMPACT
+
+**16GB Server - Vorher vs. Nachher:**
+- **v3.9.0 (falsch):** 10 Cores @ 600MB → ❌ OOM-Risk
+- **v3.9.2 (korrekt):** 4 Cores @ 2GB → ✅ Stabil
+
+**32GB Server:**
+- 10 Cores @ 2GB möglich mit: `solr_heap_size: "20g"`, `solr_memory_limit: "28g"`
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität erhalten.
+
+### 🔧 MIGRATION VON v3.9.0
+
+**Empfohlen:** Defaults nutzen (optimal für 16GB Server)
+```yaml
+# Nichts tun - Defaults sind jetzt korrekt!
+```
+
+**Optional:** 32GB Server für 10 Cores
+```yaml
+solr_heap_size: "20g"
+solr_memory_limit: "28g"
+solr_max_cores_recommended: 10
+```
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- defaults/main.yml
+- templates/solrconfig.xml.j2
+- tasks/preflight_checks.yml
+- README.md
+
+**New:**
+- templates/apache-vhost-solr.conf.j2
+- templates/APACHE_VHOST_README.md
+- SRHCAMPUS_DEPLOYMENT_CHECK.md
+
+---
+
 ## [3.8.1] - 2025-11-16 🌐 NGINX SUPPORT + PROXY IMPROVEMENTS
 
 **Type:** Minor Release - Webserver Support Enhancement

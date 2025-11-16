@@ -1,0 +1,216 @@
+---
+# ============================================================================
+# SRH Campus - Production Host Vars (v3.9.2)
+# ============================================================================
+# Domain: srh-ecampus.de.solr.elearning-home.de
+# Server: 16GB RAM
+# Cores: 4 Schulen (Maximum für 16GB - optimal)
+# SSL: Let's Encrypt (bereits installiert)
+# Version: v3.9.2 (2025-11-16)
+
+# ============================================================================
+# BASIC CONFIGURATION
+# ============================================================================
+customer_name: srhcampus
+solr_app_domain: srh-ecampus.de.solr.elearning-home.de
+
+# ============================================================================
+# GLOBAL ADMIN ACCOUNTS (Zugriff auf ALLE 4 Cores)
+# ============================================================================
+solr_admin_user: srhcampus_admin
+solr_admin_password: ""  # Auto-generate (24 Zeichen)
+
+solr_support_user: srhcampus_support
+solr_support_password: ""  # Auto-generate
+
+solr_moodle_user: srhcampus_global
+solr_moodle_password: ""  # Auto-generate
+
+# Eledia Support - Externer Admin mit vollen Rechten
+solr_additional_users:
+  - username: eledia_support
+    password: ""  # Auto-generate
+    roles: ["admin"]  # Volle Admin-Rechte inkl. Security-Edit!
+
+# ============================================================================
+# MULTI-CORE: 4 SCHULEN (MAXIMUM für 16GB Server - v3.9.2 Validated)
+# ============================================================================
+solr_cores:
+  # Grundschule Heidelberg
+  - name: gs_heidelberg
+    domain: gs-heidelberg.srh-ecampus.de
+    users:
+      - username: gs_heidelberg_admin
+        password: ""
+        roles: ["core-admin-gs_heidelberg_core"]
+      - username: gs_heidelberg_moodle
+        password: ""
+        roles: ["core-admin-gs_heidelberg_core"]
+      - username: gs_heidelberg_readonly
+        password: ""
+        roles: ["support"]
+
+  # Realschule Mannheim
+  - name: rs_mannheim
+    domain: rs-mannheim.srh-ecampus.de
+    users:
+      - username: rs_mannheim_admin
+        password: ""
+        roles: ["core-admin-rs_mannheim_core"]
+      - username: rs_mannheim_moodle
+        password: ""
+        roles: ["core-admin-rs_mannheim_core"]
+      - username: rs_mannheim_readonly
+        password: ""
+        roles: ["support"]
+
+  # Gymnasium Stuttgart
+  - name: gym_stuttgart
+    domain: gym-stuttgart.srh-ecampus.de
+    users:
+      - username: gym_stuttgart_admin
+        password: ""
+        roles: ["core-admin-gym_stuttgart_core"]
+      - username: gym_stuttgart_moodle
+        password: ""
+        roles: ["core-admin-gym_stuttgart_core"]
+      - username: gym_stuttgart_readonly
+        password: ""
+        roles: ["support"]
+
+  # Berufsschule Karlsruhe
+  - name: bs_karlsruhe
+    domain: bs-karlsruhe.srh-ecampus.de
+    users:
+      - username: bs_karlsruhe_admin
+        password: ""
+        roles: ["core-admin-bs_karlsruhe_core"]
+      - username: bs_karlsruhe_moodle
+        password: ""
+        roles: ["core-admin-bs_karlsruhe_core"]
+      - username: bs_karlsruhe_readonly
+        password: ""
+        roles: ["support"]
+
+# ============================================================================
+# SOLR VERSION & SETTINGS (v3.9.2 Optimized)
+# ============================================================================
+solr_version: "9.9.0"  # Mindestversion für Production
+solr_max_boolean_clauses: 2048  # Für komplexe Moodle-Queries (v3.9.2)
+solr_auto_commit_time: 15000  # 15 Sekunden
+solr_auto_soft_commit_time: 1000  # 1 Sekunde (NRT)
+
+# ============================================================================
+# MEMORY (v3.9.2 - Korrigierte Werte für 16GB Server)
+# ============================================================================
+# Defaults aus defaults/main.yml sind optimal:
+# solr_heap_size: "8g"              # Default (v3.9.2)
+# solr_memory_limit: "14g"          # Default (v3.9.2)
+# solr_max_cores_recommended: 4     # Default (v3.9.2)
+# solr_min_heap_per_core_mb: 1500   # Default (v3.9.2)
+
+# Nur überschreiben wenn 32GB Server:
+# solr_heap_size: "20g"
+# solr_memory_limit: "28g"
+
+# ============================================================================
+# NETWORK
+# ============================================================================
+solr_port: 8983  # Docker interner Port (nur localhost!)
+solr_proxy_path: /solr
+moodle_solr_host: srh-ecampus.de.solr.elearning-home.de  # Für Moodle Config
+
+# ============================================================================
+# SSL/TLS (Let's Encrypt bereits installiert)
+# ============================================================================
+solr_ssl_enabled: true
+solr_ssl_cert_path: "/etc/letsencrypt/live/srh-ecampus.de.solr.elearning-home.de"
+
+# SSL-Awareness in Docker (v3.9.2):
+# SOLR_URL_SCHEME=https wird automatisch gesetzt
+# SOLR_HOST={{ solr_app_domain }} wird automatisch gesetzt
+# SOLR_PORT=443 wird automatisch gesetzt
+# → Keine HTTP-Warnings mehr in WebUI!
+
+# ============================================================================
+# BACKUP (erstmal deaktiviert für Testing)
+# ============================================================================
+solr_backup_enabled: false
+
+# Für Production aktivieren:
+# solr_backup_enabled: true
+# solr_backup_schedule: "0 3 * * *"  # 3 Uhr nachts
+# solr_backup_retention: 14  # 14 Tage
+# solr_backup_credentials: true
+# solr_backup_compress: true
+
+# ============================================================================
+# LOGGING & MONITORING
+# ============================================================================
+solr_log_level: INFO  # Production: WARN
+solr_metrics_enabled: true
+solr_prometheus_export: false
+
+# ============================================================================
+# SYSTEMD SERVICE (Auto-Start nach Reboot - EMPFOHLEN!)
+# ============================================================================
+solr_create_systemd_service: true
+
+# Management:
+# sudo systemctl status solr-srhcampus
+# sudo systemctl restart solr-srhcampus
+# sudo systemctl stop solr-srhcampus
+
+# ============================================================================
+# APACHE VHOST (v3.9.2 - Generische Template)
+# ============================================================================
+# Template: templates/apache-vhost-solr.conf.j2
+# Wird automatisch generiert mit obigen Variablen
+# Aktivierung: sudo a2ensite srh-ecampus-solr.conf
+
+# ============================================================================
+# EXPECTED DEPLOYMENT RESULT
+# ============================================================================
+# URLs:
+#   https://srh-ecampus.de.solr.elearning-home.de/solr/
+#   https://srh-ecampus.de.solr.elearning-home.de/solr/#/gs_heidelberg_core
+#   https://srh-ecampus.de.solr.elearning-home.de/solr/#/rs_mannheim_core
+#   https://srh-ecampus.de.solr.elearning-home.de/solr/#/gym_stuttgart_core
+#   https://srh-ecampus.de.solr.elearning-home.de/solr/#/bs_karlsruhe_core
+#
+# Container:
+#   docker ps | grep solr-srhcampus
+#   docker stats solr-srhcampus
+#   docker logs solr-srhcampus
+#
+# Credentials (16 User total):
+#   /opt/solr/srhcampus/config/credentials.yml
+#
+#   Global (4): srhcampus_admin, srhcampus_support, srhcampus_global, eledia_support
+#   Per School (12): admin, moodle, readonly × 4 Schulen
+#
+# RAM-Nutzung (erwartet):
+#   ~10-12GB / 14GB (~70-85%)
+#   4 Cores @ ~2-3GB/Core
+#
+# Moodle Integration (Beispiel Grundschule Heidelberg):
+#   Host: srh-ecampus.de.solr.elearning-home.de
+#   Port: 443
+#   Path: /solr
+#   Core: gs_heidelberg_core
+#   User: gs_heidelberg_moodle
+#   Pass: (siehe credentials.yml)
+#   Secure: Yes (HTTPS)
+
+# ============================================================================
+# DEPLOYMENT COMMAND
+# ============================================================================
+# ansible-playbook -i inventory/production playbook.yml \
+#   -e @host_vars/srhcampus.yml \
+#   --tags solr
+
+# Force Recreate:
+# ansible-playbook ... -e "solr_force_recreate=true"
+
+# Nur Auth neu:
+# ansible-playbook ... -e "solr_force_reconfigure_auth=true"
