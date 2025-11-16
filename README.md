@@ -24,10 +24,9 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ### ✨ New in v3.9.3 (TESTING - Bereit für Hardware-Tests)
 - 🧹 **Code-Hygiene Final** - 3 weitere ungenutzte Variablen entfernt
-- 📝 **100% Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt (30+ Stellen!)
-- 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht (3.4KB)
+- 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
+- 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
 - 📋 **Dokumentation** - Sprachliche Anpassungen, "Customer User" → "Moodle User"
-- ✅ **Status-Korrektur** - Alle Dokumentation auf "Testing Ready" (korrekt!)
 - ⚠️ **Status:** Testing - Code-seitig bereit, Hardware-Tests ausstehend!
 
 ### ✨ New in v3.9.2
