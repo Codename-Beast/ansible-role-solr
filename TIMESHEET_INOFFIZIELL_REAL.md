@@ -201,9 +201,18 @@
 4. **12 echte Arbeitstage** statt 40 im offiziellen Timesheet
 
 ### Warum 165h offiziell vs. 65.5h real?
-- **Offiziell:** Gestreut über 8 Wochen (Mo-Fr, 2-3h/Tag)
-- **Real:** Konzentriert in 12 Tagen (Sprint-Modus)
-- **Differenz:** Offizieller Timesheet ist für "normale" Arbeitsweise formatiert
+
+**Offiziell (165h):**
+- Theoretisch verfügbare Zeit für Solr
+- Mo-Fr: 8h Arbeitstag MINUS 2-3h Tagesgeschäft = 5-6h für Solr
+- Verteilt über 8 Wochen (40 Arbeitstage)
+- Professionell dokumentiert für Zeiterfassung/Odoo
+
+**Inoffiziell/Real (65.5h):**
+- TATSÄCHLICH an Solr gearbeitet (Git-basiert)
+- Konzentriert in 12 Tagen (Sprint-Modus)
+- Hauptsächlich nachts + Wochenende
+- 99.5h waren für andere Projekte/Tagesgeschäft
 
 ---
 
