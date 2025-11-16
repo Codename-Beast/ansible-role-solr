@@ -49,7 +49,7 @@
         username: "{{ solr_support_user | default('support') }}"
         password: "{{ solr_support_password | default('') }}"
       - name: moodle
-        username: "{{ solr_moodle_user | default('customer') }}"
+        username: "{{ solr_moodle_user | default('moodle') }}"
         password: "{{ solr_moodle_password | default('') }}"
 
 - name: auth-mgmt - Read existing security.json
@@ -167,7 +167,7 @@
   set_fact:
     admin_password_hash: "{{ security_json_parsed.authentication.credentials[solr_admin_user | default('admin')] }}"
     support_password_hash: "{{ security_json_parsed.authentication.credentials[solr_support_user | default('support')] }}"
-    moodle_password_hash: "{{ security_json_parsed.authentication.credentials[solr_moodle_user | default('customer')] }}"
+    moodle_password_hash: "{{ security_json_parsed.authentication.credentials[solr_moodle_user | default('moodle')] }}"
   when:
     - skip_auth
     - existing_security_json.stat.exists
