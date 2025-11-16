@@ -52,12 +52,11 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - 🔐 **Solr SSL-Awareness** - No more HTTP warnings in WebUI!
 
 ### ✅ v3.8.0 Features
-- ✅ **Solr 9.10 Ready** - 100% compatibility validated
+- ✅ **Solr 9.10 Ready** - compatibility validated
 - ✅ **Add User Management** - Add users and their permissions
 - ✅ **Zero-Downtime User Management** - Hot-reload via API
 - ✅ **Complete Moodle Support** - File indexing fields added
 - ✅ **Production Hardened** - All critical bugs fixed
-- ✅ **Industry Best Practice** - Code quality 9.8/10
 
 </td>
 <td width="50%">
@@ -67,7 +66,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - ✅ **32GB Server:** Max 10 Cores @ ~2GB/Core
 - ✅ Each core: dedicated index + users
 - ✅ Caches sind PER-CORE (nicht geteilt!)
-- ✅ Nachträglich erweiterbar (idempotent)
+- ✅ Nachträglich erweiterbar
 - ✅ Automatic role assignment per core
 - ⚠️ **Alte Werte (v3.9.0) waren FALSCH!**
 
@@ -91,14 +90,14 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** 🧪 **TESTING** (v3.9.2 - Fehler bei Abnahme gefixt und weitere fehler behandelt | **Critical Fix:** RAM-Kalkulation korrigiert | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB
+**Status:** 🧪 **TESTING** (v3.9.2 - Fehler bei Abnahme gefixt und weitere fehler behandelt | **Critical Fix:** RAM-Kalkulation korrigiert | **Webservers:** Apache | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB
 
 ---
 
 ## 🎯 Features
 
 ### Capabilities
-- ✅ **Full Idempotency** - Run unlimited times without side effects
+- ✅ **Idempotency** - Run unlimited times without side effects
 - ✅ **Automatic Rollback** - Deployment failure recovery with block/rescue/always
 - ✅ **Selective Password Updates** - Change passwords without container restart (ZERO downtime)
 - ✅ **Smart Core Management** - Core name changes create new cores, old ones preserved
@@ -109,7 +108,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - ✅ **Performance Monitoring** - JVM metrics, GC optimization, health checks
 
 ### Testing & Validation
-- ✅ **Comprehensive Testing** - 19 integration tests (100% pass rate)
+- ✅ **Comprehensive Testing** - 19 integration tests
 - ✅ **Moodle Document Tests** - 10 schema-specific validation tests
 - ✅ **Authentication Tests** - Multi-user authorization validation
 - ✅ **Performance Tests** - Memory usage and query response times
@@ -209,7 +208,6 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - **OS**:  Debian 11/12
 - **Ansible**: 2.10.12 or higher
 - **Docker**: 20.10+ with Compose v2
-- **Disk**: Minimum 10GB free space
 
 
 ### System Packages (auto-installed)
@@ -233,14 +231,7 @@ git clone -b branch \
 ansible-galaxy install eledia.solr
 ```
 
-### 2. Create Inventory
-```ini
-# inventory/hosts
-[solr_servers]
-solr-prod-01 ansible_host=192.168.1.10 ansible_user=root
-```
-
-### 3. Create Playbook
+### 2. Create Playbook
 ```yaml
 # playbook.yml
 ---
@@ -476,24 +467,24 @@ solr_cores:
 **Deployment Output Example:**
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║                 🔐 GENERATED CREDENTIALS                              ║
-║                                                                       ║
-║  ⚠️  WICHTIG: Passwörter wurden automatisch generiert!                ║
+║                 🔐 GENERATED CREDENTIALS                             ║
+║                                                                      ║
+║  ⚠️  WICHTIG: Passwörter wurden automatisch generiert!               ║
 ║  Bitte in host_vars speichern und WebUI-Login testen!                ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  ✨ Realschule Süd User (NEU GENERIERT):                              ║
-║     Username: moodle_real_sued                                        ║
+║  ✨ Realschule Süd User (NEU GENERIERT):                             ║
+║     Username: moodle_real_sued                                       ║
 ║     Password: Xk9mP2vL7nR4wQ8tY5sH6jF3                               ║
-║     Hinzufügen zu host_vars:                                          ║
-║     solr_cores:                                                       ║
-║       - name: "realschule_sued"                                       ║
-║         users:                                                        ║
-║           - username: "moodle_real_sued"                              ║
-║             password: "Xk9mP2vL7nR4wQ8tY5sH6jF3"                      ║
-║                                                                       ║
-║  🌐 WEBUI LOGIN TESTEN:                                               ║
+║     Hinzufügen zu host_vars:                                         ║
+║     solr_cores:                                                      ║
+║       - name: "realschule_sued"                                      ║
+║         users:                                                       ║
+║           - username: "moodle_real_sued"                             ║
+║             password: "Xk9mP2vL7nR4wQ8tY5sH6jF3"                     ║
+║                                                                      ║
+║  🌐 WEBUI LOGIN TESTEN:                                              ║
 ║  curl -u moodle_real_sued:Xk9mP2vL7nR4wQ8tY5sH6jF3 \                 ║
-║       https://solr.schools.edu/solr-admin/realschule_sued_core/admin/ping
+║ https://solr.schools.edu/solr-admin/realschule_sued_core/admin/ping  ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -528,7 +519,7 @@ password: "My-P@ssw0rd!#2024"  # Quotes required for @ ! # : etc.
         solr_memory_limit: "4g"
 ```
 
-### Example 2: Password Update (ZERO Downtime)
+### Example 2: Password Update
 ```bash
 # 1. Update password in host_vars/server.yml
 solr_admin_password: "new_secure_password_123"
