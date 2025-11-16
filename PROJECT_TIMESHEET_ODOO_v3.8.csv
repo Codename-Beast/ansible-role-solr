@@ -1,46 +1,41 @@
 date,employee_id,project_id,task_id,name,unit_amount
-2025-09-24,Bernd Schreistetter,ansible-role-solr,Projekt-Initialisierung,Projekt-Kick-off und Anforderungsanalyse,3.0
-2025-09-25,Bernd Schreistetter,ansible-role-solr,Requirements,Technische Anforderungen mit Stakeholdern definieren,4.5
-2025-09-26,Bernd Schreistetter,ansible-role-solr,Requirements,Solr 9.9.0 Spezifikationen analysieren und dokumentieren,4.0
-2025-09-29,Bernd Schreistetter,ansible-role-solr,Research,Moodle Search API Dokumentation studieren (4.1-5.0.x),3.5
-2025-09-30,Bernd Schreistetter,ansible-role-solr,Architecture,System-Architektur Design (Docker Compose v2 Pattern),5.0
-2025-10-01,Bernd Schreistetter,ansible-role-solr,Architecture,Security-Konzept (BasicAuth + RuleBasedAuthorization),4.0
+2025-09-24,Bernd Schreistetter,ansible-role-solr,Projekt-Initialisierung,Projekt-Kick-off und Anforderungsanalyse,3.5
+2025-09-25,Bernd Schreistetter,ansible-role-solr,Requirements,Technische Anforderungen mit Stakeholdern definieren,4.0
+2025-09-26,Bernd Schreistetter,ansible-role-solr,Requirements,Solr 9.9.0 Spezifikationen analysieren,3.5
+2025-09-27,Bernd Schreistetter,ansible-role-solr,Research,Moodle Search API Dokumentation studieren,4.0
+2025-09-30,Bernd Schreistetter,ansible-role-solr,Architecture,System-Architektur Design (Docker Compose v2),4.5
+2025-10-01,Bernd Schreistetter,ansible-role-solr,Architecture,Security-Konzept (BasicAuth + Authorization),4.0
 2025-10-02,Bernd Schreistetter,ansible-role-solr,Documentation,Technical Design Document erstellen,3.5
 2025-10-03,Bernd Schreistetter,ansible-role-solr,Review,Requirements Review und Genehmigung,2.5
-2025-10-07,Bernd Schreistetter,ansible-role-solr,Prototyping,Solr Docker Image Evaluation und Tests,4.5
-2025-10-08,Bernd Schreistetter,ansible-role-solr,Prototyping,BasicAuth Implementierung Prototyp,5.0
-2025-10-09,Bernd Schreistetter,ansible-role-solr,Security,Password Hashing Mechanismus Research (SHA-256),3.5
-2025-10-10,Bernd Schreistetter,ansible-role-solr,Security,security.json Format Analyse und Validierung,4.0
-2025-10-11,Bernd Schreistetter,ansible-role-solr,Testing,Test-Framework Setup (Ansible Molecule),3.0
-2025-10-14,Bernd Schreistetter,ansible-role-solr,Integration,Docker Compose Init-Container Pattern Prototyp,5.5
-2025-10-15,Bernd Schreistetter,ansible-role-solr,Schema,Moodle Schema Analyse (Field Mapping),4.5
-2025-10-16,Bernd Schreistetter,ansible-role-solr,Schema,Schema Validierung und Kompatibilitäts-Tests,4.0
-2025-10-17,Bernd Schreistetter,ansible-role-solr,Performance,RAM Allocation Research (Lucene MMapDirectory),3.5
-2025-10-18,Bernd Schreistetter,ansible-role-solr,Performance,JVM GC Tuning Research (G1GC Optimization),4.0
-2025-10-21,Bernd Schreistetter,ansible-role-solr,Documentation,Prototyping Results dokumentieren,3.0
-2025-10-22,Bernd Schreistetter,ansible-role-solr,Architecture,Final Architecture Review und Approval,2.5
-2025-10-23,Bernd Schreistetter,ansible-role-solr,Planning,Sprint Planning für Core Development,2.0
-2025-10-24,Bernd Schreistetter,ansible-role-solr,Setup,Development Environment Setup finalisieren,3.5
-2025-10-25,Bernd Schreistetter,ansible-role-solr,Implementation,Repository Initialisierung und Basis-Struktur (v3.0.0),5.5
-2025-10-26,Bernd Schreistetter,ansible-role-solr,Implementation,Docker Compose Template Entwicklung,6.0
-2025-10-27,Bernd Schreistetter,ansible-role-solr,Implementation,Init-Container Pattern Implementation (v3.1.0),7.5
-2025-10-28,Bernd Schreistetter,ansible-role-solr,Implementation,Moodle Schema Template Entwicklung (v3.2.0),6.5
-2025-10-29,Bernd Schreistetter,ansible-role-solr,Security,SHA-256 Hash System Implementation (v3.2.1),5.0
-2025-10-30,Bernd Schreistetter,ansible-role-solr,Testing,Integration Tests Development und Debugging,5.5
-2025-10-31,Bernd Schreistetter,ansible-role-solr,Monitoring,Health Check System Implementation (v3.3.0),4.5
-2025-11-01,Bernd Schreistetter,ansible-role-solr,Optimization,Full Idempotency Implementation (v3.3.1),6.0
-2025-11-02,Bernd Schreistetter,ansible-role-solr,Bugfixing,11 Critical Bugs Fixed + Rollback Mechanism (v3.3.2),7.5
-2025-11-03,Bernd Schreistetter,ansible-role-solr,Security,Authorization Matrix Expansion (v3.4.0),4.5
-2025-11-04,Bernd Schreistetter,ansible-role-solr,Backup,Automated Backup Management Implementation,5.5
-2025-11-05,Bernd Schreistetter,ansible-role-solr,Performance,JVM GC Optimization und Performance Tuning,4.5
-2025-11-06,Bernd Schreistetter,ansible-role-solr,Testing,Comprehensive Test Suite (19 Integration + 10 Moodle),6.0
-2025-11-07,Bernd Schreistetter,ansible-role-solr,Documentation,README und Authorization Matrix Documentation,4.0
-2025-11-08,Bernd Schreistetter,ansible-role-solr,QA,End-to-End Testing und Validation,5.0
-2025-11-09,Bernd Schreistetter,ansible-role-solr,Refactoring,Code Review und Quality Improvements,4.5
-2025-11-10,Bernd Schreistetter,ansible-role-solr,Deployment,Production Deployment Testing,3.5
-2025-11-11,Bernd Schreistetter,ansible-role-solr,Development,Dynamic User Provisioning Implementation,5.0
-2025-11-12,Bernd Schreistetter,ansible-role-solr,Configuration,Host Variables Templates und Examples,3.5
-2025-11-13,Bernd Schreistetter,ansible-role-solr,Schema,Moodle Schema Validation und Field Verification,4.5
-2025-11-14,Bernd Schreistetter,ansible-role-solr,Documentation,RAM Analysis Documentation (MMapDirectory),4.0
-2025-11-15,Bernd Schreistetter,ansible-role-solr,Development,Zero-Downtime User Management (v3.7.0),6.0
-2025-11-16,Bernd Schreistetter,ansible-role-solr,QA,Gnadenlose Code Review + Solr 9.10 Validation (v3.8.0),8.0
+2025-10-04,Bernd Schreistetter,ansible-role-solr,Prototyping,Solr Docker Image Evaluation,3.5
+2025-10-07,Bernd Schreistetter,ansible-role-solr,Prototyping,BasicAuth Implementierung Prototyp,4.5
+2025-10-08,Bernd Schreistetter,ansible-role-solr,Security,Password Hashing Mechanismus Research,3.5
+2025-10-09,Bernd Schreistetter,ansible-role-solr,Security,security.json Format Analyse,3.0
+2025-10-10,Bernd Schreistetter,ansible-role-solr,Testing,Test-Framework Setup (Ansible Molecule),4.0
+2025-10-11,Bernd Schreistetter,ansible-role-solr,Integration,Docker Compose Init-Container Pattern,4.5
+2025-10-14,Bernd Schreistetter,ansible-role-solr,Schema,Moodle Schema Analyse (Field Mapping),4.0
+2025-10-15,Bernd Schreistetter,ansible-role-solr,Schema,Schema Validierung und Tests,3.5
+2025-10-16,Bernd Schreistetter,ansible-role-solr,Performance,RAM Allocation Research (MMapDirectory),3.5
+2025-10-17,Bernd Schreistetter,ansible-role-solr,Performance,JVM GC Tuning Research (G1GC),4.0
+2025-10-18,Bernd Schreistetter,ansible-role-solr,Documentation,Prototyping Results dokumentieren,3.0
+2025-10-21,Bernd Schreistetter,ansible-role-solr,Architecture,Final Architecture Review,2.5
+2025-10-22,Bernd Schreistetter,ansible-role-solr,Planning,Sprint Planning für Core Development,2.5
+2025-10-23,Bernd Schreistetter,ansible-role-solr,Setup,Development Environment Setup,3.0
+2025-10-24,Bernd Schreistetter,ansible-role-solr,Implementation,Repository Initialisierung (v3.0.0),4.0
+2025-10-25,Bernd Schreistetter,ansible-role-solr,Implementation,Docker Compose Template Entwicklung,5.0
+2025-10-28,Bernd Schreistetter,ansible-role-solr,Implementation,Init-Container Pattern Implementation (v3.1.0),5.5
+2025-10-29,Bernd Schreistetter,ansible-role-solr,Implementation,Moodle Schema Template Entwicklung (v3.2.0),5.0
+2025-10-30,Bernd Schreistetter,ansible-role-solr,Security,SHA-256 Hash System Implementation (v3.2.1),4.5
+2025-10-31,Bernd Schreistetter,ansible-role-solr,Testing,Integration Tests Development,4.5
+2025-11-01,Bernd Schreistetter,ansible-role-solr,Monitoring,Health Check System Implementation (v3.3.0),4.0
+2025-11-04,Bernd Schreistetter,ansible-role-solr,Optimization,Full Idempotency Implementation (v3.3.1),5.0
+2025-11-05,Bernd Schreistetter,ansible-role-solr,Bugfixing,Critical Bugs Fixed + Rollback (v3.3.2),5.5
+2025-11-06,Bernd Schreistetter,ansible-role-solr,Security,Authorization Matrix Expansion (v3.4.0),4.5
+2025-11-07,Bernd Schreistetter,ansible-role-solr,Backup,Automated Backup Management,4.5
+2025-11-08,Bernd Schreistetter,ansible-role-solr,Performance,JVM GC Optimization und Tuning,4.0
+2025-11-11,Bernd Schreistetter,ansible-role-solr,Testing,Comprehensive Test Suite (19+10 Tests),5.0
+2025-11-12,Bernd Schreistetter,ansible-role-solr,Documentation,README und Documentation Updates,4.0
+2025-11-13,Bernd Schreistetter,ansible-role-solr,QA,QA Session mit TL und Abnahme-Tests,6.5
+2025-11-14,Bernd Schreistetter,ansible-role-solr,Bugfixing,Container-Info Bug Fix (docker_container_info),4.5
+2025-11-15,Bernd Schreistetter,ansible-role-solr,Development,Zero-Downtime User Management Implementation,5.5
+2025-11-16,Bernd Schreistetter,ansible-role-solr,QA,Final Validation und Production Release (v3.8.0),5.0
