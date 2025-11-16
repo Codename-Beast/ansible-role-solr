@@ -174,6 +174,68 @@
     - security_json_parsed is defined
 
 # ============================================================================
+#  PASSWORD AUTO-GENERATION - Generate secure passwords if missing/weak
+# ============================================================================
+
+- name: auth-mgmt - Initialize generated credentials tracker
+  set_fact:
+    generated_credentials: []
+    generate_admin_password: false
+    generate_support_password: false
+    generate_moodle_password: false
+
+- name: auth-mgmt - Check admin password strength
+  set_fact:
+    generate_admin_password: "{{ (solr_admin_password | default('') | length) < 12 }}"
+
+- name: auth-mgmt - Generate admin password if needed
+  shell: openssl rand -base64 24 | tr -d '/+=' | head -c 24
+  register: generated_admin_pwd
+  changed_when: false
+  no_log: true
+  when: generate_admin_password | bool
+
+- name: auth-mgmt - Set admin password (generated or provided)
+  set_fact:
+    solr_admin_password_final: "{{ generated_admin_pwd.stdout if generate_admin_password | bool else solr_admin_password }}"
+    solr_admin_password: "{{ generated_admin_pwd.stdout if generate_admin_password | bool else solr_admin_password }}"
+  no_log: true
+
+- name: auth-mgmt - Check support password strength
+  set_fact:
+    generate_support_password: "{{ (solr_support_password | default('') | length) < 12 }}"
+
+- name: auth-mgmt - Generate support password if needed
+  shell: openssl rand -base64 24 | tr -d '/+=' | head -c 24
+  register: generated_support_pwd
+  changed_when: false
+  no_log: true
+  when: generate_support_password | bool
+
+- name: auth-mgmt - Set support password (generated or provided)
+  set_fact:
+    solr_support_password_final: "{{ generated_support_pwd.stdout if generate_support_password | bool else solr_support_password }}"
+    solr_support_password: "{{ generated_support_pwd.stdout if generate_support_password | bool else solr_support_password }}"
+  no_log: true
+
+- name: auth-mgmt - Check moodle password strength
+  set_fact:
+    generate_moodle_password: "{{ (solr_moodle_password | default('') | length) < 12 }}"
+
+- name: auth-mgmt - Generate moodle password if needed
+  shell: openssl rand -base64 24 | tr -d '/+=' | head -c 24
+  register: generated_moodle_pwd
+  changed_when: false
+  no_log: true
+  when: generate_moodle_password | bool
+
+- name: auth-mgmt - Set moodle password (generated or provided)
+  set_fact:
+    solr_moodle_password_final: "{{ generated_moodle_pwd.stdout if generate_moodle_password | bool else solr_moodle_password }}"
+    solr_moodle_password: "{{ generated_moodle_pwd.stdout if generate_moodle_password | bool else solr_moodle_password }}"
+  no_log: true
+
+# ============================================================================
 #  HASHING - Generate new hashes if needed
 # ============================================================================
 
@@ -200,42 +262,25 @@
       loop_control:
         label: "{{ item.name }}"
 
-- name: auth-mgmt - Check if passwords are defined in host_vars
-  set_fact:
-    passwords_from_hostvars:
-      admin_defined: "{{ solr_admin_password is defined and solr_admin_password | length > 0 }}"
-      support_defined: "{{ solr_support_password is defined and solr_support_password | length > 0 }}"
-      customer_defined: "{{ solr_moodle_password is defined and solr_moodle_password | length > 0 }}"
-  when: not skip_auth
-
-- name: auth-mgmt - Display password source
+- name: auth-mgmt - Display password source status
   debug:
     msg:
       - "Password sources:"
-      - "  Admin: {{ 'host_vars' if (passwords_from_hostvars.admin_defined | default(false)) else 'UNDEFINED - will fail' }}"
-      - "  Support: {{ 'host_vars' if (passwords_from_hostvars.support_defined | default(false)) else 'UNDEFINED - will fail' }}"
-      - "  Customer: {{ 'host_vars' if (passwords_from_hostvars.customer_defined | default(false)) else 'UNDEFINED - will fail' }}"
+      - "  Admin: {{ 'GENERATED (weak/missing)' if generate_admin_password | bool else 'host_vars' }}"
+      - "  Support: {{ 'GENERATED (weak/missing)' if generate_support_password | bool else 'host_vars' }}"
+      - "  Moodle: {{ 'GENERATED (weak/missing)' if generate_moodle_password | bool else 'host_vars' }}"
   when: not skip_auth
 
-- name: auth-mgmt - Validate all passwords are defined in host_vars
+- name: auth-mgmt - Validate all passwords are now available (after generation)
   assert:
     that:
-      - passwords_from_hostvars.admin_defined | default(false)
-      - passwords_from_hostvars.support_defined | default(false)
-      - passwords_from_hostvars.customer_defined | default(false)
+      - solr_admin_password is defined and solr_admin_password | length >= 12
+      - solr_support_password is defined and solr_support_password | length >= 12
+      - solr_moodle_password is defined and solr_moodle_password | length >= 12
     fail_msg: |
-      CRITICAL: Passwords must be defined in host_vars!
-
-      Missing passwords:
-        Admin: {{ 'OK' if (passwords_from_hostvars.admin_defined | default(false)) else 'MISSING' }}
-        Support: {{ 'OK' if (passwords_from_hostvars.support_defined | default(false)) else 'MISSING' }}
-        Customer: {{ 'OK' if (passwords_from_hostvars.customer_defined | default(false)) else 'MISSING' }}
-
-      Please define passwords in host_vars/{{ inventory_hostname }}:
-        solr_admin_password: "your_secure_password"
-        solr_support_password: "your_secure_password"
-        solr_moodle_password: "your_secure_password"
-    success_msg: "All passwords loaded from host_vars"
+      CRITICAL: Password generation failed!
+      This should not happen - please check password generation tasks.
+    success_msg: "All passwords ready (from host_vars or auto-generated)"
   when: not skip_auth
 
 - name: auth-mgmt - Build auth_users_with_passwords list

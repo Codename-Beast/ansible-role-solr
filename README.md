@@ -1,6 +1,6 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.8.1-blue)
+![Version](https://img.shields.io/badge/version-3.9.0-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20%7C%209.10%20ready-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
@@ -16,11 +16,18 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ---
 
-## 🎉 What's New in v3.8.1 (Nginx Support + Proxy Improvements)
+## 🎉 What's New in v3.9.0 (Multi-Core Support: Up to 10 Moodle Instances)
 
 <table>
 <tr>
 <td width="50%">
+
+### ✨ New in v3.9.0
+- 🏢 **Multi-Core Support** - Up to 10 Moodle instances per server
+- 📊 **RAM-Aware Deployment** - Auto-calculation: ~600MB heap/core @ 10 cores
+- ⚠️ **Smart Warnings** - Warning at >10 cores, block at >15 cores
+- 🔐 **Auto-Password Generation** - Generates secure passwords if missing
+- 📋 **Credential Display** - Shows all access data after deployment
 
 ### ✨ New in v3.8.1
 - 🌐 **Nginx Support** - Apache + Nginx webserver support
@@ -40,6 +47,14 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 </td>
 <td width="50%">
+
+### 🏢 Multi-Core Features
+- ✅ Up to 10 isolated cores per 16GB server
+- ✅ Each core: dedicated index + users
+- ✅ Heap sharing: ~600MB per core (10 cores)
+- ✅ Nachträglich erweiterbar (idempotent)
+- ✅ Automatic role assignment per core
+- ✅ RAM warnings & deployment blocking
 
 ### 🔧 Proxy Improvements
 - ✅ Standalone VirtualHost/Server configs
@@ -61,7 +76,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ✅ **Production Ready** | **Tests:** 19/19 + 10/10 PASSING | **Upgrade:** Ready for Solr 9.10 | **Webservers:** Apache + Nginx
+**Status:** ✅ **Production Ready** | **Tests:** 19/19 + 10/10 PASSING | **Upgrade:** Ready for Solr 9.10 | **Webservers:** Apache + Nginx | **Multi-Core:** Up to 10 instances
 
 ---
 
@@ -356,6 +371,112 @@ solr_health_cache_threshold: 75
 solr_health_check_enabled: false
 ```
 
+### Multi-Core Configuration (v3.9.0+)
+
+Deploy up to **10 Moodle instances** on a single 16GB Solr server with automatic RAM management and password generation.
+
+#### RAM Calculation
+
+The role automatically calculates heap allocation per core:
+
+**Formula:** `Heap per core = Total Heap / Number of Cores`
+
+**Example (16GB server with 6GB heap, 10 cores):**
+```
+6144 MB ÷ 10 cores = ~614 MB per core
+```
+
+**RAM Thresholds:**
+- ✅ **1-10 cores** (Recommended): ~600MB+ per core on 16GB server
+- ⚠️ **11-15 cores** (Warning): ~400-600MB per core - may impact performance
+- ❌ **>15 cores** (Blocked): <400MB per core - deployment will fail
+
+#### Multi-Core Example Configuration
+
+```yaml
+# Global settings
+customer_name: "school-district"
+solr_app_domain: "solr.schools.edu"
+solr_heap_size: "6g"           # Total heap for all cores
+solr_memory_limit: "8g"
+solr_webserver: "nginx"
+solr_ssl_enabled: true
+
+# Multi-Core Mode: Define multiple cores
+solr_cores:
+  - name: "gymnasium_nord"
+    domain: "moodle.gymnasium-nord.de"
+    users:
+      - username: "moodle_gym_nord"
+        password: "GymNord2024SecureKey"   # 24+ chars, YAML-safe
+        roles: ["core-admin-gymnasium_nord_core"]
+
+  - name: "realschule_sued"
+    domain: "moodle.realschule-sued.de"
+    users:
+      - username: "moodle_real_sued"
+        password: ""  # Empty = auto-generate secure password!
+
+  - name: "grundschule_ost"
+    domain: "moodle.grundschule-ost.de"
+    users:
+      - username: "moodle_gs_ost"
+        # No password = auto-generated
+        roles: ["core-admin-grundschule_ost_core", "custom-role"]
+```
+
+**Core Naming:** Cores are created with `_core` suffix: `gymnasium_nord_core`, `realschule_sued_core`, etc.
+
+#### Auto-Password Generation (v3.9.0+)
+
+**Passwords are automatically generated when:**
+- Password is missing or empty (`password: ""`)
+- Password is too weak (< 12 characters)
+
+**Generated passwords:**
+- 24 characters long
+- Base64-encoded (alphanumeric + safe special chars)
+- YAML-safe (no quotes needed)
+- Displayed after deployment with hostvars example
+
+**Deployment Output Example:**
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                 🔐 GENERATED CREDENTIALS                              ║
+║                                                                       ║
+║  ⚠️  WICHTIG: Passwörter wurden automatisch generiert!                ║
+║  Bitte in host_vars speichern und WebUI-Login testen!                ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  ✨ Realschule Süd User (NEU GENERIERT):                              ║
+║     Username: moodle_real_sued                                        ║
+║     Password: Xk9mP2vL7nR4wQ8tY5sH6jF3                               ║
+║     Hinzufügen zu host_vars:                                          ║
+║     solr_cores:                                                       ║
+║       - name: "realschule_sued"                                       ║
+║         users:                                                        ║
+║           - username: "moodle_real_sued"                              ║
+║             password: "Xk9mP2vL7nR4wQ8tY5sH6jF3"                      ║
+║                                                                       ║
+║  🌐 WEBUI LOGIN TESTEN:                                               ║
+║  curl -u moodle_real_sued:Xk9mP2vL7nR4wQ8tY5sH6jF3 \                 ║
+║       https://solr.schools.edu/solr-admin/realschule_sued_core/admin/ping
+╚══════════════════════════════════════════════════════════════════════╝
+```
+
+**IMPORTANT:** Copy generated passwords to `host_vars` immediately! Otherwise, new passwords will be generated on next deployment.
+
+#### YAML-Safe Password Characters
+
+**Without quotes (recommended):**
+- Letters: `A-Z`, `a-z`
+- Numbers: `0-9`
+- Special: `_`, `-`, `$`
+
+**With quotes (all characters allowed):**
+```yaml
+password: "My-P@ssw0rd!#2024"  # Quotes required for @ ! # : etc.
+```
+
 ---
 
 ## 📖 Usage Examples
@@ -409,6 +530,66 @@ solr_force_recreate: true  # Force recreate with new version
 
 # Run playbook
 ansible-playbook -i inventory playbook.yml
+```
+
+### Example 6: Multi-Core Deployment (v3.9.0+)
+
+Deploy 10 school Moodle instances on one Solr server:
+
+```yaml
+# host_vars/solr-prod-01.yml
+customer_name: "schulverbund-nord"
+solr_app_domain: "solr.schulverbund.de"
+solr_heap_size: "6g"        # 6GB heap for 10 cores = ~600MB per core
+solr_memory_limit: "8g"
+
+# Define all 10 cores
+solr_cores:
+  - name: "gymnasium_nord"
+    domain: "gym-nord.schulverbund.de"
+    users:
+      - username: "moodle_gym_nord"
+        password: ""  # Auto-generate
+
+  - name: "realschule_sued"
+    domain: "real-sued.schulverbund.de"
+    users:
+      - username: "moodle_real_sued"
+        password: "RealSued2024SecureIndexKey"  # Or provide your own
+
+  # ... 8 more schools
+
+  - name: "grundschule_west"
+    domain: "gs-west.schulverbund.de"
+    users:
+      - username: "moodle_gs_west"
+        password: ""  # Auto-generate
+
+# Run deployment
+ansible-playbook -i inventory playbook.yml
+
+# Result:
+# - 10 isolated cores created
+# - ~614MB heap per core
+# - Missing passwords auto-generated and displayed
+# - Each school has dedicated core + user
+```
+
+**Add cores later (idempotent):**
+```yaml
+# Add 11th core to existing deployment
+solr_cores:
+  # ... existing 10 cores ...
+  - name: "berufsschule_ost"  # NEW
+    domain: "bs-ost.schulverbund.de"
+    users:
+      - username: "moodle_bs_ost"
+        password: ""
+
+# Re-run playbook - only new core is created, existing cores untouched
+ansible-playbook -i inventory playbook.yml
+
+# Warning displayed: >10 cores, ~560MB per core (still works)
 ```
 
 ---

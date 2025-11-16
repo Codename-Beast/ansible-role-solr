@@ -53,6 +53,15 @@
 
 - name: user-management - Process Multi-Core users
   block:
+    - name: user-management - Generate passwords for Multi-Core users if needed
+      include_tasks: auth_password_generator.yml
+      loop: "{{ solr_cores | default([]) | subelements('users', skip_missing=True) }}"
+      loop_control:
+        loop_var: core_user_item
+        label: "{{ core_user_item.0.name }}/{{ core_user_item.1.username }}"
+      when:
+        - core_user_item.1.username is defined
+
     - name: user-management - Generate hashes for Multi-Core users
       include_tasks: user_management_hash_multicore.yml
       loop: "{{ solr_cores | default([]) | subelements('users', skip_missing=True) }}"

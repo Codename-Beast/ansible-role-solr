@@ -283,6 +283,13 @@
     msg: "{{ finalization_result | to_nice_json }}"
   when: rundeck_integration_enabled | default(false)
 
+# ============================================================================
+# CREDENTIAL DISPLAY - Show generated passwords for admin reference
+# ============================================================================
+
+- name: install-solr - Display generated credentials if any
+  include_tasks: credentials_display.yml
+
 - name: install-solr - Display Happy final summary maybe? 
   debug:
     msg:

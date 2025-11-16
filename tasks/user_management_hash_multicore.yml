@@ -9,6 +9,17 @@
     mc_user: "{{ core_user_item.1 }}"
   no_log: true
 
+- name: user-hash-mc - Check if password was generated for this user
+  set_fact:
+    mc_generated_cred: "{{ generated_credentials | selectattr('core', 'equalto', mc_core_name) | selectattr('username', 'equalto', mc_user.username) | list | first | default(None) }}"
+  no_log: true
+
+- name: user-hash-mc - Use generated password if available
+  set_fact:
+    mc_user: "{{ mc_user | combine({'password': mc_generated_cred.password}) }}"
+  no_log: true
+  when: mc_generated_cred is not none and mc_generated_cred.was_generated | default(false)
+
 - name: user-hash-mc - Generate random salt for {{ mc_user.username }}
   command: openssl rand -base64 {{ solr_hash_salt_bytes | default(48) }}
   register: mc_salt_output
