@@ -12,7 +12,6 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
-**Rating**: 9.2/10 (Industry Best Practice)
 **Project Timeline**: 24.09.2025 - 16.11.2025 (54 days)
 
 ---
@@ -56,11 +55,11 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 | **Data Operations** |
 | Document Read | ✅ | ✅ | ✅ | ❌ | Collection-scoped | ✅Ready |
 | Document Write/Index | ✅ | ❌ | ✅ | ❌ | Collection-scoped | ✅Ready |
-| Document Delete | ✅ | ❌ | ❌ | ❌ | Admin-only | ✅ **NEW v1.4** |
+| Document Delete | ✅ | ❌ | ❌ | ❌ | Admin-only | ✅ **Since v1.4** |
 | **System Operations** |
-| Metrics Access | ✅ | ✅ | ❌ | ❌ | /admin/metrics | ✅ **NEW v1.4** |
-| Backup Operations | ✅ | ❌ | ❌ | ❌ | /admin/cores | ✅ **NEW v1.4** |
-| Log Management | ✅ | ✅ | ❌ | ❌ | /admin/logging | ✅ **NEW v1.4** |
+| Metrics Access | ✅ | ✅ | ❌ | ❌ | /admin/metrics | ✅ **Since v1.4** |
+| Backup Operations | ✅ | ❌ | ❌ | ❌ | /admin/cores | ✅ **Since v1.4** |
+| Log Management | ✅ | ✅ | ❌ | ❌ | /admin/logging | ✅ **Since v1.4** |
 | Health Checks | ✅ | ✅ | ✅ | ✅ | Public endpoints | ✅Ready |
 
 ### 🏗️ INFRASTRUCTURE & DEPLOYMENT MATRIX
@@ -619,7 +618,7 @@ $ ansible-playbook playbook.yml
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -803,9 +802,9 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 **Major Updates:**
 - ✅ Solr 9.10.0 compatibility validated (upgrade ready)
-- ✅ All critical bugs fixed (4 bugs from code review)
+- ✅ All critical bugs fixed (4 bugs)
 - ✅ Moodle file indexing fields completed
-- ✅ Zero-downtime user management (v3.7.0)
+- ✅ Zero-downtime user management (v3.8.0)
 - ✅ 100% Moodle 4.1-5.0.3 compatibility
 - ✅ 19/19 integration tests + 10/10 Moodle tests passing
 
@@ -817,22 +816,6 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 - Corrected RAM documentation (4GB OS buffer)
 
 **See:** [CHANGELOG.md](CHANGELOG.md) for complete version history
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/amazing-feature`
-3. Make changes and test thoroughly
-4. Run linters:
-   ```bash
-   ansible-lint tasks/*.yml
-   yamllint .
-   ```
-5. Commit: `git commit -m 'Add amazing feature'`
-6. Push: `git push origin feature/amazing-feature`
-7. Open Pull Request
 
 ---
 
@@ -853,4 +836,4 @@ MIT License
 
 **Made with ❤️ for the Eledia & Moodle**
 
-**Production-tested** ✅ | **Fully documented** ✅ 
+**Fully documented** ✅ 
