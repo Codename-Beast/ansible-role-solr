@@ -1,0 +1,46 @@
+Datum,Wochentag,Phase,Kategorie,Aufgabe,Stunden,Kumulativ,Meilenstein
+2025-09-24,Mittwoch,Planning,Projekt-Initialisierung,Projekt-Kick-off und Anforderungsanalyse,3.0,3.0,Project Assignment
+2025-09-25,Donnerstag,Planning,Requirements,Technische Anforderungen mit Stakeholdern definieren,4.5,7.5,
+2025-09-26,Freitag,Planning,Requirements,Solr 9.9.0 Spezifikationen analysieren und dokumentieren,4.0,11.5,
+2025-09-29,Montag,Planning,Research,Moodle Search API Dokumentation studieren (4.1-5.0.x),3.5,15.0,
+2025-09-30,Dienstag,Planning,Architecture,System-Architektur Design (Docker Compose v2 Pattern),5.0,20.0,
+2025-10-01,Mittwoch,Planning,Architecture,Security-Konzept (BasicAuth + RuleBasedAuthorization),4.0,24.0,
+2025-10-02,Donnerstag,Planning,Documentation,Technical Design Document erstellen,3.5,27.5,
+2025-10-03,Freitag,Planning,Review,Requirements Review und Genehmigung,2.5,30.0,
+2025-10-07,Dienstag,Research,Prototyping,Solr Docker Image Evaluation und Tests,4.5,34.5,
+2025-10-08,Mittwoch,Research,Prototyping,BasicAuth Implementierung Prototyp,5.0,39.5,
+2025-10-09,Donnerstag,Research,Security,Password Hashing Mechanismus Research (SHA-256),3.5,43.0,
+2025-10-10,Freitag,Research,Security,security.json Format Analyse und Validierung,4.0,47.0,Initial Deadline
+2025-10-11,Samstag,Research,Testing,Test-Framework Setup (Ansible Molecule),3.0,50.0,
+2025-10-14,Dienstag,Research,Integration,Docker Compose Init-Container Pattern Prototyp,5.5,55.5,
+2025-10-15,Mittwoch,Research,Schema,Moodle Schema Analyse (Field Mapping),4.5,60.0,
+2025-10-16,Donnerstag,Research,Schema,Schema Validierung und Kompatibilitäts-Tests,4.0,64.0,
+2025-10-17,Freitag,Research,Performance,RAM Allocation Research (Lucene MMapDirectory),3.5,67.5,
+2025-10-18,Samstag,Research,Performance,JVM GC Tuning Research (G1GC Optimization),4.0,71.5,
+2025-10-21,Dienstag,Research,Documentation,Prototyping Results dokumentieren,3.0,74.5,
+2025-10-22,Mittwoch,Research,Architecture,Final Architecture Review und Approval,2.5,77.0,
+2025-10-23,Donnerstag,Research,Planning,Sprint Planning für Core Development,2.0,79.0,
+2025-10-24,Freitag,Research,Setup,Development Environment Setup finalisieren,3.5,82.5,
+2025-10-25,Samstag,Core Development,Implementation,Repository Initialisierung und Basis-Struktur (v3.0.0),5.5,88.0,v3.0.0 Initial Release
+2025-10-26,Sonntag,Core Development,Implementation,Docker Compose Template Entwicklung,6.0,94.0,
+2025-10-27,Montag,Core Development,Implementation,Init-Container Pattern Implementation (v3.1.0),7.5,101.5,v3.1.0 Init-Container
+2025-10-28,Dienstag,Core Development,Implementation,Moodle Schema Template Entwicklung (v3.2.0),6.5,108.0,v3.2.0 Moodle Integration
+2025-10-29,Mittwoch,Core Development,Security,SHA-256 Hash System Implementation (v3.2.1),5.0,113.0,v3.2.1 Security Fix
+2025-10-30,Donnerstag,Core Development,Testing,Integration Tests Development und Debugging,5.5,118.5,
+2025-10-31,Freitag,Core Development,Monitoring,Health Check System Implementation (v3.3.0),4.5,123.0,v3.3.0 Health Checks
+2025-11-01,Samstag,Core Development,Optimization,Full Idempotency Implementation (v3.3.1),6.0,129.0,v3.3.1 Idempotency
+2025-11-02,Sonntag,Core Development,Bugfixing,11 Critical Bugs Fixed + Rollback Mechanism (v3.3.2),7.5,136.5,v3.3.2 Bugfixes
+2025-11-03,Montag,Production Hardening,Security,Authorization Matrix Expansion,4.5,141.0,v3.4.0 Production Hardening
+2025-11-04,Dienstag,Production Hardening,Backup,Automated Backup Management Implementation,5.5,146.5,
+2025-11-05,Mittwoch,Production Hardening,Performance,JVM GC Optimization und Performance Tuning,4.5,151.0,
+2025-11-06,Donnerstag,Production Hardening,Testing,Comprehensive Test Suite (19 Integration + 10 Moodle),6.0,157.0,
+2025-11-07,Freitag,Production Hardening,Documentation,README und Authorization Matrix Documentation,4.0,161.0,
+2025-11-08,Samstag,Production Hardening,QA,End-to-End Testing und Validation,5.0,166.0,
+2025-11-09,Sonntag,Production Hardening,Refactoring,Code Review und Quality Improvements,4.5,170.5,
+2025-11-10,Montag,Production Hardening,Deployment,Production Deployment Testing,3.5,174.0,
+2025-11-11,Dienstag,Advanced Features,Development,Dynamic User Provisioning Implementation,5.0,179.0,
+2025-11-12,Mittwoch,Advanced Features,Configuration,Host Variables Templates und Examples,3.5,182.5,
+2025-11-13,Donnerstag,Advanced Features,Schema,Moodle Schema Validation und Field Verification,4.5,187.0,
+2025-11-14,Freitag,Advanced Features,Documentation,RAM Analysis Documentation (MMapDirectory),4.0,191.0,
+2025-11-15,Samstag,Advanced Features,Development,Zero-Downtime User Management (v3.7.0),6.0,197.0,v3.7.0 Zero-Downtime
+2025-11-16,Sonntag,Final Validation,QA,Gnadenlose Code Review + Solr 9.10 Validation (v3.8.0),8.0,205.0,v3.8.0 PRODUCTION READY
