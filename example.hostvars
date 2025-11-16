@@ -151,6 +151,10 @@ solr_ssl_enabled: false
 # Manual: sudo certbot certonly --webroot -w /var/www/html -d {{ solr_app_domain }}
 
 # HTTPS availability wird automatisch getestet (bis zu 10 Versuche)
+# Bei aktiviertem SSL wird Solr automatisch SSL-aware konfiguriert:
+#   - Keine HTTP-Warnung mehr in der WebUI
+#   - Korrekte HTTPS-Links in der Admin-Oberfläche
+#   - Umgebungsvariablen: SOLR_URL_SCHEME=https, SOLR_HOST={{ domain }}, SOLR_PORT=443
 
 # ============================================================================
 # DIRECTORIES

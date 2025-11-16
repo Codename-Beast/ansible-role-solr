@@ -39,6 +39,13 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
    - Webroot: `sudo certbot certonly --webroot -w /var/www/html -d {{ solr_app_domain }}`
    - Automatische ACME Challenge Location in beiden Webservern
 
+5. **Solr SSL-Awareness** 🔐
+   - Solr weiß jetzt, dass es hinter HTTPS-Proxy läuft
+   - **Keine HTTP-Warnung mehr in der WebUI!**
+   - Umgebungsvariablen: `SOLR_URL_SCHEME=https`, `SOLR_HOST={{ domain }}`, `SOLR_PORT=443`
+   - Automatisch aktiviert bei `solr_ssl_enabled: true`
+   - Korrekte HTTPS-Links in der Solr Admin-Oberfläche
+
 ### 🔧 VERBESSERUNGEN
 
 1. **Eigenständige Webserver-Configs**
@@ -66,6 +73,7 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 - `templates/solr_proxy_nginx.conf.j2` - Vollständiger Nginx Server Block
 
 **GEÄNDERT:**
+- `templates/docker-compose.yml.j2` - v1.4.0 mit SSL-Awareness (SOLR_URL_SCHEME, SOLR_HOST, SOLR_PORT)
 - `tasks/proxy_configuration.yml` - Version 2.0.0 mit Nginx/Apache Support
 - `defaults/main.yml` - Erweiterte Proxy-Variablen
 - `example.hostvars` - Aktualisierte Beispiele mit allen Optionen

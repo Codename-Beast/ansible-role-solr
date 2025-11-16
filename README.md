@@ -28,6 +28,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - 🔒 **HTTPS Auto-Testing** - Up to 10 retries, 3s delay
 - 📋 **Let's Encrypt Hints** - Documented certbot commands
 - 🛡️ **IP-based Access Control** - Restrict admin access
+- 🔐 **Solr SSL-Awareness** - No more HTTP warnings in WebUI!
 
 ### ✅ v3.8.0 Features
 - ✅ **Solr 9.10 Ready** - 100% compatibility validated
@@ -47,6 +48,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - ✅ ACME challenge locations for certbot
 - ✅ Optional proxy-level Basic Auth
 - ✅ Public health check endpoint
+- ✅ Solr knows it's behind HTTPS proxy (correct links)
 
 ### 🐛 v3.8.0 Critical Fixes
 - ✅ Fixed circular variable dependency
