@@ -39,6 +39,28 @@
   tags:
     - install-solr-auth
 
+- name: install-solr - Additional user management
+  include_tasks: user_management.yml
+  when:
+    - solr_auth_enabled | default(true)
+    - solr_additional_users is defined
+    - solr_additional_users | length > 0
+  tags:
+    - install-solr-auth
+    - install-solr-users
+    - solr-users-deploy
+
+- name: install-solr - Hot-reload auth updates (zero-downtime user changes)
+  include_tasks: user_update_live.yml
+  when:
+    - solr_auth_enabled | default(true)
+    - solr_additional_users is defined
+    - solr_additional_users | length > 0
+  tags:
+    - never  # Only run when explicitly requested
+    - solr-auth-reload
+    - solr-users-hotupdate
+
 - name: install-solr - Configuration management
   include_tasks: config_management.yml
   tags:
@@ -62,7 +84,7 @@
     - needs_api_update | default(false)
     - admin_password_hash is defined
     - support_password_hash is defined
-    - customer_password_hash is defined
+    - moodle_password_hash is defined
   tags:
     - install-solr-auth
     - install-solr-deployment
@@ -78,7 +100,7 @@
     that:
       - solr_admin_password is defined and solr_admin_password | length > 0
       - solr_support_password is defined and solr_support_password | length > 0
-      - solr_customer_password is defined and solr_customer_password | length > 0
+      - solr_moodle_password is defined and solr_moodle_password | length > 0
     fail_msg: |
       Cannot persist undefined or empty passwords to host_vars.
       This indicates a bug in auth_management.yml.
@@ -102,15 +124,9 @@
 
 - name: install-solr - Configure webserver proxy
   include_tasks: proxy_configuration.yml
-  when: solr_proxy_enabled | default(true)
+  when: solr_proxy_enabled | default(false)
   tags:
     - install-solr-proxy
-
-#- name: install-solr - Backup management
-#  include_tasks: backup_management.yml
-#  when: solr_backup_enabled | default(true)
-#  tags:
-#    - install-solr-backup
 
 - name: install-solr - Integration tests
   include_tasks: integration_tests.yml

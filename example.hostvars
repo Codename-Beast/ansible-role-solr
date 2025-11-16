@@ -1,0 +1,454 @@
+---
+################################################################################
+# SOLR EXAMPLE HOST VARIABLES - Vollständige Referenz
+# Kopieren nach: host_vars/<hostname>.yml
+# Nur benötigte Variablen übernehmen (Rest nutzt defaults/main.yml)
+################################################################################
+
+# ============================================================================
+# SYSTEM CLASSIFICATION (Optional)
+# ============================================================================
+system_type:
+  - DBMS
+  - Solr
+
+# ============================================================================
+# DOMAIN & CORE CONFIGURATION (PFLICHT)
+# ============================================================================
+# Domain für Solr (WICHTIG: nicht mehr moodle_app_domain!)
+solr_app_domain: "example.solr.example.com"
+
+# Port (Default: 8983)
+solr_port: 8983
+
+# Core Name (Default: auto aus solr_app_domain generiert)
+# Falls leer: Wird aus solr_app_domain[:45] generiert + "_core"
+solr_core_name: "example_core"
+
+# Container Name (Default: solr_<customer_name>)
+solr_container_name: "hc-example-solr"
+
+# Solr Version (Default: 9.9.0)
+solr_version: "9.9.0"
+
+# ============================================================================
+# AUTHENTICATION (PFLICHT - Passwörter setzen!)
+# ============================================================================
+# Auth aktivieren (Default: true)
+solr_auth_enabled: true
+
+# Admin User (voller Zugriff)
+solr_admin_user: "admin"  # Default
+solr_admin_password: ""  # TODO: SETZEN! (wird sonst auto-generiert)
+
+# Support User (Read-Only)
+solr_support_user: "support"  # Default
+solr_support_password: ""  # TODO: SETZEN!
+
+# Moodle User (WICHTIG: nicht mehr solr_customer_password!)
+solr_moodle_user: "moodle"  # Default
+solr_moodle_password: ""  # TODO: SETZEN!
+
+# Auth Realm (Login-Anzeige)
+solr_auth_realm: "Solr Eledia"  # Default
+
+# ============================================================================
+# MULTI-CORE MODE (v3.9.0+ Feature!) 🎉
+# ============================================================================
+# Deploy multiple isolated Solr cores for multi-tenant Moodle setups
+# Each core has its own index and dedicated users
+# All cores share the same JVM heap (6GB on 16GB server)
+#
+# RAM-KALKULATION FÜR 16GB SERVER:
+# - Max empfohlen: 10 Cores (ca. 600MB Heap/Core)
+# - Absolutes Limit: 15 Cores (ca. 400MB Heap/Core)
+# - Über 15 Cores: RAM-Warning wird angezeigt!
+#
+# BEISPIEL: 10 Moodle-Instanzen auf einem Solr-Server
+solr_cores: []
+# solr_cores:
+#   - name: "moodle_prod"
+#     domain: "moodle-prod.kunde.de"
+#     users:
+#       - username: "moodle_prod_rw"
+#         password: "{{ vault_moodle_prod_password }}"
+#         roles: ["core-admin-moodle_prod_core"]  # Full access
+#       - username: "moodle_prod_ro"
+#         password: "{{ vault_moodle_prod_ro }}"
+#         roles: ["support"]  # Read-only
+#
+#   - name: "moodle_test"
+#     domain: "moodle-test.kunde.de"
+#     users:
+#       - username: "moodle_test"
+#         password: "{{ vault_moodle_test_password }}"
+#         # roles auto-set to: ["core-admin-moodle_test_core"]
+#
+#   - name: "moodle_dev"
+#     domain: "moodle-dev.kunde.de"
+#     users:
+#       - username: "moodle_dev"
+#         password: "{{ vault_moodle_dev_password }}"
+#
+#   - name: "customer1"
+#     domain: "lms.customer1.com"
+#     users:
+#       - username: "customer1_moodle"
+#         password: "{{ vault_customer1_password }}"
+#
+#   - name: "customer2"
+#     domain: "learning.customer2.de"
+#     users:
+#       - username: "customer2_moodle"
+#         password: "{{ vault_customer2_password }}"
+#
+# Cores werden benannt als: <name>_core
+# Beispiel: "moodle_prod" → Core: "moodle_prod_core"
+#
+# FEATURES:
+# - ✅ Vollständige Isolation zwischen Cores
+# - ✅ Dedizierte User pro Core (oder geteilt)
+# - ✅ Nachträglich erweiterbar (idempotent)
+# - ✅ RAM-Warning bei zu vielen Cores
+# - ✅ Automatische Role-Zuweisung
+
+# ============================================================================
+# SINGLE-CORE MODE (Legacy - v3.8 und früher)
+# ============================================================================
+# Nur aktiv wenn solr_cores LEER ist!
+# Zusätzliche User (Hot-Reload mit --tags=solr-auth-reload)
+solr_additional_users: []
+# Beispiel:
+# solr_additional_users:
+#   - username: "tenant1_admin"
+#     password: "SecurePass123!"
+#     roles: ["core-admin-tenant1_core"]
+#   - username: "monitoring"
+#     password: "MonitorPass456!"
+#     roles: ["support"]
+
+# Core Admin Role Prefix (Default: "core-admin")
+solr_core_admin_role_prefix: "core-admin"
+
+# ============================================================================
+# MEMORY CONFIGURATION (Optimiert für 16GB Server)
+# ============================================================================
+# Defaults sind bereits optimiert! Nur überschreiben falls nötig.
+# JVM Heap (Default: 6g für 16GB Server)
+solr_heap_size: "6g"
+
+# Docker Memory Limit (Default: 12g = 6g Heap + 6g Off-Heap)
+solr_memory_limit: "12g"
+
+# Swap Limit (Default: 12g)
+solr_memory_swap: "12g"
+
+# Memory Reservation (Default: 10g)
+solr_memory_reservation: "10g"
+
+# CPU Quota (Default: 400000 = 4 cores)
+solr_cpu_quota: 400000
+solr_cpu_period: 100000
+
+# ============================================================================
+# GARBAGE COLLECTION (Default: G1GC optimiert für 6GB)
+# ============================================================================
+# Nur überschreiben falls spezielle Anforderungen!
+# solr_gc_options: "..."  # Siehe defaults/main.yml
+
+# ============================================================================
+# MOODLE INTEGRATION
+# ============================================================================
+# Moodle Schema verwenden (Default: true)
+solr_use_moodle_schema: true
+
+# Moodle Test Dokumente erstellen (Default: true)
+solr_moodle_test_docs: true
+
+# Multi-Version Cores (Default: true)
+solr_multi_version_cores: true
+
+# ============================================================================
+# WEBSERVER REVERSE PROXY (Apache + Nginx Support)
+# ============================================================================
+# Proxy aktivieren (Default: false)
+solr_proxy_enabled: false
+
+# Proxy Path (Default: /solr-admin)
+solr_proxy_path: "/solr-admin"
+
+# Webserver (Default: apache)
+# Options: "apache" | "nginx"
+solr_webserver: "apache"
+
+# Additional Basic Auth auf Proxy-Level (Optional)
+solr_proxy_auth_enabled: false
+
+# Admin IP-Zugriffsbeschränkung (Default: true)
+solr_restrict_admin: true
+
+# Erlaubte IPs für Admin-Zugriff (zusätzlich zu 127.0.0.1)
+solr_admin_allowed_ips: []
+# Beispiel:
+# solr_admin_allowed_ips:
+#   - "192.168.1.100"
+#   - "10.0.0.0/24"
+
+# Config-Datei wird benannt als: solr.{{ solr_app_domain }}.conf
+# Beispiel: solr.kunde.de.conf
+
+# ============================================================================
+# SSL/TLS (Let's Encrypt Integration)
+# ============================================================================
+# SSL aktivieren (Default: false)
+solr_ssl_enabled: false
+
+# SSL Cert Path (Default: /etc/letsencrypt/live/<domain>)
+# solr_ssl_cert_path: "/etc/letsencrypt/live/{{ solr_app_domain }}"
+
+# Let's Encrypt Installation:
+# Apache: sudo certbot --apache -d {{ solr_app_domain }}
+# Nginx:  sudo certbot --nginx -d {{ solr_app_domain }}
+# Manual: sudo certbot certonly --webroot -w /var/www/html -d {{ solr_app_domain }}
+
+# HTTPS availability wird automatisch getestet (bis zu 10 Versuche)
+# Bei aktiviertem SSL wird Solr automatisch SSL-aware konfiguriert:
+#   - Keine HTTP-Warnung mehr in der WebUI
+#   - Korrekte HTTPS-Links in der Admin-Oberfläche
+#   - Umgebungsvariablen: SOLR_URL_SCHEME=https, SOLR_HOST={{ domain }}, SOLR_PORT=443
+
+# ============================================================================
+# DIRECTORIES
+# ============================================================================
+# Base Directory (Default: /opt/solr)
+solr_compose_dir: "/opt/solr"
+
+# Config Directory (Default: /opt/solr/config)
+solr_config_dir: "{{ solr_compose_dir }}/config"
+
+# Data Directory (Default: /var/solr/data)
+solr_data_dir: "/var/solr/data"
+
+# Backup Directory (Default: /var/solr/backup)
+solr_backup_dir: "/var/solr/backup"
+
+# Log Directory (Default: /var/log/eledia/solr)
+solr_log_dir: "/var/log/eledia/solr"
+
+# User/Group (Default: solr:solr)
+# solr_user: "solr"
+# solr_group: "solr"
+
+# ============================================================================
+# DOCKER CONFIGURATION
+# ============================================================================
+# Network Name (Default: solr_network)
+solr_network_name: "solr_network"
+
+# Volume Name (Default: solr_data_<customer_name>)
+# solr_volume_name: "solr_data_{{ customer_name }}"
+
+# Restart Policy (Default: unless-stopped)
+# solr_restart_policy: "unless-stopped"
+
+# JMX Port (Default: 18983)
+solr_jmx_port: 18983
+
+# ============================================================================
+# HEALTH CHECKS
+# ============================================================================
+# Health Check aktivieren (Default: true)
+solr_health_check_enabled: true
+
+# Health Check Mode (Default: standard)
+# Optionen: basic, standard, comprehensive
+solr_health_check_mode: "standard"
+
+# Health Check Thresholds (Defaults)
+solr_health_disk_threshold: 10  # Warn bei <10% frei
+solr_health_memory_threshold: 90  # Warn bei >90% genutzt
+solr_health_cache_threshold: 75  # Warn bei <75% Hit-Rate
+
+# ============================================================================
+# LOGGING & MONITORING
+# ============================================================================
+# Log Level (Default: INFO)
+# Optionen: DEBUG, INFO, WARN, ERROR
+solr_log_level: "INFO"
+
+# Metrics aktivieren (Default: true)
+solr_metrics_enabled: true
+
+# GC Logging (Default: true)
+solr_gc_logging: true
+
+# JVM Monitoring (Default: true)
+solr_jvm_monitoring: true
+
+# Slow Query Threshold in ms (Default: 1000)
+solr_slow_query_threshold: 1000
+
+# ============================================================================
+# BACKUP CONFIGURATION
+# ============================================================================
+# Backup aktivieren (Default: true - aktuell in main.yml auskommentiert)
+solr_backup_enabled: false  # Aktivieren wenn benötigt
+
+# Backup Schedule (Default: täglich 2 Uhr)
+# solr_backup_schedule: "0 2 * * *"
+
+# Backup Retention in Tagen (Default: 7)
+# solr_backup_retention: 7
+
+# Backup Path (Default: /var/solr/backup)
+# solr_backup_path: "/var/solr/backup"
+
+# Backup komprimieren (Default: true)
+# solr_backup_compress: true
+
+# ============================================================================
+# PERFORMANCE TUNING
+# ============================================================================
+# Max Boolean Clauses (Default: 1024)
+solr_max_boolean_clauses: 1024
+
+# Auto Commit Time in ms (Default: 15000 = 15s)
+solr_auto_commit_time: 15000
+
+# Auto Soft Commit Time in ms (Default: 1000 = 1s)
+solr_auto_soft_commit_time: 1000
+
+# ============================================================================
+# RETRY & TIMEOUT CONFIGURATION
+# ============================================================================
+# Container Start (Default: 5 Versuche, 5s Delay)
+solr_container_start_retries: 5
+solr_container_start_delay: 5
+
+# Auth Validation (Default: 5 Versuche, 3s Delay)
+solr_auth_validation_retries: 5
+solr_auth_validation_delay: 3
+
+# Core Creation (Default: 5 Versuche, 3s Delay)
+solr_core_creation_retries: 5
+solr_core_creation_delay: 3
+
+# Startup Wait Time (Default: 60s)
+solr_startup_wait_time: 60
+
+# Init Container Timeout (Default: 60s)
+solr_init_container_timeout: 60
+
+# ============================================================================
+# DEPLOYMENT FLAGS
+# ============================================================================
+# Force Recreate (Default: false)
+solr_force_recreate: false
+
+# Force Pull (Default: false)
+solr_force_pull: false
+
+# Force Reconfigure Auth (Default: true)
+solr_force_reconfigure_auth: true
+
+# Validate Deployment (Default: true)
+solr_validate_deployment: true
+
+# ============================================================================
+# RUNDECK INTEGRATION (Optional)
+# ============================================================================
+# Rundeck aktivieren (Default: false)
+rundeck_integration_enabled: false
+
+# Rundeck API (wenn aktiviert)
+# rundeck_api_url: "https://rundeck.example.com"
+# rundeck_api_token: "your_token"
+# rundeck_project_name: "solr-automation"
+
+# ============================================================================
+# NOTIFICATION (Optional)
+# ============================================================================
+# Notifications aktivieren (Default: false)
+notification_enabled: false
+
+# Admin Email (wenn aktiviert)
+# admin_email: "admin@example.com"
+
+# ============================================================================
+# MOODLE PATHS (Falls Moodle auf gleichem Server)
+# ============================================================================
+# Moodle Host (Default: localhost)
+moodle_solr_host: "localhost"
+
+# Moodle Port (Default: solr_port)
+moodle_solr_port: "{{ solr_port }}"
+
+# Moodle Secure (Default: false)
+moodle_solr_secure: false
+
+# Moodle Username (Default: solr_moodle_user)
+moodle_solr_username: "{{ solr_moodle_user }}"
+
+# Moodle Paths (Default: /home/vhosts/moodle)
+# moodle_eledia_path: "/home/vhosts/moodle"
+# moodle_env: "public_html"
+# moodle_config_path: "{{ moodle_eledia_path }}/{{ solr_app_domain }}/{{ moodle_env }}/config.php"
+
+# ============================================================================
+# ADVANCED SETTINGS (Nur für Experten!)
+# ============================================================================
+# JVM Additional Options (Default gesetzt)
+# solr_jvm_opts: "..."  # Siehe defaults/main.yml
+
+# Docker API Version (Default: 1.41)
+docker_api_version: "1.41"
+
+# Docker Timeout (Default: 60s)
+docker_timeout: 60
+
+# Docker Compose Version (Default: 2.0)
+docker_compose_version: "2.0"
+
+# ============================================================================
+# SYSTEM REQUIREMENTS
+# ============================================================================
+# Minimum Disk Space in GB (Default: 5)
+solr_min_disk_space_gb: 5
+
+# Minimum Memory in GB (Default: 2)
+solr_min_memory_gb: 2
+
+# ============================================================================
+# CONFIG FILES (Advanced)
+# ============================================================================
+# Config Files werden automatisch deployed (siehe defaults/main.yml)
+# Nur überschreiben falls eigene Templates genutzt werden sollen!
+# solr_config_files:
+#   - name: "security.json"
+#     template: "security.json.j2"
+#     dest_path: "/var/solr/data"
+#     validate_json: true
+
+# ============================================================================
+# MOODLE VERSIONS (Advanced)
+# ============================================================================
+# Moodle Versionen Support (Default: 4.1, 4.2, 4.3, 4.4, 5.0.x)
+# Siehe defaults/main.yml für vollständige Config
+# solr_moodle_versions: ["4.1", "4.2", "4.3", "4.4", "5.0.x"]
+
+################################################################################
+# QUICK START
+################################################################################
+# 1. Diese Datei nach host_vars/<hostname>.yml kopieren
+# 2. Nur benötigte Variablen übernehmen
+# 3. Passwörter mit ansible-vault verschlüsseln:
+#    ansible-vault encrypt_string 'password' --name 'solr_admin_password'
+# 4. Deploy:
+#    ansible-playbook install-solr.yml -e 'hosts=<hostname>'
+#
+# Zero-Downtime User Updates:
+#    ansible-playbook install-solr.yml -e 'hosts=<hostname>' --tags=solr-auth-reload
+#
+# Nur Tests:
+#    ansible-playbook install-solr.yml -e 'hosts=<hostname>' --tags=install-solr-test
+################################################################################

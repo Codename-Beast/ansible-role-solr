@@ -31,9 +31,9 @@
       - name: support
         username: "{{ solr_support_user | default('support') }}"
         password: "{{ solr_support_password }}"
-      - name: customer
-        username: "{{ solr_customer_user | default('customer') }}"
-        password: "{{ solr_customer_password }}"
+      - name: moodle
+        username: "{{ solr_moodle_user | default('moodle') }}"
+        password: "{{ solr_moodle_password }}"
 
 - name: auth-val - Test user authentication against core ping
   uri:
@@ -82,7 +82,7 @@
       unauthenticated_blocked: "{{ unauth_test.status == 401 }}"
       admin_login: "{{ 'success' if admin_auth.status == 200 else 'failed' }}"
       support_login: "{{ 'success' if user_auth_tests.results[0].status == 200 else 'failed' }}"
-      customer_login: "{{ 'success' if user_auth_tests.results[1].status == 200 else 'failed' }}"
+      moodle_login: "{{ 'success' if user_auth_tests.results[1].status == 200 else 'failed' }}"
       admin_authorization: "{{ 'full' if admin_authz_test.status == 200 else 'limited' }}"
       support_auth_blocked: "{{ support_authz_test.status in [401, 403] }}"
 
@@ -95,7 +95,7 @@
       - "Unauthenticated blocked: {{ 'YES' if auth_test_summary.unauthenticated_blocked else 'NO' }}"
       - "Admin login: {{ 'PASSED' if auth_test_summary.admin_login == 'success' else 'FAILED' }}"
       - "Support login: {{ 'PASSED' if auth_test_summary.support_login == 'success' else 'FAILED' }}"
-      - "Customer login: {{ 'PASSED' if auth_test_summary.customer_login == 'success' else 'FAILED' }}"
+      - "Moodle login: {{ 'PASSED' if auth_test_summary.moodle_login == 'success' else 'FAILED' }}"
       - "Admin authorization: {{ auth_test_summary.admin_authorization | upper }}"
       - "Support restrictions: {{ 'ENFORCED' if auth_test_summary.support_auth_blocked else 'NOT ENFORCED' }}"
       - "========================================"

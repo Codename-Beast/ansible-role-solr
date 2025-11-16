@@ -7,8 +7,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     status_code: 200
   register: core_ready
@@ -21,8 +21,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -44,8 +44,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -67,8 +67,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -90,8 +90,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -113,8 +113,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -136,8 +136,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     status_code: 200
   register: commit_result
@@ -146,8 +146,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=title:Mathematik&wt=json"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_math
@@ -157,8 +157,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=content:Python&wt=json"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_python
@@ -168,8 +168,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=courseid:5&wt=json"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_course
@@ -179,8 +179,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=type:0&wt=json"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_type
@@ -190,8 +190,8 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*&facet=true&facet.field=type&wt=json"
     method: GET
-    user: "{{ solr_customer_user }}"
-    password: "{{ solr_customer_password }}"
+    user: "{{ solr_moodle_user }}"
+    password: "{{ solr_moodle_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_facet

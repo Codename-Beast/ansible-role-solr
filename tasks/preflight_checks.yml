@@ -35,6 +35,17 @@
     fail_msg: "Insufficient disk space. Required: {{ solr_min_disk_space_gb }}GB, Available: {{ disk_space.stdout }}GB"
     success_msg: "Disk space check passed ({{ disk_space.stdout }}GB available)"
 
+- name: preflight-check - Check available memory (Debian/Ubuntu)
+  shell: free -g | grep Mem | awk '{print $2}'
+  register: available_memory
+  changed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: preflight-check - Display available memory
+  debug:
+    msg: "Available RAM: {{ available_memory.stdout }}GB"
+  when: ansible_os_family == "Debian"
+
 - name: preflight-check - Check if Docker is installed
   command: docker --version
   register: docker_version_check
@@ -51,8 +62,8 @@
   assert:
     that:
       - customer_name is defined
-      - moodle_app_domain is defined
-    fail_msg: "Required variables missing: customer_name, moodle_app_domain"
+      - solr_app_domain is defined
+    fail_msg: "Required variables missing: customer_name, solr_app_domain"
     success_msg: "Required variables check passed"
 
 - name: preflight-check - Check for port conflicts
@@ -74,9 +85,9 @@
     that:
       - customer_name is defined
       - customer_name | length > 0
-      - moodle_app_domain is defined
-      - moodle_app_domain | length > 0
-    fail_msg: "Required variables missing: customer_name and/or moodle_app_domain"
+      - solr_app_domain is defined
+      - solr_app_domain | length > 0
+    fail_msg: "Required variables missing: customer_name and/or solr_app_domain"
     success_msg: "Required variables present"
 
 - name: preflight-check - Validate customer name format
@@ -89,9 +100,9 @@
 - name: preflight-check - Validate domain format
   assert:
     that:
-      - moodle_app_domain is match('^[a-z0-9.-]+\.[a-z]{2,}$')
-    fail_msg: "moodle_app_domain must be a valid domain (e.g., example.com)"
-    success_msg: "moodle_app_domain format valid"
+      - solr_app_domain is match('^[a-z0-9.-]+\.[a-z]{2,}$')
+    fail_msg: "solr_app_domain must be a valid domain (e.g., example.com)"
+    success_msg: "solr_app_domain format valid"
 
 - name: preflight-check - Validate password strength (if provided)
   assert:
@@ -102,7 +113,7 @@
   loop:
     - { name: "Admin", password: "{{ solr_admin_password | default('') }}" }
     - { name: "Support", password: "{{ solr_support_password | default('') }}" }
-    - { name: "Customer", password: "{{ solr_customer_password | default('') }}" }
+    - { name: "Moodle", password: "{{ solr_moodle_password | default('') }}" }
   when:
     - item.password is defined
     - item.password | string | length > 0
@@ -130,6 +141,120 @@
       - (solr_memory_limit | regex_replace('[^0-9]', '') | int) > (solr_heap_size | regex_replace('[^0-9]', '') | int)
     fail_msg: "solr_memory_limit ({{ solr_memory_limit }}) must be at least 50% larger than solr_heap_size ({{ solr_heap_size }}) to prevent OOM kills"
     success_msg: "Memory limit validation passed (limit={{ solr_memory_limit }}, heap={{ solr_heap_size }})"
+
+# ============================================================================
+# MULTI-CORE MODE VALIDATIONS (v3.9.0+)
+# ============================================================================
+
+- name: preflight-check - Detect Multi-Core Mode
+  set_fact:
+    multi_core_enabled: "{{ (solr_cores | default([]) | length) > 0 }}"
+    core_count: "{{ solr_cores | default([]) | length }}"
+  changed_when: false
+
+- name: preflight-check - Calculate heap size in MB
+  set_fact:
+    heap_size_mb: "{{ (solr_heap_size | regex_replace('g$', '') | int) * 1024 if 'g' in solr_heap_size else (solr_heap_size | regex_replace('m$', '') | int) }}"
+  changed_when: false
+
+- name: preflight-check - Calculate estimated heap per core
+  set_fact:
+    estimated_heap_per_core: "{{ (heap_size_mb | int / (core_count | int)) | int }}"
+  when: multi_core_enabled | bool and core_count | int > 0
+  changed_when: false
+
+- name: preflight-check - Set heap per core to full heap for single core
+  set_fact:
+    estimated_heap_per_core: "{{ heap_size_mb | int }}"
+  when: not multi_core_enabled | bool or core_count | int == 0
+  changed_when: false
+
+- name: preflight-check - RAM WARNING - Too many cores configured
+  debug:
+    msg:
+      - "╔════════════════════════════════════════════════════════════════╗"
+      - "║  ⚠️  RAM WARNING: TOO MANY CORES CONFIGURED                    ║"
+      - "╠════════════════════════════════════════════════════════════════╣"
+      - "║  Cores configured:     {{ core_count }} cores                  "
+      - "║  Maximum recommended:  {{ solr_max_cores_recommended }} cores (16GB server)  "
+      - "║  Absolute limit:       {{ solr_max_cores_limit }} cores        "
+      - "║                                                                ║"
+      - "║  Current heap:         {{ solr_heap_size }}                   "
+      - "║  Estimated per core:   ~{{ estimated_heap_per_core }}MB       "
+      - "║  Minimum required:     {{ solr_min_heap_per_core_mb }}MB/core "
+      - "╠════════════════════════════════════════════════════════════════╣"
+      - "║  RECOMMENDATION:                                               ║"
+      - "║  - Reduce cores to {{ solr_max_cores_recommended }} or less    "
+      - "║  - OR upgrade server RAM to 32GB                               "
+      - "║  - OR reduce heap per core (performance impact!)               ║"
+      - "╚════════════════════════════════════════════════════════════════╝"
+  when:
+    - multi_core_enabled | bool
+    - core_count | int > solr_max_cores_recommended
+
+- name: preflight-check - RAM CRITICAL - Core count exceeds absolute limit
+  fail:
+    msg: |
+      ╔════════════════════════════════════════════════════════════════╗
+      ║  ❌ CRITICAL: CORE COUNT EXCEEDS ABSOLUTE LIMIT                ║
+      ╠════════════════════════════════════════════════════════════════╣
+      ║  Cores configured:     {{ core_count }} cores
+      ║  Absolute limit:       {{ solr_max_cores_limit }} cores (16GB)
+      ║                                                                ║
+      ║  Estimated per core:   ~{{ estimated_heap_per_core }}MB
+      ║  Minimum required:     {{ solr_min_heap_per_core_mb }}MB/core
+      ╠════════════════════════════════════════════════════════════════╣
+      ║  DEPLOYMENT BLOCKED - INSUFFICIENT RAM!                        ║
+      ║                                                                ║
+      ║  ACTIONS REQUIRED:                                             ║
+      ║  1. Reduce cores to {{ solr_max_cores_limit }} or less
+      ║  2. OR upgrade server to 32GB RAM                              ║
+      ║  3. OR deploy on separate Solr instances                       ║
+      ╚════════════════════════════════════════════════════════════════╝
+  when:
+    - multi_core_enabled | bool
+    - core_count | int > solr_max_cores_limit
+
+- name: preflight-check - Validate Multi-Core configuration structure
+  assert:
+    that:
+      - item.name is defined
+      - item.name | length > 0
+      - item.name is match('^[a-z0-9_-]+$')
+    fail_msg: "Core '{{ item.name | default('UNDEFINED') }}' has invalid name. Must contain only lowercase letters, numbers, hyphens, and underscores."
+    success_msg: "Core '{{ item.name }}' name validation passed"
+  loop: "{{ solr_cores | default([]) }}"
+  loop_control:
+    label: "{{ item.name | default('UNDEFINED') }}"
+  when: multi_core_enabled | bool
+
+- name: preflight-check - Validate Multi-Core users configuration
+  assert:
+    that:
+      - item.1.username is defined
+      - item.1.username | length > 0
+      # KORRIGIERT v3.9.0: Passwort-Check entfernt!
+      # Passwörter können leer sein (Auto-Generation in auth_management.yml)
+      # Validation erfolgt NACH Generierung, nicht hier
+    fail_msg: "Core '{{ item.0.name }}' user '{{ item.1.username | default('UNDEFINED') }}' missing username"
+    success_msg: "Core '{{ item.0.name }}' user '{{ item.1.username }}' validation passed"
+  loop: "{{ solr_cores | default([]) | subelements('users', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }}/{{ item.1.username | default('UNDEFINED') }}"
+  when: multi_core_enabled | bool
+
+- name: preflight-check - Display Multi-Core summary
+  debug:
+    msg:
+      - "=========================================="
+      - "MULTI-CORE MODE DETECTED"
+      - "=========================================="
+      - "Cores configured: {{ core_count }}"
+      - "Heap size: {{ solr_heap_size }}"
+      - "Est. heap per core: ~{{ estimated_heap_per_core }}MB"
+      - "RAM status: {{ 'OK ✅' if core_count | int <= solr_max_cores_recommended else 'WARNING ⚠️' }}"
+      - "=========================================="
+  when: multi_core_enabled | bool
 
 # ============================================================================
 # RUNDECK OUTPUT
@@ -171,6 +296,6 @@
       - "Docker Compose: {{ 'INSTALLED' if docker_compose_check.rc == 0 else 'NOT INSTALLED' }}"
       - "Port {{ solr_port }}: {{ 'AVAILABLE' if 'PORT_FREE' in port_check.stdout else 'IN USE (WARNING)' }}"
       - "Customer: {{ customer_name }}"
-      - "Domain: {{ moodle_app_domain }}"
+      - "Domain: {{ solr_app_domain }}"
       - "=========================================="
   when: not rundeck_integration_enabled | default(false)

@@ -1,0 +1,41 @@
+Datum,Wochentag,Phase,Kategorie,Aufgabe,Stunden,Kumulativ,Meilenstein
+2025-09-24,Mittwoch,Planning,Projekt-Initialisierung,Projekt-Kick-off und Anforderungsanalyse,3.5,3.5,Project Assignment
+2025-09-25,Donnerstag,Planning,Requirements,Technische Anforderungen mit Stakeholdern definieren,4.0,7.5,
+2025-09-26,Freitag,Planning,Requirements,Solr 9.9.0 Spezifikationen analysieren,3.5,11.0,
+2025-09-27,Samstag,Planning,Research,Moodle Search API Dokumentation studieren,4.0,15.0,
+2025-09-30,Dienstag,Planning,Architecture,System-Architektur Design (Docker Compose v2),4.5,19.5,
+2025-10-01,Mittwoch,Planning,Architecture,Security-Konzept (BasicAuth + Authorization),4.0,23.5,
+2025-10-02,Donnerstag,Planning,Documentation,Technical Design Document erstellen,3.5,27.0,
+2025-10-03,Freitag,Planning,Review,Requirements Review und Genehmigung,2.5,29.5,
+2025-10-04,Samstag,Research,Prototyping,Solr Docker Image Evaluation,3.5,33.0,
+2025-10-07,Dienstag,Research,Prototyping,BasicAuth Implementierung Prototyp,4.5,37.5,
+2025-10-08,Mittwoch,Research,Security,Password Hashing Mechanismus Research,3.5,41.0,
+2025-10-09,Donnerstag,Research,Security,security.json Format Analyse,3.0,44.0,
+2025-10-10,Freitag,Research,Testing,Test-Framework Setup (Ansible Molecule),4.0,48.0,Initial Deadline
+2025-10-11,Samstag,Research,Integration,Docker Compose Init-Container Pattern,4.5,52.5,
+2025-10-14,Dienstag,Research,Schema,Moodle Schema Analyse (Field Mapping),4.0,56.5,
+2025-10-15,Mittwoch,Research,Schema,Schema Validierung und Tests,3.5,60.0,
+2025-10-16,Donnerstag,Research,Performance,RAM Allocation Research (MMapDirectory),3.5,63.5,
+2025-10-17,Freitag,Research,Performance,JVM GC Tuning Research (G1GC),4.0,67.5,
+2025-10-18,Samstag,Research,Documentation,Prototyping Results dokumentieren,3.0,70.5,
+2025-10-21,Dienstag,Research,Architecture,Final Architecture Review,2.5,73.0,
+2025-10-22,Mittwoch,Research,Planning,Sprint Planning für Core Development,2.5,75.5,
+2025-10-23,Donnerstag,Research,Setup,Development Environment Setup,3.0,78.5,
+2025-10-24,Freitag,Core Development,Implementation,Repository Initialisierung (v3.0.0),4.0,82.5,
+2025-10-25,Samstag,Core Development,Implementation,Docker Compose Template Entwicklung,5.0,87.5,v3.0.0 Initial Release
+2025-10-28,Dienstag,Core Development,Implementation,Init-Container Pattern Implementation (v3.1.0),5.5,93.0,v3.1.0 Init-Container
+2025-10-29,Mittwoch,Core Development,Implementation,Moodle Schema Template Entwicklung (v3.2.0),5.0,98.0,v3.2.0 Moodle Integration
+2025-10-30,Donnerstag,Core Development,Security,SHA-256 Hash System Implementation (v3.2.1),4.5,102.5,v3.2.1 Security Fix
+2025-10-31,Freitag,Core Development,Testing,Integration Tests Development,4.5,107.0,
+2025-11-01,Samstag,Core Development,Monitoring,Health Check System Implementation (v3.3.0),4.0,111.0,v3.3.0 Health Checks
+2025-11-04,Dienstag,Core Development,Optimization,Full Idempotency Implementation (v3.3.1),5.0,116.0,v3.3.1 Idempotency
+2025-11-05,Mittwoch,Core Development,Bugfixing,Critical Bugs Fixed + Rollback (v3.3.2),5.5,121.5,v3.3.2 Bugfixes
+2025-11-06,Donnerstag,Production Hardening,Security,Authorization Matrix Expansion (v3.4.0),4.5,126.0,v3.4.0 Production Hardening
+2025-11-07,Freitag,Production Hardening,Backup,Automated Backup Management,4.5,130.5,
+2025-11-08,Samstag,Production Hardening,Performance,JVM GC Optimization und Tuning,4.0,134.5,
+2025-11-11,Dienstag,Production Hardening,Testing,Comprehensive Test Suite (19+10 Tests),5.0,139.5,
+2025-11-12,Mittwoch,Production Hardening,Documentation,README und Documentation Updates,4.0,143.5,
+2025-11-13,Donnerstag,QA & Abnahme,QA,QA Session mit TL und Abnahme-Tests (Bug gefunden),6.5,150.0,QA Session - Bug Found
+2025-11-14,Freitag,Bugfixing,Bugfixing,Container-Info Bug Fix (docker_container_info),4.5,154.5,Bug Fix
+2025-11-15,Samstag,Advanced Features,Development,Zero-Downtime User Management Implementation (v3.7.0),5.5,160.0,v3.7.0 User Management
+2025-11-16,Sonntag,Final Validation,QA,Final Validation und Production Release (v3.8.0),5.0,165.0,v3.8.0 PRODUCTION READY

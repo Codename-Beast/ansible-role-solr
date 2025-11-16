@@ -95,27 +95,21 @@
   <field name="itemid" type="pint" indexed="true" stored="true" required="true"/>
   
   <!-- OPTIONAL MOODLE FIELDS -->
-  
-  <!-- File ID for file attachments -->
-  <field name="solr_fileid" type="string" indexed="true" stored="true"/>
-  
+
   <!-- User ID who has access to view the document -->
   <field name="userid" type="pint" indexed="true" stored="true"/>
-  
+
   <!-- Group ID -->
   <field name="groupid" type="pint" indexed="true" stored="true"/>
-  
+
   <!-- Parent document ID -->
   <field name="parentid" type="string" indexed="true" stored="true"/>
-  
+
   <!-- Additional metadata -->
   <field name="intro" type="text_general" indexed="true" stored="true"/>
-  
+
   <!-- Author/user full name -->
   <field name="username" type="text_general" indexed="true" stored="true"/>
-  
-  <!-- File content (for file indexing) -->
-  <field name="filetext" type="text_general" indexed="true" stored="false"/>
   
   <!-- Category ID -->
   <field name="categoryid" type="pint" indexed="true" stored="true"/>
@@ -125,7 +119,25 @@
   
   <!-- URL to the document -->
   <field name="docurl" type="string" indexed="false" stored="true"/>
-  
+
+  <!-- MOODLE FILE INDEXING FIELDS (Engine-Specific) -->
+  <!-- Source: Moodle search_solr engine (document.php) -->
+
+  <!-- File grouping ID - groups related files together -->
+  <field name="solr_filegroupingid" type="string" indexed="true" stored="true"/>
+
+  <!-- File ID - unique identifier for file attachments -->
+  <field name="solr_fileid" type="string" indexed="true" stored="true"/>
+
+  <!-- File content hash - for deduplication and change detection -->
+  <field name="solr_filecontenthash" type="string" indexed="true" stored="true"/>
+
+  <!-- File indexing status - 0=pending, 1=indexed, 2=error -->
+  <field name="solr_fileindexstatus" type="pint" indexed="true" stored="true"/>
+
+  <!-- File content - searchable text extracted by Tika (not stored for performance) -->
+  <field name="solr_filecontent" type="text_general" indexed="true" stored="false" multiValued="false"/>
+
   <!-- SYSTEM FIELDS -->
   
   <!-- Version field for optimistic concurrency -->
@@ -143,7 +155,7 @@
   <copyField source="description" dest="_text_"/>
   <copyField source="intro" dest="_text_"/>
   <copyField source="username" dest="_text_"/>
-  <copyField source="filetext" dest="_text_"/>
+  <copyField source="solr_filecontent" dest="_text_"/>
 
   <!-- UNIQUE KEY -->
   <uniqueKey>id</uniqueKey>

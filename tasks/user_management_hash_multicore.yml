@@ -1,0 +1,62 @@
+---
+# Description: Generate password hash for Multi-Core mode users
+# This file is included by user_management.yml for each core user
+# Receives: core_user_item (tuple of core config and user config)
+
+- name: user-hash-mc - Extract user config
+  set_fact:
+    mc_core_name: "{{ core_user_item.0.name }}"
+    mc_user: "{{ core_user_item.1 }}"
+  no_log: true
+
+- name: user-hash-mc - Check if password was generated for this user
+  set_fact:
+    mc_generated_cred: "{{ generated_credentials | selectattr('core', 'equalto', mc_core_name) | selectattr('username', 'equalto', mc_user.username) | list | first | default(None) }}"
+  no_log: true
+
+- name: user-hash-mc - Use generated password if available
+  set_fact:
+    mc_user: "{{ mc_user | combine({'password': mc_generated_cred.password}) }}"
+  no_log: true
+  when: mc_generated_cred is not none and mc_generated_cred.was_generated | default(false)
+
+- name: user-hash-mc - Generate random salt for {{ mc_user.username }}
+  command: openssl rand -base64 {{ solr_hash_salt_bytes | default(48) }}
+  register: mc_salt_output
+  changed_when: false
+  no_log: true
+
+- name: user-hash-mc - Store salt for {{ mc_user.username }}
+  set_fact:
+    mc_salt: "{{ mc_salt_output.stdout }}"
+  no_log: true
+
+- name: user-hash-mc - Generate first SHA256 hash for {{ mc_user.username }}
+  shell: echo -n "{{ mc_salt }}{{ mc_user.password }}" | sha256sum | awk '{print $1}'
+  register: mc_first_hash
+  changed_when: false
+  no_log: true
+
+- name: user-hash-mc - Generate second SHA256 hash for {{ mc_user.username }}
+  shell: echo -n "{{ mc_first_hash.stdout }}" | sha256sum | awk '{print $1}'
+  register: mc_second_hash
+  changed_when: false
+  no_log: true
+
+- name: user-hash-mc - Combine salt and double hash for {{ mc_user.username }}
+  set_fact:
+    mc_combined_hash: "{{ mc_salt }} {{ mc_second_hash.stdout }}"
+  no_log: true
+
+- name: user-hash-mc - Determine roles for {{ mc_user.username }}
+  set_fact:
+    mc_user_roles: "{{ mc_user.roles | default(['core-admin-' ~ mc_core_name ~ '_core']) }}"
+
+- name: user-hash-mc - Add user hash to dictionary
+  set_fact:
+    solr_additional_user_hashes: "{{ solr_additional_user_hashes | combine({mc_user.username: mc_combined_hash}) }}"
+  no_log: true
+
+- name: user-hash-mc - Add user roles to dictionary
+  set_fact:
+    solr_additional_user_roles: "{{ solr_additional_user_roles | combine({mc_user.username: mc_user_roles}) }}"

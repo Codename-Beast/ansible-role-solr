@@ -14,12 +14,12 @@
   set_fact:
     deployment_info:
       customer: "{{ customer_name }}"
-      domain: "{{ moodle_app_domain }}"
+      domain: "{{ solr_app_domain }}"
       solr_version: "{{ solr_version }}"
       container_name: "{{ solr_container_name }}"
       core_name: "{{ solr_core_name }}"
       solr_url: "http://localhost:{{ solr_port }}/solr"
-      proxy_url: "http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+      proxy_url: "http://{{ solr_app_domain }}{{ solr_proxy_path }}"
       auth_enabled: "{{ solr_auth_enabled | default(true) }}"
       ssl_enabled: "{{ solr_ssl_enabled | default(true) }}"
       backup_enabled: "{{ solr_backup_enabled | default(true) }}"
@@ -49,7 +49,7 @@
       
       ## Customer Information
       - Customer Name: {{ customer_name }}
-      - Domain: {{ moodle_app_domain }}
+      - Domain: {{ solr_app_domain }}
       
       ## Solr Configuration
       - Solr Version: {{ solr_version | default('ERROR')}}
@@ -59,7 +59,7 @@
       
       ## Network Configuration
       - Internal URL: http://localhost:{{ solr_port }}/solr
-      - Proxy URL: http://{{ moodle_app_domain }}{{ solr_proxy_path }}
+      - Proxy URL: http://{{ solr_app_domain }}{{ solr_proxy_path }}
       - Proxy Path: {{ solr_proxy_path }}
       
       ## Security
@@ -67,7 +67,7 @@
       - SSL/TLS: {{ 'ENABLED' if solr_ssl_enabled | default(true) else 'DISABLED' }}
       - Admin User: {{ solr_admin_user }}
       - Support User: {{ solr_support_user }}
-      - Customer User: {{ solr_customer_user }}
+      - Moodle User: {{ solr_moodle_user }}
       
       ## System Resources
       - Heap Size: {{ solr_heap_size }}
@@ -146,8 +146,8 @@
       # Core status
       curl -u {{ solr_admin_user }}:PASSWORD http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS
       
-      # Search query (with customer credentials)
-      curl -u {{ solr_customer_user }}:PASSWORD "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
+      # Search query (with moodle credentials)
+      curl -u {{ solr_moodle_user }}:PASSWORD "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
       ```
       
       ## Credential Files Location
@@ -179,13 +179,13 @@
       Deployment Time: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
       Solr URL: http://localhost:{{ solr_port }}/solr
       Core URL: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}
-      Proxy URL: http://{{ moodle_app_domain }}{{ solr_proxy_path }}
+      Proxy URL: http://{{ solr_app_domain }}{{ solr_proxy_path }}
       
       Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}
-      
+
       Admin User: {{ solr_admin_user }}
       Support User: {{ solr_support_user }}
-      Customer User: {{ solr_customer_user }}
+      Moodle User: {{ solr_moodle_user }}
       
       Credentials file: {{ solr_config_dir }}/credentials.yml
       
@@ -250,7 +250,7 @@
       message: "Solr installation finalized successfully"
       deployment:
         customer: "{{ customer_name }}"
-        domain: "{{ moodle_app_domain }}"
+        domain: "{{ solr_app_domain }}"
         solr_version: "{{ solr_version }}"
         container: "{{ solr_container_name }}"
         core: "{{ solr_core_name }}"
@@ -258,7 +258,7 @@
       urls:
         internal: "http://localhost:{{ solr_port }}/solr"
         core: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
-        proxy: "http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+        proxy: "http://{{ solr_app_domain }}{{ solr_proxy_path }}"
         admin_ui: "http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
       resources:
         memory_usage: "{{ container_stats.stdout if container_stats.rc == 0 else 'N/A' }}"
@@ -283,6 +283,13 @@
     msg: "{{ finalization_result | to_nice_json }}"
   when: rundeck_integration_enabled | default(false)
 
+# ============================================================================
+# CREDENTIAL DISPLAY - Show generated passwords for admin reference
+# ============================================================================
+
+- name: install-solr - Display generated credentials if any
+  include_tasks: credentials_display.yml
+
 - name: install-solr - Display Happy final summary maybe? 
   debug:
     msg:
@@ -291,19 +298,19 @@
       - "==============================================="
       - ""
       - "Customer: {{ customer_name }}"
-      - "Domain: {{ moodle_app_domain }}"
+      - "Domain: {{ solr_app_domain }}"
       - "Solr Version: {{ solr_version }}"
       - ""
       - "URLS:"
       - "  Internal: http://localhost:{{ solr_port }}/solr"
       - "  Core: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
-      - "  Proxy: http://{{ moodle_app_domain }}{{ solr_proxy_path }}"
+      - "  Proxy: http://{{ solr_app_domain }}{{ solr_proxy_path }}"
       - "  Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
       - ""
       - "CREDENTIALS:"
       - "  Admin User: {{ solr_admin_user }}"
       - "  Support User: {{ solr_support_user }}"
-      - "  Customer User: {{ solr_customer_user }}"
+      - "  Moodle User: {{ solr_moodle_user }}"
       - "  Credentials File: {{ solr_config_dir }}/credentials.yml"
       - ""
       - "CONTAINER:"
@@ -324,7 +331,7 @@
       - "     - Host: {{ moodle_solr_host }}"
       - "     - Port: {{ solr_port }}"
       - "     - Core: {{ solr_core_name }}"
-      - "     - Username: {{ solr_customer_user }}"
+      - "     - Username: {{ solr_moodle_user }}"
       - "     - Password: (see credentials.yml)"
       - "  4. Set up backup schedule"
       - "  5. Review security and firewall settings"
