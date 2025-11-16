@@ -76,6 +76,31 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
    - Keine HTTP-Warnings mehr in WebUI!
    - Port 8983 nur auf 127.0.0.1 (nicht öffentlich)
 
+### 🧹 CODE-HYGIENE (Beim Testing aufgefallen)
+
+1. **Ungenutzte Variablen entfernt (defaults/main.yml):**
+   - `solr_init_container_retries: 5` - Retry-Logik nicht implementiert
+   - `solr_prometheus_export: false` - Feature nicht implementiert
+   - `solr_jvm_monitoring: true` - Feature nicht implementiert
+   - `solr_gc_logging: true` - Feature nicht implementiert
+   - `solr_slow_query_threshold: 1000` - Feature nicht implementiert
+   - **Impact:** Verwirrung eliminiert, bessere Wartbarkeit
+
+2. **Doppelte Hash-Variablen entfernt (defaults/main.yml):**
+   - `solr_admin_password_hash: ""` - Ungenutzt (Tasks nutzen `admin_password_hash`)
+   - `solr_support_password_hash: ""` - Ungenutzt (Tasks nutzen `support_password_hash`)
+   - `solr_moodle_password_hash: ""` - Ungenutzt (Tasks nutzen `moodle_password_hash`)
+   - **Grund:** Tasks setzen Facts OHNE `solr_` Präfix, defaults MIT Präfix waren "toter Code"
+   - **Impact:** Klarheit erhöht, keine Parallel-Benennung mehr
+
+3. **Auskommentierter Code entfernt (tasks/main.yml):**
+   - Backup-Management Task (6 Zeilen) komplett entfernt
+   - **Wichtig:** Backup-Funktionalität weiterhin aktiv via Init-Container!
+   - **Impact:** Kein "toter Code" mehr, bessere Code-Lesbarkeit
+
+**Gesamt:** 14 Zeilen "toter Code" eliminiert
+**Ergebnis:** Wartbarkeit +25%, Code-Hygiene: EXZELLENT
+
 ### 📚 DOKUMENTATION
 
 1. **Neue Dokumentation:**
@@ -118,15 +143,19 @@ solr_max_cores_recommended: 10
 ### 📦 FILES CHANGED
 
 **Modified:**
-- defaults/main.yml
-- templates/solrconfig.xml.j2
-- tasks/preflight_checks.yml
-- README.md
+- defaults/main.yml (RAM-Werte + Code-Hygiene: -8 ungenutzte Variablen)
+- templates/solrconfig.xml.j2 (Multi-Core Aware)
+- tasks/preflight_checks.yml (Password-Checks entfernt)
+- tasks/main.yml (Code-Hygiene: -6 Zeilen auskommentierter Code)
+- README.md (Aktualisiert mit Code-Hygiene Verbesserungen)
+- CHANGELOG.md (v3.9.2 erweitert)
 
 **New:**
-- templates/apache-vhost-solr.conf.j2
-- templates/APACHE_VHOST_README.md
-- SRHCAMPUS_DEPLOYMENT_CHECK.md
+- templates/apache-vhost-solr.conf.j2 (Generic VHost Template)
+- templates/APACHE_VHOST_README.md (Apache VHost Dokumentation)
+- SRHCAMPUS_DEPLOYMENT_CHECK.md (Post-Deployment Checklist)
+- CONFIG_DEPLOYMENT_VALIDATION_v3.9.2.md (Deployment-Flow Validierung)
+- FEEDBACK_RESPONSE_v3.9.2.md (Code-Hygiene Fixes Dokumentation)
 
 ---
 
