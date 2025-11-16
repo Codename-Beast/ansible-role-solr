@@ -45,10 +45,12 @@ ansible-playbook site.yml --tags=install-solr-users
 
 This includes user creation in the full deployment process.
 
-#### Option B: Live Update (NO DOWNTIME) ⚡
+#### Option B: Hot-Reload Update (ZERO DOWNTIME) ⚡
 
 ```bash
-ansible-playbook site.yml --tags=solr-users-live
+ansible-playbook site.yml --tags=solr-auth-reload
+# OR
+ansible-playbook site.yml --tags=solr-users-hotupdate
 ```
 
 This updates users via Solr API without container restart!
@@ -70,7 +72,8 @@ This updates users via Solr API without container restart!
 |-----|-------------|-----------|
 | `install-solr-users` | Deploy users during installation | Yes (restart) |
 | `solr-users-deploy` | Deploy users with config generation | Yes (restart) |
-| `solr-users-live` | Update users via API only | **No** |
+| `solr-auth-reload` | Hot-reload users via API (zero-downtime) | **No** ⚡ |
+| `solr-users-hotupdate` | Alias for solr-auth-reload | **No** ⚡ |
 
 ## Examples
 
@@ -86,7 +89,7 @@ solr_additional_users:
 
 2. Apply changes:
 ```bash
-ansible-playbook site.yml --tags=solr-users-live --limit=myserver
+ansible-playbook site.yml --tags=solr-auth-reload --limit=myserver
 ```
 
 3. Verify:
@@ -94,11 +97,11 @@ ansible-playbook site.yml --tags=solr-users-live --limit=myserver
 curl -u tenant_xyz:TenantXYZ2024! http://localhost:8983/solr/admin/ping
 ```
 
-### Example 2: Update Existing User Password (Live)
+### Example 2: Update Existing User Password (Hot-Reload)
 
 1. Change password in `host_vars/myserver.yml`
-2. Run: `ansible-playbook site.yml --tags=solr-users-live`
-3. User can immediately login with new password
+2. Run: `ansible-playbook site.yml --tags=solr-auth-reload`
+3. User can immediately login with new password (zero-downtime!)
 
 ### Example 3: Bulk User Import
 
@@ -115,7 +118,7 @@ solr_additional_users:
 1. **Strong Passwords**: Minimum 16 characters, mix of uppercase, lowercase, numbers, symbols
 2. **Role Isolation**: Use per-core roles for multi-tenancy
 3. **Audit**: Monitor `solr_gc.log` for authentication attempts
-4. **Rotation**: Regularly rotate passwords using `solr-users-live` tag
+4. **Rotation**: Regularly rotate passwords using `solr-auth-reload` tag
 5. **Secrets Management**: Use Ansible Vault for password storage:
 
 ```bash
@@ -131,7 +134,7 @@ ansible-vault encrypt_string 'MySecurePassword123!' --name 'solr_moodle_password
 **Solution**: Check if user hash was generated correctly. Re-run with `-vvv` for debug output.
 
 ### Issue: "Container not running"
-**Solution**: Live updates require running container. Use `solr-users-deploy` for initial setup.
+**Solution**: Hot-reload updates require running container. Use `solr-users-deploy` for initial setup.
 
 ## Technical Details
 
