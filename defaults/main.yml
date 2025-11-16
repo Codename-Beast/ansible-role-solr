@@ -325,12 +325,9 @@ docker_api_version: "1.41"
 docker_timeout: 60
 docker_compose_version: "2.0"
 # ============================================================================
-# AUTOMATIC CUSTOMER NAME
-# ============================================================================
-customer_name: "{{ solr_app_domain.split('.')[0] if solr_app_domain is defined else 'default_core' }}"
-# ============================================================================
 # APPLICATION PATHS
 # ============================================================================
+# Note: customer_name moved to line 93 (before DOCKER CONFIGURATION)
 moodle_solr_host: "localhost"
 moodle_solr_port: "{{ solr_port }}"
 moodle_solr_secure: false
