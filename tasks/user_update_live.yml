@@ -1,7 +1,7 @@
 ---
-# Version: 1.0.0
+# Version: 1.0.1
 # Description: Add/update Solr users WITHOUT container restart (on-the-fly)
-# Usage: ansible-playbook site.yml --tags=solr-users-live
+# Usage: ansible-playbook install-solr.yml --tags=solr-auth-reload
 # This task ONLY updates users via API - NO DOWNTIME
 # Requirements:
 #   - Solr container must be running
@@ -76,6 +76,7 @@
     label: "{{ item.username }}"
   register: auth_verify
   failed_when: false
+  no_log: true
 
 - name: user-live - Display results
   debug:

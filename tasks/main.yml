@@ -124,7 +124,7 @@
 
 - name: install-solr - Configure webserver proxy
   include_tasks: proxy_configuration.yml
-  when: solr_proxy_enabled | default(true)
+  when: solr_proxy_enabled | default(false)
   tags:
     - install-solr-proxy
 
