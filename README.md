@@ -4,9 +4,9 @@
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-validated-green)
+![Tests](https://img.shields.io/badge/tests-pending%20hardware%20validation-yellow)
 ![Quality](https://img.shields.io/badge/code%20quality-9.8%2F10-brightgreen)
-![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)
+![Status](https://img.shields.io/badge/status-testing-yellow)
 
 Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
 
@@ -22,12 +22,12 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.3 (PRODUCTION READY)
+### ✨ New in v3.9.3 (TESTING - Bereit für Hardware-Tests)
 - 🧹 **Code-Hygiene Final** - 3 weitere ungenutzte Variablen entfernt
 - 📝 **100% Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt (30+ Stellen!)
 - 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht (3.4KB)
 - 📈 **Quality Score** - 9.5/10 → **9.8/10** (Industry Best Practice++)
-- ✅ **Status:** Production Ready - Alle Code-Probleme behoben!
+- ⚠️ **Status:** Testing - Code-seitig bereit, Hardware-Tests ausstehend!
 
 ### ✨ New in v3.9.2
 - 🔴 **CRITICAL: RAM-Kalkulation korrigiert** - 16GB → 4 Cores (war: 10 Cores)
