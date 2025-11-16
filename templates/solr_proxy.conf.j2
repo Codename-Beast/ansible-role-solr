@@ -1,8 +1,9 @@
 # by {{ ansible_managed }}
-# Version: 1.0.0
+# Version: 1.1.0
+# Fixed: Correct ProxyPass for subpath, added HTTPS support
 
 # Solr Proxy Configuration
-<Location {{ solr_proxy_path | default('/__solr') }}>
+<Location {{ solr_proxy_path | default('/solr-admin') }}>
     # Authentication (optional)
     {% if solr_proxy_auth_enabled | default(false) %}
     AuthType Basic
@@ -10,25 +11,26 @@
     AuthUserFile /etc/apache2/solr.htpasswd
     Require valid-user
     {% endif %}
-    
-    # Proxy settings
-    ProxyPass http://127.0.0.1:{{ solr_port }}/solr
+
+    # Proxy settings - CRITICAL: nocanon prevents path encoding issues
+    ProxyPass http://127.0.0.1:{{ solr_port }}/solr nocanon
     ProxyPassReverse http://127.0.0.1:{{ solr_port }}/solr
-    
+
     # Headers
     RequestHeader set X-Forwarded-Proto "https"
     RequestHeader set X-Forwarded-Port "443"
     RequestHeader set X-Forwarded-Host "{{ solr_app_domain | default(ansible_fqdn) }}"
-    
+
     # Security headers
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-XSS-Protection "1; mode=block"
-    
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
     # Proxy timeout settings
     ProxyTimeout 300
     ProxyBadHeader Ignore
-    
+
     # Allow methods
     <LimitExcept GET POST PUT DELETE HEAD OPTIONS>
         Require all denied
@@ -36,24 +38,10 @@
 </Location>
 
 # Redirect for trailing slash
-<Location = {{ solr_proxy_path | default('/__solr') }}>
-    RedirectMatch 301 ^{{ solr_proxy_path | default('/__solr') }}$ {{ solr_proxy_path | default('/__solr') }}/
-</Location>
+RedirectMatch 301 ^{{ solr_proxy_path | default('/solr-admin') }}$ {{ solr_proxy_path | default('/solr-admin') }}/
 
-# Static resources
-<LocationMatch "^{{ solr_proxy_path | default('/__solr') }}/(css|js|img)/">
-    ProxyPass http://127.0.0.1:{{ solr_port }}/solr$1/
-    ProxyPassReverse http://127.0.0.1:{{ solr_port }}/solr$1/
-    
-    # Cache static resources
-    Header set Cache-Control "public, max-age=3600"
-</LocationMatch>
-
-# Admin interface
-<Location {{ solr_proxy_path | default('/__solr') }}/admin>
-    ProxyPass http://127.0.0.1:{{ solr_port }}/solr/admin
-    ProxyPassReverse http://127.0.0.1:{{ solr_port }}/solr/admin
-    
+# Admin interface - Restrict access
+<Location {{ solr_proxy_path | default('/solr-admin') }}/admin>
     {% if solr_restrict_admin | default(true) %}
     # Restrict admin access to specific IPs
     <RequireAll>
@@ -64,10 +52,4 @@
         {% endfor %}
     </RequireAll>
     {% endif %}
-</Location>
-
-# Core-specific access
-<Location {{ solr_proxy_path | default('/__solr') }}/{{ solr_core_name | default('default_core') }}>
-    ProxyPass http://127.0.0.1:{{ solr_port }}/solr/{{ solr_core_name | default('default_core') }}
-    ProxyPassReverse http://127.0.0.1:{{ solr_port }}/solr/{{ solr_core_name | default('default_core') }}
 </Location>

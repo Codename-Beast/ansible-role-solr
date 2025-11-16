@@ -48,6 +48,17 @@
   tags:
     - install-solr-auth
     - install-solr-users
+    - solr-users-deploy
+
+- name: install-solr - Live user updates (on-the-fly, no downtime)
+  include_tasks: user_update_live.yml
+  when:
+    - solr_auth_enabled | default(true)
+    - solr_additional_users is defined
+    - solr_additional_users | length > 0
+  tags:
+    - never  # Only run when explicitly requested
+    - solr-users-live
 
 - name: install-solr - Configuration management
   include_tasks: config_management.yml

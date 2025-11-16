@@ -132,6 +132,8 @@ services:
     environment:
       SOLR_HEAP: {{ solr_heap_size }}
       SOLR_JAVA_MEM: "-Xms{{ solr_heap_size }} -Xmx{{ solr_heap_size }}"
+      SOLR_OPTS: "{{ solr_gc_options }} {{ solr_jvm_opts }}"
+      GC_LOG_OPTS: "-Xlog:gc*:file=/var/solr/logs/solr_gc.log:time,uptime:filecount=9,filesize=20M"
       SOLR_LOG_LEVEL: {{ solr_log_level }}
     networks:
       - {{ solr_network_name }}
@@ -147,9 +149,14 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '{{ (solr_cpu_quota | int / solr_cpu_period | int) | string }}'
           memory: {{ solr_memory_limit }}
+          pids: 4096
         reservations:
-          memory: {{ solr_heap_size }}
+          cpus: '{{ ((solr_cpu_quota | int / solr_cpu_period | int) * 0.5) | string }}'
+          memory: {{ solr_memory_reservation | default(solr_heap_size) }}
+    mem_swappiness: 10  # Prefer RAM over swap
+    memswap_limit: {{ solr_memory_swap }}
 
 volumes:
   {{ solr_volume_name }}:

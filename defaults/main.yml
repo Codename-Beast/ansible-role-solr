@@ -182,16 +182,52 @@ solr_backup_compress: true
 solr_backup_credentials: false
 
 # ============================================================================
-# MEMORY CONFIGURATION
+# MEMORY CONFIGURATION (Optimized for 16GB Server)
 # ============================================================================
-solr_heap_size: "2g"
-solr_memory_limit: "4g"  # Must be >= heap + 50% for non-heap memory (metaspace, buffers, threads)
-solr_memory_swap: "4g"
+# Server RAM: 16GB
+# OS + Buffer: 2GB (reserved)
+# Solr Available: 14GB
+#
+# Memory Split Strategy:
+# - Heap: 6GB (JVM Heap for Solr application)
+# - Off-Heap: 6GB (Lucene index cache, OS file cache - CRITICAL for performance!)
+# - Container Limit: 12GB (total allocated to Solr)
+# - Swap: 12GB (emergency overflow)
+#
+# Why 6GB Heap?
+# - Solr/Lucene works best with 50/50 split between heap and off-heap
+# - Larger heap (>8GB) causes longer GC pauses
+# - Lucene segments are memory-mapped (off-heap) for fast search
+# - OS file cache needs RAM for index files
 
-# GC & Performance Optimizations
-solr_gc_options: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:G1HeapRegionSize=16m -XX:MaxGCPauseMillis=200"
-solr_jvm_opts: "-server -Djava.awt.headless=true -Dfile.encoding=UTF-8"
-solr_cpu_quota: 100000
+solr_heap_size: "6g"
+solr_memory_limit: "12g"  # Container limit: Heap (6g) + Off-heap (6g)
+solr_memory_swap: "12g"   # Swap limit matches memory limit
+solr_memory_reservation: "10g"  # Soft limit to prevent OOM
+
+# GC & Performance Optimizations (Tuned for 6GB Heap)
+solr_gc_options: >-
+  -XX:+UseG1GC
+  -XX:+ParallelRefProcEnabled
+  -XX:G1HeapRegionSize=16m
+  -XX:MaxGCPauseMillis=200
+  -XX:InitiatingHeapOccupancyPercent=45
+  -XX:G1ReservePercent=10
+  -XX:+DisableExplicitGC
+  -XX:+AlwaysPreTouch
+
+# JVM Options
+solr_jvm_opts: >-
+  -server
+  -Djava.awt.headless=true
+  -Dfile.encoding=UTF-8
+  -Djava.net.preferIPv4Stack=true
+  -Dsolr.autoSoftCommit.maxTime=3000
+  -Dsolr.autoCommit.maxTime=60000
+
+# CPU Configuration (100% = 1 core, 400% = 4 cores)
+# Allocate 4 cores for Solr
+solr_cpu_quota: 400000
 solr_cpu_period: 100000
 # ============================================================================
 # PROXY CONFIGURATION

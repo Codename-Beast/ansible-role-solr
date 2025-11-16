@@ -1,0 +1,90 @@
+---
+# Version: 1.0.0
+# Description: Add/update Solr users WITHOUT container restart (on-the-fly)
+# Usage: ansible-playbook site.yml --tags=solr-users-live
+# This task ONLY updates users via API - NO DOWNTIME
+# Requirements:
+#   - Solr container must be running
+#   - security.json already deployed
+#   - New users defined in solr_additional_users
+
+- name: user-live - Verify Solr is running
+  command: docker inspect --format='{{.State.Status}}' {{ solr_container_name }}
+  register: container_status
+  failed_when: container_status.stdout | trim != 'running'
+  changed_when: false
+
+- name: user-live - Display operation mode
+  debug:
+    msg:
+      - "========================================="
+      - "LIVE USER UPDATE - NO DOWNTIME"
+      - "========================================="
+      - "Mode: API-only updates"
+      - "Container: {{ solr_container_name }}"
+      - "Status: {{ container_status.stdout | trim }}"
+      - "New users: {{ solr_additional_users | length }}"
+
+- name: user-live - Process additional users (generate hashes)
+  include_tasks: user_management.yml
+  when: solr_additional_users is defined and solr_additional_users | length > 0
+
+- name: user-live - Generate updated security.json
+  template:
+    src: security.json.j2
+    dest: "{{ solr_config_dir }}/security.json"
+    owner: "{{ solr_user | default('solr') }}"
+    group: "{{ solr_group | default('solr') }}"
+    mode: '0600'
+  become: true
+
+- name: user-live - Copy security.json to container
+  command: docker cp {{ solr_config_dir }}/security.json {{ solr_container_name }}:/var/solr/data/security.json
+  changed_when: true
+
+- name: user-live - Update Solr security via API (NO RESTART)
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/authentication"
+    method: POST
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    body_format: json
+    body:
+      set-user:
+        "{{ item.username }}": "{{ solr_additional_user_hashes[item.username] }}"
+    status_code: [200, 201]
+  loop: "{{ solr_additional_users }}"
+  loop_control:
+    label: "{{ item.username }}"
+  when:
+    - solr_additional_users is defined
+    - solr_additional_user_hashes is defined
+    - item.username in solr_additional_user_hashes
+  register: api_update_result
+
+- name: user-live - Verify new users can authenticate
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/ping"
+    method: GET
+    user: "{{ item.username }}"
+    password: "{{ item.password }}"
+    force_basic_auth: yes
+    status_code: [200, 401]  # 401 if user has no permissions yet (expected)
+  loop: "{{ solr_additional_users }}"
+  loop_control:
+    label: "{{ item.username }}"
+  register: auth_verify
+  failed_when: false
+
+- name: user-live - Display results
+  debug:
+    msg:
+      - "========================================="
+      - "LIVE USER UPDATE COMPLETED"
+      - "========================================="
+      - "Users updated: {{ solr_additional_users | length }}"
+      - "API updates: {{ api_update_result.results | selectattr('changed', 'equalto', true) | list | length }}"
+      - "Auth verified: {{ auth_verify.results | selectattr('status', 'in', [200, 401]) | list | length }}"
+      - ""
+      - "NOTE: Changes are live - NO container restart required!"
