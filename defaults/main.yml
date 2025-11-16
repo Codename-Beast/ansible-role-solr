@@ -88,12 +88,17 @@ solr_health_disk_threshold: 10       # Warn if less than X% disk space free
 solr_health_memory_threshold: 90     # Warn if more than X% heap memory used
 solr_health_cache_threshold: 75      # Warn if cache hit ratio below X% (comprehensive mode only)
 # ============================================================================
+# AUTOMATIC CUSTOMER NAME (must be defined BEFORE container/volume names)
+# ============================================================================
+customer_name: "{{ solr_app_domain.split('.')[0] if solr_app_domain is defined else 'default' }}"
+
+# ============================================================================
 # DOCKER CONFIGURATION
 # ============================================================================
 solr_version: "9.9.0"
 solr_major_version: "{{ solr_version.split('.')[0] }}"
-solr_container_name: "solr_{{ customer_name | default('default') }}"
-solr_volume_name: "solr_data_{{ customer_name | default('default') }}"
+solr_container_name: "solr_{{ customer_name }}"
+solr_volume_name: "solr_data_{{ customer_name }}"
 solr_network_name: "solr_network"
 solr_create_systemd_service: false
 solr_port: 8983
@@ -333,6 +338,7 @@ moodle_solr_username: "{{ solr_moodle_user }}"
 moodle_env: "public_html"
 moodle_eledia_path: "/home/vhosts/moodle"
 moodle_config_path: "{{ moodle_eledia_path }}/{{ solr_app_domain }}/{{ moodle_env }}/config.php"
+# Note: customer_name moved to line 91 (before DOCKER CONFIGURATION)
 # ============================================================================
 # RUNDECK INTEGRATION
 # ============================================================================
