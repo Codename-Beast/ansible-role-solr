@@ -255,7 +255,7 @@ solr-prod-01 ansible_host=192.168.1.10 ansible_user=root
         # Use ansible-vault for passwords!
         solr_admin_password: "{{ vault_solr_admin_password }}|| Plaintext"
         solr_support_password: "{{ vault_solr_support_password }}|| Plaintext"
-        solr_customer_password: "{{ vault_solr_customer_password }} || Plaintext"
+        solr_moodle_password: "{{ vault_solr_moodle_password }} || Plaintext"
 ```
 
 ### 4. Run
@@ -277,12 +277,12 @@ moodle_app_domain: "moodle.eledia.de" # Your Moodle domain
 ```yaml
 solr_admin_password: "admin_secret"      # Admin user password (min 12 chars)
 solr_support_password: "support_secret"  # Support user password
-solr_customer_password: "customer_secret" # Customer user password
+solr_moodle_password: "moodle_secret"    # Moodle user password
 
 # Optional: Override usernames
 solr_admin_user: "admin"                 # Default: admin
 solr_support_user: "support"             # Default: support
-solr_customer_user: "customer"           # Default: customer
+solr_moodle_user: "moodle"               # Default: moodle
 ```
 
 ### Container Configuration
