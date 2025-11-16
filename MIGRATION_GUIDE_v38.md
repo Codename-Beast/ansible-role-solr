@@ -178,10 +178,10 @@ solr_admin_password: !vault |
 
 ```bash
 # Check Mode (keine Änderungen)
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --check --diff
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --check --diff
 
 # Nur Preflight Checks
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-preflight
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-preflight
 ```
 
 ### 5. Deployment (v38)
@@ -190,24 +190,24 @@ ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-prefli
 
 ```bash
 # Vollständige Installation
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr'
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr'
 ```
 
 **Wenn Solr BEREITS läuft (Update):**
 
 ```bash
 # Option 1: Vollständiges Re-Deployment (mit Downtime)
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr'
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr'
 
 # Option 2: Nur Auth-Update (Zero-Downtime) - falls nur User geändert
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=solr-auth-reload
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --tags=solr-auth-reload
 ```
 
 ### 6. Validierung nach Migration
 
 ```bash
 # Integration Tests
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-test
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-test
 
 # Manueller Test
 curl -u admin:!hj0iuoefeufhefuj! \
@@ -242,7 +242,7 @@ solr_additional_users:
 **2. Hot-Reload (Zero-Downtime!):**
 
 ```bash
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=solr-auth-reload
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --tags=solr-auth-reload
 ```
 
 **3. User testen:**
@@ -281,7 +281,7 @@ ssh srh-ecampus-solr "jq . /opt/solr/config/security.json"
 ssh srh-ecampus-solr "docker logs hc-srhecampus-solr"
 
 # Force Rebuild
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' -e 'force_container_rebuild=true'
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' -e 'force_container_rebuild=true'
 ```
 
 ### Problem: Authentication schlägt fehl
@@ -290,10 +290,10 @@ ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' -e 'force_container_rebuil
 
 ```bash
 # Auth-Management neu ausführen
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-auth
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-auth
 
 # Oder: Container neu deployen
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-deployment
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-deployment
 ```
 
 ---
@@ -306,7 +306,7 @@ ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-deploy
 - [ ] **Memory-Config aktualisiert** (6GB Heap für 16GB Server)
 - [ ] **Vault eingerichtet** (Passwörter verschlüsselt)
 - [ ] **Dry-Run erfolgreich** (--check --diff)
-- [ ] **Deployment ausgeführt** (ansible-playbook site.yml)
+- [ ] **Deployment ausgeführt** (ansible-playbook install-solr.yml)
 - [ ] **Tests bestanden** (--tags=install-solr-test)
 - [ ] **Manueller Test** (curl mit allen Usern)
 - [ ] **Container läuft** (docker ps)
@@ -342,7 +342,7 @@ ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=install-solr-deploy
 
 ```bash
 # Alle 90 Tage
-ansible-playbook site.yml -e 'hosts=srh-ecampus-solr' --tags=solr-auth-reload
+ansible-playbook install-solr.yml -e 'hosts=srh-ecampus-solr' --tags=solr-auth-reload
 ```
 
 ### 2. Monitoring aktivieren

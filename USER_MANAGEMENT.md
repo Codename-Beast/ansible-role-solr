@@ -40,7 +40,7 @@ Available roles:
 #### Option A: During Initial Deployment
 
 ```bash
-ansible-playbook site.yml --tags=install-solr-users
+ansible-playbook install-solr.yml --tags=install-solr-users
 ```
 
 This includes user creation in the full deployment process.
@@ -48,9 +48,9 @@ This includes user creation in the full deployment process.
 #### Option B: Hot-Reload Update (ZERO DOWNTIME) ⚡
 
 ```bash
-ansible-playbook site.yml --tags=solr-auth-reload
+ansible-playbook install-solr.yml --tags=solr-auth-reload
 # OR
-ansible-playbook site.yml --tags=solr-users-hotupdate
+ansible-playbook install-solr.yml --tags=solr-users-hotupdate
 ```
 
 This updates users via Solr API without container restart!
@@ -89,7 +89,7 @@ solr_additional_users:
 
 2. Apply changes:
 ```bash
-ansible-playbook site.yml --tags=solr-auth-reload --limit=myserver
+ansible-playbook install-solr.yml --tags=solr-auth-reload --limit=myserver
 ```
 
 3. Verify:
@@ -100,7 +100,7 @@ curl -u tenant_xyz:TenantXYZ2024! http://localhost:8983/solr/admin/ping
 ### Example 2: Update Existing User Password (Hot-Reload)
 
 1. Change password in `host_vars/myserver.yml`
-2. Run: `ansible-playbook site.yml --tags=solr-auth-reload`
+2. Run: `ansible-playbook install-solr.yml --tags=solr-auth-reload`
 3. User can immediately login with new password (zero-downtime!)
 
 ### Example 3: Bulk User Import

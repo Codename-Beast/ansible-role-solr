@@ -25,7 +25,7 @@
 ### 1. Basis-Installation (komplett)
 
 ```bash
-ansible-playbook site.yml -e 'hosts=yourserver'
+ansible-playbook install-solr.yml -e 'hosts=yourserver'
 ```
 
 **Was passiert:**
@@ -62,7 +62,7 @@ solr_additional_users:
 
 **Deployment:**
 ```bash
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-users
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=install-solr-users
 ```
 
 **Downtime:** Ja (Container-Restart erforderlich)
@@ -84,10 +84,10 @@ solr_additional_users:
 **2. Hot-Reload (KEINE Downtime):**
 ```bash
 # Option 1: Professional tag
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=solr-auth-reload
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=solr-auth-reload
 
 # Option 2: Alias
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=solr-users-hotupdate
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=solr-users-hotupdate
 ```
 
 **Ergebnis:**
@@ -117,7 +117,7 @@ solr_additional_users:
 
 **2. Live-Update:**
 ```bash
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=solr-auth-reload
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=solr-auth-reload
 ```
 
 **3. User kann SOFORT mit neuem Passwort einloggen!**
@@ -129,7 +129,7 @@ ansible-playbook site.yml -e 'hosts=yourserver' --tags=solr-auth-reload
 ### 4. Nur Tests (nach Änderungen)
 
 ```bash
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-test
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=install-solr-test
 ```
 
 **Tests umfassen:**
@@ -148,19 +148,19 @@ ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-test
 
 ```bash
 # Nur Docker installieren
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-docker
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=install-solr-docker
 
 # Nur Auth neu konfigurieren
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-auth
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=install-solr-auth
 
 # Nur Proxy neu konfigurieren
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-proxy
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=install-solr-proxy
 
 # Nur Core neu erstellen
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-core
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=install-solr-core
 
 # Nur Container neu deployen
-ansible-playbook site.yml -e 'hosts=yourserver' --tags=install-solr-deployment
+ansible-playbook install-solr.yml -e 'hosts=yourserver' --tags=install-solr-deployment
 ```
 
 ---
@@ -203,10 +203,10 @@ solr_additional_users:
 **Deployment:**
 ```bash
 # Initialer Rollout
-ansible-playbook site.yml -e 'hosts=production-solr' --ask-vault-pass
+ansible-playbook install-solr.yml -e 'hosts=production-solr' --ask-vault-pass
 
 # Neuer Kunde hinzufügen (später)
-ansible-playbook site.yml -e 'hosts=production-solr' --tags=solr-auth-reload --ask-vault-pass
+ansible-playbook install-solr.yml -e 'hosts=production-solr' --tags=solr-auth-reload --ask-vault-pass
 ```
 
 ---
@@ -232,7 +232,7 @@ solr_additional_users:
 
 **Deployment:**
 ```bash
-ansible-playbook site.yml -e 'hosts=moodle-solr' --ask-vault-pass
+ansible-playbook install-solr.yml -e 'hosts=moodle-solr' --ask-vault-pass
 ```
 
 **Moodle Plugin Config:**
@@ -248,22 +248,22 @@ ansible-playbook site.yml -e 'hosts=moodle-solr' --ask-vault-pass
 **Development:**
 ```bash
 # Dev-Server (ohne Vault)
-ansible-playbook site.yml -e 'hosts=dev-solr' --limit=dev-solr
+ansible-playbook install-solr.yml -e 'hosts=dev-solr' --limit=dev-solr
 ```
 
 **Staging:**
 ```bash
 # Staging mit Tests
-ansible-playbook site.yml -e 'hosts=staging-solr' --tags=install-solr-test
+ansible-playbook install-solr.yml -e 'hosts=staging-solr' --tags=install-solr-test
 ```
 
 **Production:**
 ```bash
 # Prod-Deployment (mit Vault)
-ansible-playbook site.yml -e 'hosts=prod-solr' --ask-vault-pass
+ansible-playbook install-solr.yml -e 'hosts=prod-solr' --ask-vault-pass
 
 # User-Update (Zero-Downtime)
-ansible-playbook site.yml -e 'hosts=prod-solr' --tags=solr-auth-reload --ask-vault-pass
+ansible-playbook install-solr.yml -e 'hosts=prod-solr' --tags=solr-auth-reload --ask-vault-pass
 ```
 
 ---
@@ -293,7 +293,7 @@ solr_additional_users:
 
 **3. Deployment mit Vault:**
 ```bash
-ansible-playbook site.yml -e 'hosts=prod' --ask-vault-pass
+ansible-playbook install-solr.yml -e 'hosts=prod' --ask-vault-pass
 ```
 
 ---
@@ -411,28 +411,28 @@ docker logs solr-production 2>&1 | grep -i "authentication"
 
 ```bash
 # Nur einen Host aus Inventory
-ansible-playbook site.yml -e 'hosts=all' --limit=specific-server
+ansible-playbook install-solr.yml -e 'hosts=all' --limit=specific-server
 ```
 
 ### 2. Dry-Run (Check Mode)
 
 ```bash
 # Änderungen prüfen ohne Apply
-ansible-playbook site.yml -e 'hosts=prod' --check --diff
+ansible-playbook install-solr.yml -e 'hosts=prod' --check --diff
 ```
 
 ### 3. Verbose Output (Debugging)
 
 ```bash
 # Debug-Level
-ansible-playbook site.yml -e 'hosts=dev' -vvv
+ansible-playbook install-solr.yml -e 'hosts=dev' -vvv
 ```
 
 ### 4. Conditional User Updates
 
 ```bash
 # Nur wenn neue Users definiert sind
-ansible-playbook site.yml -e 'hosts=prod' --tags=solr-auth-reload \
+ansible-playbook install-solr.yml -e 'hosts=prod' --tags=solr-auth-reload \
   --extra-vars='{"solr_additional_users": [{"username": "new_user", "password": "pass", "roles": ["support"]}]}'
 ```
 
@@ -442,19 +442,19 @@ ansible-playbook site.yml -e 'hosts=prod' --tags=solr-auth-reload \
 
 ```bash
 # Initial Setup
-ansible-playbook site.yml -e 'hosts=myserver'
+ansible-playbook install-solr.yml -e 'hosts=myserver'
 
 # Add User (Zero-Downtime)
-ansible-playbook site.yml -e 'hosts=myserver' --tags=solr-auth-reload
+ansible-playbook install-solr.yml -e 'hosts=myserver' --tags=solr-auth-reload
 
 # Run Tests
-ansible-playbook site.yml -e 'hosts=myserver' --tags=install-solr-test
+ansible-playbook install-solr.yml -e 'hosts=myserver' --tags=install-solr-test
 
 # Update Proxy
-ansible-playbook site.yml -e 'hosts=myserver' --tags=install-solr-proxy
+ansible-playbook install-solr.yml -e 'hosts=myserver' --tags=install-solr-proxy
 
 # Full Re-Deploy
-ansible-playbook site.yml -e 'hosts=myserver'
+ansible-playbook install-solr.yml -e 'hosts=myserver'
 ```
 
 ---
