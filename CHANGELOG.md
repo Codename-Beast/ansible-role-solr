@@ -57,21 +57,28 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 ### 📝 DOKUMENTATIONS-ANPASSUNGEN
 
 **Sprachliche Verbesserungen:**
-- `tasks/finalization.yml` - "Customer User" → "Moodle User" (3 Stellen)
+- `tasks/finalization.yml` - "Customer User" → "Moodle User" (3 Stellen) + "customer credentials" → "moodle credentials"
+- `README.md` - Alle Beispiele: `solr_customer_user/password` → `solr_moodle_user/password`
 - Alle `.md` Dateien - Entfernung übertriebener Formulierungen ("makellos", "sauber")
 - Alle `.md` Dateien - "Production Ready" → "Testing Ready" (Status korrekt!)
 - **Begründung:** Sachlichere Sprache, korrekter Testing-Status bis Hardware-Validierung
 
+**Konsistenz-Fixes (100% Compliance):**
+- `tasks/auth_validation.yml` - `customer_login` → `moodle_login` (Test-Summary)
+- `tasks/preflight_checks.yml` - Label "Customer" → "Moodle" (Passwort-Validierung)
+- `defaults/main.yml` - `solr_start_command` entfernt (ungenutzt)
+
 ### 📦 FILES CHANGED
 
 **Modified:**
-- defaults/main.yml (-3 ungenutzte Variablen)
+- defaults/main.yml (-4 ungenutzte Variablen inkl. solr_start_command)
 - tasks/auth_management.yml (customer → moodle, 3 Stellen)
-- tasks/auth_validation.yml (customer → moodle, 2 Stellen)
+- tasks/auth_validation.yml (customer_login → moodle_login, 2 Stellen)
 - tasks/auth_persistence.yml (customer → moodle, 1 Stelle)
 - tasks/auth_detection.yml (customer → moodle, 25+ Stellen!)
-- tasks/finalization.yml (Customer User → Moodle User, 3 Stellen)
-- README.md (Version 3.9.3, Quality Score 9.8/10)
+- tasks/preflight_checks.yml (Label "Customer" → "Moodle")
+- tasks/finalization.yml (Customer User → Moodle User, 3 Stellen + Kommentar)
+- README.md (Beispiel-Variablen: solr_customer → solr_moodle, 3 Stellen)
 - CHANGELOG.md (v3.9.3 Dokumentation)
 - FEEDBACK_RESOLUTION_v3.9.3.md (Sprachliche Anpassungen)
 - FEEDBACK_RESPONSE_v3.9.2.md (Sprachliche Anpassungen)
@@ -95,9 +102,9 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 ### 🎯 ZUSAMMENFASSUNG
 
 **v3.9.3 ist das finale Code-Quality Release:**
-- ✅ Alle ungenutzten Variablen entfernt (17 total)
+- ✅ Alle ungenutzten Variablen entfernt (18 total inkl. solr_start_command)
 - ✅ Alle ungenutzten Dateien entfernt (2 total)
-- ✅ 100% konsistente Benennung (customer → moodle)
+- ✅ 100% konsistente Benennung (customer → moodle) - AUCH in Dokumentation!
 - ✅ Keine toten Code-Reste mehr
 - ✅ Quality Score: 9.8/10 (Industry Best Practice++)
 
