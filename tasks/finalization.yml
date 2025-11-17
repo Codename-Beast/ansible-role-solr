@@ -1,6 +1,9 @@
 ---
-# Version: 1.3.1
-# Description: Finalization tasks for Solr installation
+# Version: 1.4.0
+# Description: Finalization tasks for Solr installation with multi-core support
+# Changelog v1.4.0:
+#   - ADDED: Multi-core deployment detection and display
+#   - FIXED: Documentation now shows all cores in multi-core mode
 # Changelog v1.3.1:
 #   - FIXED: Full idempotency support for unlimited re-runs
 # Changelog v1.1:
@@ -10,6 +13,18 @@
 #   - Optional notification
 #   - Add More Infos
 
+- name: install-solr - Detect deployment mode for finalization
+  set_fact:
+    deployment_mode: "multi-core"
+    deployed_cores: "{{ solr_cores | map(attribute='name') | map('regex_replace', '^(.*)$', '\\1_core') | join(', ') }}"
+  when: solr_cores is defined and solr_cores | length > 0
+
+- name: install-solr - Set single-core mode for finalization
+  set_fact:
+    deployment_mode: "single-core"
+    deployed_cores: "{{ solr_core_name }}"
+  when: solr_cores is not defined or solr_cores | length == 0
+
 - name: install-solr - Gather final deployment information
   set_fact:
     deployment_info:
@@ -17,7 +32,8 @@
       domain: "{{ solr_app_domain }}"
       solr_version: "{{ solr_version }}"
       container_name: "{{ solr_container_name }}"
-      core_name: "{{ solr_core_name }}"
+      deployment_mode: "{{ deployment_mode }}"
+      cores: "{{ deployed_cores }}"
       solr_url: "http://localhost:{{ solr_port }}/solr"
       proxy_url: "http://{{ solr_app_domain }}{{ solr_proxy_path }}"
       auth_enabled: "{{ solr_auth_enabled | default(true) }}"
@@ -55,7 +71,8 @@
       - Solr Version: {{ solr_version | default('ERROR')}}
       - Container Name: {{ solr_container_name }} | default('eledia_default')
       - Volume Name: {{ solr_volume_name }}
-      - Core Name: {{ solr_core_name }}
+      - Deployment Mode: {{ deployment_mode | upper }}
+      - Cores: {{ deployed_cores }}
       
       ## Network Configuration
       - Internal URL: http://localhost:{{ solr_port }}/solr
@@ -142,12 +159,13 @@
       ```bash
       # Admin ping (requires admin credentials)
       curl -u {{ solr_admin_user }}:PASSWORD http://localhost:{{ solr_port }}/solr/admin/ping
-      
+
       # Core status
       curl -u {{ solr_admin_user }}:PASSWORD http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS
-      
+
       # Search query (with moodle credentials)
-      curl -u {{ solr_moodle_user }}:PASSWORD "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
+      # Replace CORE_NAME with: {{ deployed_cores }}
+      curl -u {{ solr_moodle_user }}:PASSWORD "http://localhost:{{ solr_port }}/solr/CORE_NAME/select?q=*:*"
       ```
       
       ## Credential Files Location
@@ -177,21 +195,22 @@
       Deployment Host: {{ ansible_hostname }}
       last Ansible Controller ID: {{ ansible_user_id | default('Woher soll ich das wissen?')}}
       Deployment Time: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+      Deployment Mode: {{ deployment_mode | upper }}
+
       Solr URL: http://localhost:{{ solr_port }}/solr
-      Core URL: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}
       Proxy URL: http://{{ solr_app_domain }}{{ solr_proxy_path }}
-      
-      Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}
+      Admin UI: http://localhost:{{ solr_port }}/solr/
+
+      Cores: {{ deployed_cores }}
 
       Admin User: {{ solr_admin_user }}
       Support User: {{ solr_support_user }}
       Moodle User: {{ solr_moodle_user }}
-      
+
       Credentials file: {{ solr_config_dir }}/credentials.yml
-      
+
       Container: {{ solr_container_name }}
       Volume: {{ solr_volume_name }}
-      Core: {{ solr_core_name }}
       
       Logs: docker logs {{ solr_container_name }}
       Stats: docker stats {{ solr_container_name }}
@@ -253,13 +272,13 @@
         domain: "{{ solr_app_domain }}"
         solr_version: "{{ solr_version }}"
         container: "{{ solr_container_name }}"
-        core: "{{ solr_core_name }}"
+        mode: "{{ deployment_mode }}"
+        cores: "{{ deployed_cores }}"
         volume: "{{ solr_volume_name }}"
       urls:
         internal: "http://localhost:{{ solr_port }}/solr"
-        core: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
         proxy: "http://{{ solr_app_domain }}{{ solr_proxy_path }}"
-        admin_ui: "http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
+        admin_ui: "http://localhost:{{ solr_port }}/solr/"
       resources:
         memory_usage: "{{ container_stats.stdout if container_stats.rc == 0 else 'N/A' }}"
         volume_size: "{{ volume_size.stdout if volume_size.rc == 0 else 'N/A' }}"
@@ -300,12 +319,15 @@
       - "Customer: {{ customer_name }}"
       - "Domain: {{ solr_app_domain }}"
       - "Solr Version: {{ solr_version }}"
+      - "Deployment Mode: {{ deployment_mode | upper }}"
       - ""
       - "URLS:"
       - "  Internal: http://localhost:{{ solr_port }}/solr"
-      - "  Core: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
       - "  Proxy: http://{{ solr_app_domain }}{{ solr_proxy_path }}"
-      - "  Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
+      - "  Admin UI: http://localhost:{{ solr_port }}/solr/"
+      - ""
+      - "CORES:"
+      - "  {{ deployed_cores }}"
       - ""
       - "CREDENTIALS:"
       - "  Admin User: {{ solr_admin_user }}"
@@ -315,7 +337,6 @@
       - ""
       - "CONTAINER:"
       - "  Name: {{ solr_container_name }}"
-      - "  Core: {{ solr_core_name }}"
       - "  Volume: {{ solr_volume_name }}"
       - "  Memory: {{ container_stats.stdout if container_stats.rc == 0 else 'N/A' }}"
       - "  Volume Size: {{ volume_size.stdout if volume_size.rc == 0 else 'N/A' }}"
@@ -330,7 +351,7 @@
       - "  3. Configure Moodle search plugin with:"
       - "     - Host: {{ moodle_solr_host }}"
       - "     - Port: {{ solr_port }}"
-      - "     - Core: {{ solr_core_name }}"
+      - "     - Cores: {{ deployed_cores }}"
       - "     - Username: {{ solr_moodle_user }}"
       - "     - Password: (see credentials.yml)"
       - "  4. Set up backup schedule"

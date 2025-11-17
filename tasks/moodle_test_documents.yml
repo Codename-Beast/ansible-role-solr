@@ -1,11 +1,32 @@
 ---
-# Version: 1.2.0
-# Description: Test Moodle document indexing and search
+# Version: 1.3.0
+# Description: Test Moodle document indexing and search with multi-core support
+# Changelog v1.3.0:
+#   - FIXED: Multi-core mode detection and testing against actual cores
+#   - ADDED: Dynamic core selection for Moodle tests
 # Creates sample Moodle documents for testing
+
+- name: test-docs - Detect deployment mode and set test core
+  set_fact:
+    moodle_test_core_name: "{{ solr_cores[0].name }}_core"
+    deployment_mode: "multi-core"
+  when: solr_cores is defined and solr_cores | length > 0
+
+- name: test-docs - Set test core for single-core mode
+  set_fact:
+    moodle_test_core_name: "{{ moodle_test_core_name }}"
+    deployment_mode: "single-core"
+  when: solr_cores is not defined or solr_cores | length == 0
+
+- name: test-docs - Display detected mode and test core
+  debug:
+    msg:
+      - "Deployment Mode: {{ deployment_mode }}"
+      - "Moodle Test Core: {{ moodle_test_core_name }}"
 
 - name: test-docs - Wait for Solr core to be ready
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/admin/ping"
     method: GET
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -19,7 +40,7 @@
 
 - name: test-docs - Index Moodle test document - Forum Post
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -42,7 +63,7 @@
 
 - name: test-docs - Index Moodle test document - Wiki Page
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -65,7 +86,7 @@
 
 - name: test-docs - Index Moodle test document - Course Module
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -88,7 +109,7 @@
 
 - name: test-docs - Index Moodle test document - Assignment
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -111,7 +132,7 @@
 
 - name: test-docs - Index Moodle test document - Page Resource
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -134,7 +155,7 @@
 
 - name: test-docs - Commit all test documents
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/update?commit=true"
     method: GET
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -144,7 +165,7 @@
 
 - name: install-solr - Test search for "Mathematik"
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=title:Mathematik&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/select?q=title:Mathematik&wt=json"
     method: GET
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -155,7 +176,7 @@
 
 - name: install-solr - Test search for "Python"
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=content:Python&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/select?q=content:Python&wt=json"
     method: GET
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -166,7 +187,7 @@
 
 - name: install-solr - Test search by course ID
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=courseid:5&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/select?q=courseid:5&wt=json"
     method: GET
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -177,7 +198,7 @@
 
 - name: install-solr - Test search by type
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=type:0&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/select?q=type:0&wt=json"
     method: GET
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -188,7 +209,7 @@
 
 - name: install-solr - Test facet search by type
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*&facet=true&facet.field=type&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/select?q=*:*&facet=true&facet.field=type&wt=json"
     method: GET
     user: "{{ solr_moodle_user }}"
     password: "{{ solr_moodle_password }}"
@@ -275,7 +296,7 @@
 
 - name: moodle-test - Delete all test documents (cleanup)
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    url: "http://localhost:{{ solr_port }}/solr/{{ moodle_test_core_name }}/update?commit=true"
     method: POST
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
