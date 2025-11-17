@@ -309,6 +309,9 @@
 - name: install-solr - Display generated credentials if any
   include_tasks: credentials_display.yml
 
+- name: install-solr - Update hostvars with generated passwords
+  include_tasks: hostvars_update.yml
+
 - name: install-solr - Display Happy final summary maybe? 
   debug:
     msg:
