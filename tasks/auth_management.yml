@@ -323,11 +323,11 @@
     openssl dgst -sha256 -binary {{ hash_temp_dir.path }}/{{ item.name }}_hash1.bin > {{ hash_temp_dir.path }}/{{ item.name }}_hash2.bin
 
     # Base64 encode
-    HASH_B64=$(${BASE64_CMD} < {{ hash_temp_dir.path }}/{{ item.name }}_hash2.bin | tr -d '\n\r')
     SALT_B64=$(${BASE64_CMD} < {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin | tr -d '\n\r')
+    HASH_B64=$(${BASE64_CMD} < {{ hash_temp_dir.path }}/{{ item.name }}_hash2.bin | tr -d '\n\r')
 
-    # Output format: "HASH SALT"
-    echo "${HASH_B64} ${SALT_B64}"
+    # Output format: "SALT HASH" (Solr BasicAuth format)
+    echo "${SALT_B64} ${HASH_B64}"
   args:
     executable: /bin/bash
   environment:

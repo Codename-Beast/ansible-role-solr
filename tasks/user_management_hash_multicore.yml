@@ -32,13 +32,13 @@
   no_log: true
 
 - name: user-hash-mc - Generate first SHA256 hash for {{ mc_user.username }}
-  shell: echo -n "{{ mc_salt }}{{ mc_user.password }}" | sha256sum | awk '{print $1}'
+  shell: echo -n "{{ mc_salt }}{{ mc_user.password }}" | openssl dgst -sha256 -binary | base64 -w0
   register: mc_first_hash
   changed_when: false
   no_log: true
 
 - name: user-hash-mc - Generate second SHA256 hash for {{ mc_user.username }}
-  shell: echo -n "{{ mc_first_hash.stdout }}" | sha256sum | awk '{print $1}'
+  shell: echo -n "{{ mc_first_hash.stdout }}" | openssl dgst -sha256 -binary | base64 -w0
   register: mc_second_hash
   changed_when: false
   no_log: true
