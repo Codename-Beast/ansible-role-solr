@@ -173,6 +173,24 @@
     - existing_security_json.stat.exists
     - security_json_parsed is defined
 
+- name: auth-mgmt - WARNING when reusing old hashes
+  debug:
+    msg:
+      - "=========================================="
+      - "⚠️  REUSING EXISTING PASSWORD HASHES"
+      - "=========================================="
+      - "security.json found with matching passwords"
+      - "Skipping hash regeneration for performance"
+      - ""
+      - "IF AUTHENTICATION FAILS:"
+      - "  1. Set solr_force_reconfigure_auth: true in host_vars"
+      - "  2. Re-run the playbook to regenerate all hashes"
+      - "  3. This forces fresh authentication setup"
+      - "=========================================="
+  when:
+    - skip_auth
+    - existing_security_json.stat.exists
+
 # ============================================================================
 #  PASSWORD AUTO-GENERATION - Generate secure passwords if missing/weak
 # ============================================================================
