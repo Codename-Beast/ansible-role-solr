@@ -1,5 +1,5 @@
 {#
- Security configuration template for Solr (v3.11.0+)
+ Security configuration template for Solr (v3.11.1+)
  Features:
  1. Multi-Core Support: Dynamic permissions for multiple cores
  2. Single-Core Backward Compatibility: Works with legacy setups
@@ -7,6 +7,11 @@
  4. Dynamic User Management: solr_additional_users support
  5. Automatic Role Assignment: core-admin-<corename> roles
  6. Global Moodle Access: Global moodle role can access all cores in multi-core mode
+
+ Changelog v3.11.1:
+ - FIX: Prevent duplicate users in credentials and user-role sections
+ - Core users are now added before additional users to avoid conflicts
+ - Additional users skip entries that already exist as core users
 
  Changelog v3.11.0:
  - FIX: Reordered permissions to fix Security Panel access (SOLR-15825)
@@ -28,13 +33,8 @@
       "{{ solr_admin_user | default('admin') }}": "{{ admin_password_hash }}",
       "{{ solr_support_user | default('support') }}": "{{ support_password_hash }}",
       "{{ solr_moodle_user | default('moodle') }}": "{{ moodle_password_hash }}"
-{% if solr_additional_user_hashes is defined %}
-{% for username, hash in solr_additional_user_hashes.items() %}
-      ,"{{ username }}": "{{ hash }}"
-{% endfor %}
-{% endif %}
 {% if multi_core %}
-{# Multi-Core Mode: Add all users from all cores #}
+{# Multi-Core Mode: Add all users from all cores FIRST #}
 {% for core in solr_cores %}
 {% if core.users is defined %}
 {% for user in core.users %}
@@ -42,6 +42,26 @@
       ,"{{ user.username }}": "{{ user.password_hash }}"
 {% endif %}
 {% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if solr_additional_user_hashes is defined %}
+{# Add additional user hashes (excluding core users to avoid duplicates) #}
+{% for username, hash in solr_additional_user_hashes.items() %}
+{% set is_core_user_hash = namespace(found=false) %}
+{% if multi_core %}
+{% for core in solr_cores %}
+{% if core.users is defined %}
+{% for user in core.users %}
+{% if user.username == username %}
+{% set is_core_user_hash.found = true %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if not is_core_user_hash.found %}
+      ,"{{ username }}": "{{ hash }}"
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -123,18 +143,33 @@
       "{{ solr_admin_user | default('admin') }}": ["admin"],
       "{{ solr_support_user | default('support') }}": ["support"],
       "{{ solr_moodle_user | default('moodle') }}": ["moodle"]
-{% if solr_additional_user_roles is defined %}
-{% for username, roles in solr_additional_user_roles.items() %}
-      ,"{{ username }}": {{ roles | to_json }}
-{% endfor %}
-{% endif %}
 {% if multi_core %}
-{# Multi-Core Mode: Add user-role mappings from cores #}
+{# Multi-Core Mode: Add user-role mappings from cores FIRST #}
 {% for core in solr_cores %}
 {% if core.users is defined %}
 {% for user in core.users %}
       ,"{{ user.username }}": {{ user.roles | default(['core-admin-' ~ core.name ~ '_core']) | to_json }}
 {% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if solr_additional_user_roles is defined %}
+{# Add additional users (excluding core users to avoid duplicates) #}
+{% for username, roles in solr_additional_user_roles.items() %}
+{% set is_core_user = namespace(found=false) %}
+{% if multi_core %}
+{% for core in solr_cores %}
+{% if core.users is defined %}
+{% for user in core.users %}
+{% if user.username == username %}
+{% set is_core_user.found = true %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if not is_core_user.found %}
+      ,"{{ username }}": {{ roles | to_json }}
 {% endif %}
 {% endfor %}
 {% endif %}
