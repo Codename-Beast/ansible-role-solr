@@ -89,12 +89,6 @@
     - install-solr-auth
     - install-solr-deployment
 
-- name: install-solr - Auth validation tests
-  include_tasks: auth_validation.yml
-  when: solr_auth_enabled | default(true)
-  tags:
-    - install-solr-auth
-
 - name: install-solr - Validate passwords before persistence
   assert:
     that:
@@ -121,6 +115,12 @@
   include_tasks: core_creation.yml
   tags:
     - install-solr-core
+
+- name: install-solr - Auth validation tests
+  include_tasks: auth_validation.yml
+  when: solr_auth_enabled | default(true)
+  tags:
+    - install-solr-auth
 
 - name: install-solr - Configure webserver proxy
   include_tasks: proxy_configuration.yml
