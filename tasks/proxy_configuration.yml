@@ -264,7 +264,7 @@
 
 - name: proxy_config - Test HTTPS availability
   uri:
-    url: "https://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/admin/ping"
+    url: "https://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/"
     method: GET
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -278,7 +278,7 @@
   delay: 3
   changed_when: false
   failed_when: false
-  when: solr_ssl_enabled | default(false)
+  when: ssl_actually_enabled | default(false)
 
 - name: proxy_config - Display HTTPS test result
   debug:

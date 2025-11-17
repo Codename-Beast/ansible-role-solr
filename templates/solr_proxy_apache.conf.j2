@@ -118,11 +118,6 @@
         {% endif %}
     </Location>
 
-    # Health Check Endpoint (Public)
-    <Location {{ solr_proxy_path | default('/solr-admin') }}/admin/ping>
-        Require all granted
-    </Location>
-
     # Root Redirect (optional)
     RedirectMatch ^/$ {{ solr_proxy_path | default('/solr-admin') }}/
 
