@@ -331,6 +331,7 @@
       - ""
       - "CREDENTIALS:"
       - "  Admin User: {{ solr_admin_user }}"
+      - "  Admin Password: {{ solr_admin_password_final }}"
       - "  Support User: {{ solr_support_user }}"
       - "  Moodle User: {{ solr_moodle_user }}"
       - "  Credentials File: {{ solr_config_dir }}/credentials.yml"
