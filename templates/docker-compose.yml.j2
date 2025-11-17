@@ -155,13 +155,20 @@ services:
       - {{ solr_network_name }}
     restart: unless-stopped
     healthcheck:
-      # Uses /admin/ping which is allowed without authentication (see security.json)
-      # This ensures health checks work even with BasicAuth enabled
-      test: ["CMD-SHELL", "curl -f http://localhost:8983/solr/admin/ping?wt=json || exit 1"]
+      # Health checks against cores endpoint which works in both single and multi-core mode
+      # Public health check endpoints don't require authentication (see security.json permissions)
+      test: ["CMD-SHELL", "curl -f http://localhost:8983/solr/admin/cores?action=STATUS || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s 
+      start_period: 60s
+    ulimits:
+      nofile:
+        soft: 65000
+        hard: 65000
+      nproc:
+        soft: 8192
+        hard: 8192
     deploy:
       resources:
         limits:

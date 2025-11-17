@@ -14,7 +14,7 @@
 
 - name: test-docs - Set test core for single-core mode
   set_fact:
-    moodle_test_core_name: "{{ moodle_test_core_name }}"
+    moodle_test_core_name: "{{ solr_core_name }}"
     deployment_mode: "single-core"
   when: solr_cores is not defined or solr_cores | length == 0
 
