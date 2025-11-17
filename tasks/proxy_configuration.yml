@@ -99,9 +99,26 @@
   register: ssl_cert_check
   when: solr_ssl_enabled | default(false)
 
+- name: proxy_config - Initialize SSL actually enabled to false
+  set_fact:
+    ssl_actually_enabled: false
+
 - name: proxy_config - Set SSL actually enabled based on certificate existence
   set_fact:
-    ssl_actually_enabled: "{{ (solr_ssl_enabled | default(false)) and (ssl_cert_check.stat.exists | default(false)) }}"
+    ssl_actually_enabled: true
+  when:
+    - solr_ssl_enabled | default(false)
+    - not ssl_cert_check.skipped | default(false)
+    - ssl_cert_check.stat.exists | default(false)
+
+- name: proxy_config - Display SSL status
+  debug:
+    msg:
+      - "SSL Configuration Status:"
+      - "  solr_ssl_enabled: {{ solr_ssl_enabled | default(false) }}"
+      - "  ssl_cert_check.skipped: {{ ssl_cert_check.skipped | default('N/A') }}"
+      - "  ssl_cert_check.stat.exists: {{ ssl_cert_check.stat.exists | default('N/A') }}"
+      - "  ssl_actually_enabled: {{ ssl_actually_enabled }}"
 
 - name: proxy_config - Warn if SSL certificate not found
   debug:
