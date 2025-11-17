@@ -1,11 +1,16 @@
 {#
- Security configuration template for Solr (v3.9.0+)
+ Security configuration template for Solr (v3.10.0+)
  Features:
  1. Multi-Core Support: Dynamic permissions for multiple cores
  2. Single-Core Backward Compatibility: Works with legacy setups
  3. Per-Core Access Control: Each core can have dedicated users
  4. Dynamic User Management: solr_additional_users support
  5. Automatic Role Assignment: core-admin-<corename> roles
+ 6. Global Moodle Access: Global moodle role can access all cores in multi-core mode
+
+ Changelog v3.10.0:
+ - ADDED: Global moodle role permission for multi-core deployments
+ - FIX: srhcampus_global (moodle user) can now write to all cores
 #}
 {% set multi_core = (solr_cores | default([]) | length) > 0 %}
 {
@@ -55,7 +60,14 @@
       { "name": "collection-admin-read", "role": "admin" },
       { "name": "collection-admin-edit", "role": "admin" },
       { "name": "metrics-read", "role": ["admin", "support"] },
-      { "name": "health", "role": ["admin", "support"] }{% if multi_core %},{% endif %}
+      { "name": "health", "role": ["admin", "support"] }{% if multi_core %},
+{# Multi-Core Mode: Global moodle role permission for all cores #}
+      {
+        "name": "global-moodle-access",
+        "path": ["/*"],
+        "method": ["GET", "HEAD", "POST", "DELETE"],
+        "role": ["moodle"]
+      },{% endif %}
 {% if multi_core %}
 {# Multi-Core Mode: Create permissions for each core #}
 {% for core in solr_cores %}
