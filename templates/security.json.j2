@@ -1,5 +1,5 @@
 {#
- Security configuration template for Solr (v3.10.0+)
+ Security configuration template for Solr (v3.11.0+)
  Features:
  1. Multi-Core Support: Dynamic permissions for multiple cores
  2. Single-Core Backward Compatibility: Works with legacy setups
@@ -7,6 +7,11 @@
  4. Dynamic User Management: solr_additional_users support
  5. Automatic Role Assignment: core-admin-<corename> roles
  6. Global Moodle Access: Global moodle role can access all cores in multi-core mode
+
+ Changelog v3.11.0:
+ - FIX: Reordered permissions to fix Security Panel access (SOLR-15825)
+ - security-read and security-edit now appear before 'all' permission
+ - This fixes "You do not have permission to view the security panel" error
 
  Changelog v3.10.0:
  - ADDED: Global moodle role permission for multi-core deployments
@@ -45,6 +50,8 @@
   "authorization": {
     "class": "solr.RuleBasedAuthorizationPlugin",
     "permissions": [
+      { "name": "security-read", "role": "admin" },
+      { "name": "security-edit", "role": "admin" },
       { "name": "health-check-ping", "path": "/admin/ping", "role": null },
       { "name": "health-check-detailed", "path": "/admin/health", "role": null },
       { "name": "health-check-simple", "path": "/admin/healthcheck", "role": null },
@@ -56,8 +63,6 @@
         "role": ["admin"]
       },
       { "name": "all", "role": "admin" },
-      { "name": "security-read", "role": "admin" },
-      { "name": "security-edit", "role": "admin" },
       { "name": "schema-read", "role": "admin" },
       { "name": "schema-edit", "role": "admin" },
       { "name": "config-read", "role": ["admin", "support"] },
