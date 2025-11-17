@@ -23,14 +23,14 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 <td width="50%">
 
 ### ✨ New in v3.9.3 (TESTING - Bereit für Hardware-Tests)
-- 🧹 **Code-Hygiene Final** - 3 weitere ungenutzte Variablen entfernt
+- 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
 - 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
 - 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
 - 📋 **Dokumentation** - Sprachliche Anpassungen, "Customer User" → "Moodle User"
-- ⚠️ **Status:** Testing - Code-seitig bereit, Hardware-Tests ausstehend!
+- ⚠️ **Status:** Testing - Code Ready, Hardware-Tests ausstehend!
 
 ### ✨ New in v3.9.2
-- 🔴 **CRITICAL: RAM-Kalkulation korrigiert** - 16GB → 4 Cores (war: 10 Cores)
+- 🔴 **CRITICAL: RAM-Kalkulation** - 16GB → 4 Cores (war: 10 Cores)
 - 📊 **Korrigierte Werte** - ~2GB/Core statt 600MB (Caches sind PER-CORE!)
 - 🌐 **Apache VHost Generic** - Funktioniert mit jeder Domain
 - 🔐 **SSL-Awareness** - Keine HTTP-Warnings mehr in WebUI
@@ -1044,8 +1044,17 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 ## 📝 Changelog
 
-### v3.9.2 (2025-11-16) - Current Release 🎯
 
+
+### v3.9.3 (2025-11-16) - Current Release 🎯
+- 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
+- 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
+- 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
+- 📋 **Dokumentation** - Sprachliche Anpassungen, "Customer User" → "Moodle User"
+- ⚠️ **Status:** Testing - Code Ready, Hardware-Tests ausstehend!
+
+
+### v3.9.2 (2025-11-16)
 **Status:** ✅ 
 
 **Major Updates:**
@@ -1069,7 +1078,7 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 ## 👤 Author
 
 **Bernd Schreistetter**
-- Role: DevOps Engineer / Administrator
+- Role: DevOps Engineer / Administrator / Laravel Developer
 - Organization: Eledia Gmbh
 
 ---
