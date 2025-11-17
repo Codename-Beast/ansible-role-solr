@@ -1,8 +1,12 @@
 ---
-# Version: 1.3.2
+# Version: 1.4.0
 # Description: Persist Solr credentials with idempotency and selective updates
+# Changelog v1.4.0:
+#   - ADDED: Runtime password variables for core creation
+#   - ADDED: Explicit display of runtime variables status
+#   - This ensures password variables are synchronized for core creation tasks
 # Changelog v1.3.2:
-#   - FIXED: Support for dynamic inventory 
+#   - FIXED: Support for dynamic inventory
 # Changelog v1.3.1:
 #   - FIXED: No more duplicate entries in host_vars (proper marker usage)
 #   - FIXED: Idempotent backup (no timestamp in filename)
@@ -67,6 +71,13 @@
   delegate_to: localhost
   run_once: true
 
+- name: auth-persist - Set runtime password variables for core creation
+  set_fact:
+    solr_admin_password: "{{ solr_admin_password }}"
+    solr_support_password: "{{ solr_support_password }}"
+    solr_moodle_password: "{{ solr_moodle_password }}"
+  no_log: true
+
 - name: auth-persist - Display persistence summary
   debug:
     msg:
@@ -83,5 +94,11 @@
       - ""
       - "SECURITY:"
       - "  - Container: Hashes only (SHA256 double-hash)"
+      - ""
+      - "RUNTIME VARIABLES UPDATED:"
+      - "  - solr_admin_password: SET"
+      - "  - solr_support_password: SET"
+      - "  - solr_moodle_password: SET"
+      - "  ⚠️  These variables will be used by core creation tasks"
       - ""
       - "========================================"

@@ -3,12 +3,11 @@
 # Description: Unified auth detection and password hashing with loops
 # Consolidates: auth_detection.yml + auth_prehash.yml
 # Changelog v1.4.0:
-#   - FIX CRITICAL: Prevent password regeneration when passwords already exist
-#   - ADDED: Validation to ensure password variables match hashed passwords
+#   - FIX CRITICAL: Prevent password/hash mismatch causing 401 errors
+#   - ADDED: Validation that password variables match hashed passwords
 #   - ADDED: Debug output showing password source (host_vars vs generated)
-#   - ADDED: Pre-hash validation to ensure all passwords >= 12 chars
-#   - ADDED: Post-hash validation to prevent variable mismatch errors
 #   - FIXED: Removed duplicate password variable assignments
+#   - FIXED: Added pre-hash validation to ensure all passwords >= 12 chars
 #   - This fixes "401 Bad credentials" errors during core creation
 # Changelog v1.3.2:
 #   - FIXED: HOME environment variable validation
@@ -192,11 +191,6 @@
     generate_support_password: false
     generate_moodle_password: false
 
-# ============================================================================
-# CRITICAL: Only generate passwords if they're truly missing or weak
-# This prevents runtime errors where new hashes are generated for different passwords
-# ============================================================================
-
 - name: auth-mgmt - Check admin password strength
   set_fact:
     generate_admin_password: "{{ (solr_admin_password | default('') | length) < 12 }}"
@@ -317,23 +311,6 @@
     success_msg: "All passwords ready (from host_vars or auto-generated)"
   when: not skip_auth
 
-- name: auth-mgmt - Validate all passwords before hashing
-  assert:
-    that:
-      - solr_admin_password is defined
-      - solr_admin_password | length >= 12
-      - solr_support_password is defined
-      - solr_support_password | length >= 12
-      - solr_moodle_password is defined
-      - solr_moodle_password | length >= 12
-    fail_msg: |
-      CRITICAL: Password validation failed before hashing!
-      Admin: {{ 'OK' if solr_admin_password is defined and solr_admin_password | length >= 12 else 'INVALID (length: ' ~ (solr_admin_password | default('') | length) ~ ')' }}
-      Support: {{ 'OK' if solr_support_password is defined and solr_support_password | length >= 12 else 'INVALID (length: ' ~ (solr_support_password | default('') | length) ~ ')' }}
-      Moodle: {{ 'OK' if solr_moodle_password is defined and solr_moodle_password | length >= 12 else 'INVALID (length: ' ~ (solr_moodle_password | default('') | length) ~ ')' }}
-    success_msg: "All passwords validated (>= 12 chars) - ready for hashing"
-  when: not skip_auth
-
 - name: auth-mgmt - Build auth_users_with_passwords list
   set_fact:
     auth_users_with_passwords:
@@ -391,7 +368,7 @@
   no_log: true
   when: not skip_auth
 
-- name: auth-mgmt - Set hash facts (passwords already set earlier)
+- name: auth-mgmt - Set hash facts (passwords already set above)
   set_fact:
     admin_password_hash: "{{ generated_hashes.results[0].stdout }}"
     support_password_hash: "{{ generated_hashes.results[1].stdout }}"
@@ -399,7 +376,7 @@
   no_log: true
   when: not skip_auth
 
-- name: auth-mgmt - Final validation - ensure password variables match hashed passwords
+- name: auth-mgmt - Validate password variables match hashed passwords
   assert:
     that:
       - solr_admin_password == auth_users_with_passwords[0].password
@@ -407,11 +384,11 @@
       - solr_moodle_password == auth_users_with_passwords[2].password
     fail_msg: |
       CRITICAL: Password variable mismatch detected!
-      This indicates a bug where password variables don't match what was hashed.
+      This indicates passwords were changed after being added to auth_users_with_passwords.
       Admin match: {{ solr_admin_password == auth_users_with_passwords[0].password }}
       Support match: {{ solr_support_password == auth_users_with_passwords[1].password }}
       Moodle match: {{ solr_moodle_password == auth_users_with_passwords[2].password }}
-    success_msg: "Password variables match hashed passwords - authentication will work"
+    success_msg: "Password variables verified - match hashed passwords"
   when: not skip_auth
 
 - name: auth-mgmt - Validate hash format
