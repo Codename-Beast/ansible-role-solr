@@ -61,16 +61,6 @@
   notify: reload apache
   when: detected_webserver == "apache"
 
-- name: proxy_config - Enable SSL module if SSL is enabled (Apache)
-  apache2_module:
-    name: ssl
-    state: present
-  become: true
-  when:
-    - detected_webserver == "apache"
-    - solr_ssl_enabled | default(false)
-  notify: reload apache
-
 # ============================================================================
 # NGINX CONFIGURATION
 # ============================================================================
@@ -109,6 +99,10 @@
   register: ssl_cert_check
   when: solr_ssl_enabled | default(false)
 
+- name: proxy_config - Set SSL actually enabled based on certificate existence
+  set_fact:
+    ssl_actually_enabled: "{{ (solr_ssl_enabled | default(false)) and (ssl_cert_check.stat.exists | default(false)) }}"
+
 - name: proxy_config - Warn if SSL certificate not found
   debug:
     msg:
@@ -121,6 +115,16 @@
   when:
     - solr_ssl_enabled | default(false)
     - not ssl_cert_check.stat.exists | default(false)
+
+- name: proxy_config - Enable SSL module if SSL is enabled and certs exist (Apache)
+  apache2_module:
+    name: ssl
+    state: present
+  become: true
+  when:
+    - detected_webserver == "apache"
+    - ssl_actually_enabled | default(false)
+  notify: reload apache
 
 # ============================================================================
 # DOMAIN-BASED CONFIG NAMING

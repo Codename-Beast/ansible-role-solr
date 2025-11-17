@@ -3,7 +3,7 @@
 # Apache VirtualHost Configuration for Solr
 # Domain: {{ solr_app_domain | default(ansible_fqdn) }}
 
-{% if solr_ssl_enabled | default(false) %}
+{% if ssl_actually_enabled | default(false) %}
 # HTTP to HTTPS Redirect
 <VirtualHost *:80>
     ServerName {{ solr_app_domain | default(ansible_fqdn) }}
@@ -91,8 +91,8 @@
         ProxyPassReverse http://127.0.0.1:{{ solr_port }}/solr
 
         # Forwarded Headers
-        RequestHeader set X-Forwarded-Proto "{% if solr_ssl_enabled | default(false) %}https{% else %}http{% endif %}"
-        RequestHeader set X-Forwarded-Port "{% if solr_ssl_enabled | default(false) %}443{% else %}80{% endif %}"
+        RequestHeader set X-Forwarded-Proto "{% if ssl_actually_enabled | default(false) %}https{% else %}http{% endif %}"
+        RequestHeader set X-Forwarded-Port "{% if ssl_actually_enabled | default(false) %}443{% else %}80{% endif %}"
         RequestHeader set X-Forwarded-Host "{{ solr_app_domain | default(ansible_fqdn) }}"
 
         # Allow HTTP Methods
@@ -128,7 +128,7 @@
 
 </VirtualHost>
 
-{% if solr_ssl_enabled | default(false) %}
+{% if ssl_actually_enabled | default(false) %}
 # SSL Stapling Cache (global)
 SSLStaplingCache shmcb:/var/run/ocsp(128000)
 {% endif %}
