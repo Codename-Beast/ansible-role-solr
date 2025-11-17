@@ -58,7 +58,7 @@
     - headers
     - rewrite
   become: true
-  notify: restart apache
+  notify: reload apache
   when: detected_webserver == "apache"
 
 - name: proxy_config - Enable SSL module if SSL is enabled (Apache)
@@ -69,7 +69,7 @@
   when:
     - detected_webserver == "apache"
     - solr_ssl_enabled | default(false)
-  notify: restart apache
+  notify: reload apache
 
 # ============================================================================
 # NGINX CONFIGURATION
