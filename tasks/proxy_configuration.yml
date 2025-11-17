@@ -24,20 +24,29 @@
 # APACHE CONFIGURATION
 # ============================================================================
 
-- name: proxy_config - Check if Apache is installed
-  command: apache2 -v
+- name: proxy_config - Check if Apache is installed and running
+  command: systemctl is-active apache2
   register: apache_check
   changed_when: false
   failed_when: false
   when: detected_webserver == "apache"
 
-- name: proxy_config - Fail if Apache not installed and required
+- name: proxy_config - Fail if Apache not running and required
   fail:
-    msg: "Apache is not installed. Please install Apache first or set solr_webserver='nginx'"
+    msg: "Apache is not running. Please start Apache (systemctl start apache2) or set solr_webserver='nginx'"
   when:
     - detected_webserver == "apache"
     - apache_check.rc != 0
     - solr_proxy_enabled | default(true)
+
+- name: proxy_config - Get Apache version for display
+  command: apache2 -v
+  register: apache_version
+  changed_when: false
+  failed_when: false
+  when:
+    - detected_webserver == "apache"
+    - apache_check.rc == 0
 
 - name: proxy_config - Enable required Apache modules
   apache2_module:
@@ -66,20 +75,29 @@
 # NGINX CONFIGURATION
 # ============================================================================
 
-- name: proxy_config - Check if Nginx is installed
-  command: nginx -v
+- name: proxy_config - Check if Nginx is installed and running
+  command: systemctl is-active nginx
   register: nginx_check
   changed_when: false
   failed_when: false
   when: detected_webserver == "nginx"
 
-- name: proxy_config - Fail if Nginx not installed and required
+- name: proxy_config - Fail if Nginx not running and required
   fail:
-    msg: "Nginx is not installed. Please install Nginx first or set solr_webserver='apache'"
+    msg: "Nginx is not running. Please start Nginx (systemctl start nginx) or set solr_webserver='apache'"
   when:
     - detected_webserver == "nginx"
     - nginx_check.rc != 0
     - solr_proxy_enabled | default(true)
+
+- name: proxy_config - Get Nginx version for display
+  command: nginx -v
+  register: nginx_version
+  changed_when: false
+  failed_when: false
+  when:
+    - detected_webserver == "nginx"
+    - nginx_check.rc == 0
 
 # ============================================================================
 # SSL CERTIFICATE CHECK
@@ -292,7 +310,7 @@
         config_file: "{{ solr_proxy_config_file }}"
         proxy_path: "{{ solr_proxy_path | default('/solr-admin') }}"
         proxy_target: "http://localhost:{{ solr_port }}/solr"
-        webserver_version: "{{ apache_check.stdout if detected_webserver == 'apache' else nginx_check.stderr }}"
+        webserver_version: "{{ apache_version.stdout if detected_webserver == 'apache' else nginx_version.stderr }}"
         ssl_enabled: "{{ solr_ssl_enabled | default(false) }}"
         ssl_cert_exists: "{{ ssl_cert_check.stat.exists if solr_ssl_enabled | default(false) else false }}"
         config_test: "{{ 'PASSED' if (detected_webserver == 'apache' and 'Syntax OK' in apache_test.stderr) or (detected_webserver == 'nginx' and nginx_test.rc == 0) else 'WARNING' }}"
