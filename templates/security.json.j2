@@ -66,7 +66,7 @@
         "name": "global-moodle-access",
         "path": ["/*"],
         "method": ["GET", "HEAD", "POST", "DELETE"],
-        "role": ["moodle"]
+        "role": ["admin", "moodle"]
       },{% endif %}
 {% if multi_core %}
 {# Multi-Core Mode: Create permissions for each core #}
