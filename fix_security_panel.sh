@@ -40,12 +40,6 @@ cat > /tmp/security.json.fixed << 'EOF'
       { "name": "health-check-detailed", "path": "/admin/health", "role": null },
       { "name": "health-check-simple", "path": "/admin/healthcheck", "role": null },
       { "name": "health-check-cores", "path": "/admin/cores", "role": null },
-      {
-        "name": "security-panel-access",
-        "path": ["/admin/authentication", "/admin/authorization", "/api/cluster/security"],
-        "method": ["GET", "POST", "PUT", "DELETE"],
-        "role": ["admin"]
-      },
       { "name": "all", "role": "admin" },
       { "name": "schema-read", "role": "admin" },
       { "name": "schema-edit", "role": "admin" },

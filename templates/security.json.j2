@@ -11,6 +11,8 @@
  Changelog v3.11.0:
  - FIX: Reordered permissions to fix Security Panel access (SOLR-15825)
  - security-read and security-edit now appear before 'all' permission
+ - Removed unnecessary custom 'security-panel-access' permission
+ - Uses Solr's predefined permissions as per official documentation
  - This fixes "You do not have permission to view the security panel" error
 
  Changelog v3.10.0:
@@ -56,12 +58,6 @@
       { "name": "health-check-detailed", "path": "/admin/health", "role": null },
       { "name": "health-check-simple", "path": "/admin/healthcheck", "role": null },
       { "name": "health-check-cores", "path": "/admin/cores", "role": null },
-      {
-        "name": "security-panel-access",
-        "path": ["/admin/authentication", "/admin/authorization", "/api/cluster/security"],
-        "method": ["GET", "POST", "PUT", "DELETE"],
-        "role": ["admin"]
-      },
       { "name": "all", "role": "admin" },
       { "name": "schema-read", "role": "admin" },
       { "name": "schema-edit", "role": "admin" },
