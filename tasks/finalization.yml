@@ -312,7 +312,7 @@
 - name: install-solr - Update hostvars with generated passwords
   include_tasks: hostvars_update.yml
 
-- name: install-solr - Display Happy final summary maybe? 
+- name: install-solr - Display Happy final summary maybe?
   debug:
     msg:
       - "==============================================="
@@ -334,10 +334,9 @@
       - ""
       - "CREDENTIALS:"
       - "  Admin User: {{ solr_admin_user }}"
-      - "  Admin Password: {{ solr_admin_password_final }}"
+      - "  Admin Password: {{ solr_admin_password }}"
       - "  Support User: {{ solr_support_user }}"
       - "  Moodle User: {{ solr_moodle_user }}"
-      - "  Credentials File: {{ solr_config_dir }}/credentials.yml"
       - ""
       - "CONTAINER:"
       - "  Name: {{ solr_container_name }}"
