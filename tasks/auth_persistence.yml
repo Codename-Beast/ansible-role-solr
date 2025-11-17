@@ -67,6 +67,17 @@
   delegate_to: localhost
   run_once: true
 
+- name: auth-persist - Set runtime password variables for core creation
+  set_fact:
+    solr_admin_password: "{{ solr_admin_password }}"
+    solr_support_password: "{{ solr_support_password }}"
+    solr_moodle_password: "{{ solr_moodle_password }}"
+    solr_admin_user: "{{ solr_admin_user | default('admin') }}"
+    solr_support_user: "{{ solr_support_user | default('support') }}"
+    solr_moodle_user: "{{ solr_moodle_user | default('moodle') }}"
+  no_log: true
+  changed_when: false
+
 - name: auth-persist - Display persistence summary
   debug:
     msg:
@@ -83,5 +94,11 @@
       - ""
       - "SECURITY:"
       - "  - Container: Hashes only (SHA256 double-hash)"
+      - ""
+      - "RUNTIME VARIABLES UPDATED:"
+      - "  - solr_admin_password: SET"
+      - "  - solr_support_password: SET"
+      - "  - solr_moodle_password: SET"
+      - "  ⚠️  These variables will be used by core creation tasks"
       - ""
       - "========================================"

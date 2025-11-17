@@ -44,15 +44,41 @@
   changed_when: false
   failed_when: false
 
+- name: core-worker - Check authentication status
+  fail:
+    msg:
+      - "=========================================="
+      - "AUTHENTICATION FAILED"
+      - "=========================================="
+      - "HTTP Status: {{ core_status.status }}"
+      - "Error: Bad credentials for user '{{ solr_admin_user }}'"
+      - ""
+      - "POSSIBLE CAUSES:"
+      - "  1. solr_admin_password is not set or incorrect"
+      - "  2. Password in security.json doesn't match the provided password"
+      - "  3. User '{{ solr_admin_user }}' doesn't exist in security.json"
+      - ""
+      - "VERIFICATION STEPS:"
+      - "  1. Check if solr_admin_password is set in your host_vars"
+      - "  2. Verify security.json in container: docker exec {{ solr_container_name }} cat /var/solr/data/security.json"
+      - "  3. Check if passwords were persisted correctly"
+      - "=========================================="
+  when:
+    - core_status.status is defined
+    - core_status.status == 401
+
 - name: core-worker - Parse core status JSON
   set_fact:
     core_status_json: "{{ core_status.content | default('{}') | from_json }}"
-  when: core_status.content is defined
+  when:
+    - core_status.content is defined
+    - core_status.status == 200
   changed_when: false
+  failed_when: false
 
 - name: core-worker - Determine if core is registered (API)
   set_fact:
-    core_registered: "{{ (core_status_json.status is defined) and (core_status_json.status[current_core_name] is defined) }}"
+    core_registered: "{{ (core_status.status == 200) and (core_status_json is defined) and (core_status_json.status is defined) and (core_status_json.status[current_core_name] is defined) }}"
   changed_when: false
 
 - name: core-worker - Check instance core.properties in container
