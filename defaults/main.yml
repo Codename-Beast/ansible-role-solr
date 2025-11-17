@@ -305,6 +305,8 @@ solr_jvm_opts: >-
   -Djava.awt.headless=true
   -Dfile.encoding=UTF-8
   -Djava.net.preferIPv4Stack=true
+  -XX:-UseLargePages
+  -Dsolr.disable.shardsWhitelist=true
 
 # CPU Configuration (100% = 1 core, 400% = 4 cores)
 # Allocate 4 cores for Solr

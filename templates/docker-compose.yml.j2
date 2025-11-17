@@ -144,6 +144,7 @@ services:
       SOLR_OPTS: "{{ solr_gc_options }} {{ solr_jvm_opts }}"
       GC_LOG_OPTS: "-Xlog:gc*:file=/var/solr/logs/solr_gc.log:time,uptime:filecount=9,filesize=20M"
       SOLR_LOG_LEVEL: {{ solr_log_level }}
+      SOLR_ULIMIT_CHECKS: "false"
 {% if solr_ssl_enabled | default(false) %}
       # SSL-Awareness: Solr weiß, dass es hinter HTTPS-Proxy läuft
       # IMPORTANT: SOLR_PORT is NOT set here - Solr always listens on 8983 internally
@@ -167,8 +168,8 @@ services:
         soft: 65000
         hard: 65000
       nproc:
-        soft: 8192
-        hard: 8192
+        soft: 65000
+        hard: 65000
     deploy:
       resources:
         limits:
