@@ -273,14 +273,20 @@ solr_backup_credentials: false
 # Performance Tuning für mehr Cores:
 # - Für 10 Cores: 32GB Server, 20GB Heap, 8GB File Cache
 # - Monitor: docker stats, /admin/metrics, GC logs
+#
+# IMPORTANT: Default values are conservative (2GB heap) to work on most systems.
+# For production with sufficient RAM, override in host_vars:
+#   solr_heap_size: "8g"
+#   solr_memory_limit: "14g"
+#   solr_memory_reservation: "12g"
 
-solr_heap_size: "8g"
-solr_memory_limit: "14g"  # Container limit: Heap (8g) + Off-heap (6g)
-solr_memory_swap: "14g"   # Swap limit matches memory limit
-solr_memory_reservation: "12g"  # Soft limit to prevent OOM
+solr_heap_size: "2g"
+solr_memory_limit: "4g"  # Container limit: Heap (2g) + Off-heap (2g)
+solr_memory_swap: "4g"   # Swap limit matches memory limit
+solr_memory_reservation: "3g"  # Soft limit to prevent OOM
 
-# GC & Performance Optimizations (Tuned for 8GB Heap)
-# G1GC is recommended for Solr 9.x with heaps 4GB+ (Stop-the-world <1s goal)
+# GC & Performance Optimizations (Default: 2GB Heap, tune for larger heaps)
+# G1GC is recommended for Solr 9.x with heaps 2GB+ (Stop-the-world <1s goal)
 solr_gc_options: >-
   -XX:+UseG1GC
   -XX:+ParallelRefProcEnabled
