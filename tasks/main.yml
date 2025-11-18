@@ -43,8 +43,8 @@
   include_tasks: user_management.yml
   when:
     - solr_auth_enabled | default(true)
-    - solr_additional_users is defined
-    - solr_additional_users | length > 0
+    - (solr_additional_users is defined and solr_additional_users | length > 0) or
+      (solr_cores is defined and solr_cores | length > 0)
   tags:
     - install-solr-auth
     - install-solr-users
@@ -113,7 +113,9 @@
   include_tasks: auth_persistence.yml
   when:
     - solr_auth_enabled | default(true)
-    - not skip_auth | default(false)
+    - (not skip_auth | default(false)) or
+      (solr_cores is defined and solr_cores | length > 0) or
+      (solr_additional_users is defined and solr_additional_users | length > 0)
   tags:
     - install-solr-auth
 

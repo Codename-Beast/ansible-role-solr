@@ -20,6 +20,7 @@
   set_fact:
     solr_additional_user_hashes: {}
     solr_additional_user_roles: {}
+    generated_credentials: "{{ generated_credentials | default([]) }}"
 
 # ============================================================================
 # LEGACY SINGLE-CORE MODE: solr_additional_users

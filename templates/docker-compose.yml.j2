@@ -27,9 +27,10 @@ services:
       sh -c "
       set -e;
       echo '========================================';
-      echo 'Eledia PowerInit v1.5.0';
+      echo 'Eledia PowerInit v1.6.0';
       echo 'Deploying ALL configs BEFORE Solr starts';
-      echo '========================================';
+      echo 'NEW: Checksum verification for security.json';
+      echo '=========================================';
 
       echo '[1/6] Installing validation tools...';
       apk add --no-cache jq libxml2-utils;
@@ -59,7 +60,34 @@ services:
         fi;
       done;
 
-      echo '[4/6] Validating config files...';
+      echo '[4/6] Checksum verification for security.json...';
+      DEPLOY_SECURITY=false;
+      if [ -f /config/security.json ]; then
+        NEW_CHECKSUM=$$(sha256sum /config/security.json | awk '{print $$1}');
+        echo \"  - New security.json checksum: $$NEW_CHECKSUM\";
+
+        if [ -f /var/solr/data/security.json ]; then
+          OLD_CHECKSUM=$$(sha256sum /var/solr/data/security.json | awk '{print $$1}');
+          echo \"  - Current security.json checksum: $$OLD_CHECKSUM\";
+
+          if [ \"$$NEW_CHECKSUM\" != \"$$OLD_CHECKSUM\" ]; then
+            echo '  - CHECKSUM MISMATCH: New security.json detected!';
+            echo '  - Will deploy updated security.json';
+            DEPLOY_SECURITY=true;
+          else
+            echo '  - Checksums match: security.json is up-to-date';
+            DEPLOY_SECURITY=false;
+          fi;
+        else
+          echo '  - No existing security.json found';
+          echo '  - Will deploy initial security.json';
+          DEPLOY_SECURITY=true;
+        fi;
+      else
+        echo '  - WARNING: No security.json in /config/ directory!';
+      fi;
+
+      echo '[5/6] Validating config files...';
       if [ -f /config/security.json ]; then
         echo '  - Validating security.json (JSON)';
         jq empty /config/security.json || ( echo 'ERROR: security.json validation failed!'; exit 1 );
@@ -73,10 +101,12 @@ services:
         xmllint --noout /config/moodle_schema.xml || ( echo 'WARNING: moodle_schema.xml validation failed'; exit 1 );
       fi;
 
-      echo '[5/6] Deploying config files...';
-      if [ -f /config/security.json ]; then
-        echo '  - Deploying security.json -> /var/solr/data/';
+      echo '[6/7] Deploying config files...';
+      if [ \"$$DEPLOY_SECURITY\" = \"true\" ]; then
+        echo '  - Deploying security.json -> /var/solr/data/ (UPDATED)';
         cp /config/security.json /var/solr/data/security.json;
+      else
+        echo '  - Skipping security.json (already up-to-date)';
       fi;
       if [ -f /config/solrconfig.xml ]; then
         echo '  - Deploying solrconfig.xml -> /var/solr/data/configs/';
@@ -107,18 +137,23 @@ services:
         cp /config/protwords.txt /var/solr/data/configs/protwords.txt;
       fi;
 
-      echo '[6/6] Setting permissions (8983:8983)...';
+      echo '[7/7] Setting permissions (8983:8983)...';
       chown -R 8983:8983 /var/solr;
       chmod 600 /var/solr/data/security.json 2>/dev/null || true;
 
       echo '========================================';
       echo 'Deployment Summary:';
       echo '========================================';
+      if [ \"$$DEPLOY_SECURITY\" = \"true\" ]; then
+        echo 'security.json: DEPLOYED (new or updated)';
+      else
+        echo 'security.json: SKIPPED (checksum match)';
+      fi;
       ls -lah /var/solr/data/security.json 2>/dev/null || echo 'security.json: NOT FOUND';
       echo '---';
       ls -lah /var/solr/data/configs/ 2>/dev/null || echo 'configs/: EMPTY';
       echo '========================================';
-      echo 'Eledia PowerInit: SUCCESS';
+      echo 'Eledia PowerInit v1.6.0: SUCCESS';
       echo '========================================';
       exit 0;
       "

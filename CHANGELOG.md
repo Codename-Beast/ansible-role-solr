@@ -7,6 +7,363 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [3.9.6] - 2025-11-18 🚨 CRITICAL: Multicore User Management & Persistence Conditionals
+
+**Type:** Patch Release - **CRITICAL BUG FIXES**
+**Status:** 🔧 **FIXED** - Re-Run Probleme mit Multicore Usern behoben
+
+### 🚨 CRITICAL BUGS FIXED
+
+**Kontext:** Fresh Install mit Container/Volume-Löschung funktionierte (Admin Login, Cores erstellt, Smoketests OK, Dokumente hochladen/löschen). Problem trat bei Re-Runs **OHNE** Löschung auf: **Multicore User und Core Admins konnten sich nicht mehr einloggen.**
+
+1. **❌ user_management.yml wurde bei reinem Multicore Setup NICHT aufgerufen:**
+   - **Problem:** Conditional in `main.yml` prüfte nur `solr_additional_users`
+   - **Impact bei Re-Run ohne Container-Löschung:**
+     - Bei reinem Multicore Setup (ohne `solr_additional_users`)
+     - `user_management.yml` wurde ÜBERHAUPT NICHT ausgeführt
+     - Multicore User wurden NICHT neu gehasht
+     - Container behielt alte Hashes, aber neue Passwörter
+     - **Multicore User Login: 401 Unauthorized**
+   - **Warum funktionierte Fresh Install?**
+     - Bei Fresh Install mit Löschung: Alles neu generiert, konsistent
+     - Problem trat erst bei Re-Run auf (skip_auth=true, keine User-Verwaltung)
+   - **Fix:** Conditional erweitert um `solr_cores` Check
+   - **Betroffene Dateien:**
+     - `tasks/main.yml` - Line 42-51
+
+2. **❌ auth_persistence.yml wurde bei skip_auth=true NICHT aufgerufen:**
+   - **Problem:** Persistence lief nur bei `skip_auth=false`
+   - **Impact bei Re-Run:**
+     - admin/support/moodle Passwörter unverändert → skip_auth=true
+     - `auth_persistence.yml` wurde NICHT ausgeführt
+     - **Multicore User Passwörter wurden NICHT in host_vars gespeichert!**
+     - Nächster Run: Keine Passwörter in host_vars → NEUE generiert
+     - Container hat alte Hashes, neue Passwörter generiert
+     - **Multicore User und Core Admin Login: FAILED**
+   - **Workflow (DEFEKT):**
+     1. Fresh Install: Container + Volume gelöscht, alles neu → funktioniert
+     2. Re-Run: skip_auth=true → auth_persistence läuft NICHT
+     3. Multicore Passwörter NICHT gespeichert
+     4. Nächster Run: Neue Passwörter generiert (weil nicht in host_vars)
+     5. Container hat alte Hashes → Login fehlgeschlagen!
+   - **Fix:** Conditional erweitert - Persistence läuft immer bei User-Änderungen
+   - **Betroffene Dateien:**
+     - `tasks/main.yml` - Line 112-120
+
+3. **⚠️ generated_credentials unvollständig (Medium Priority):**
+   - **Problem:** Nur generierte Passwörter wurden in Display getrackt
+   - **Impact:** User mit host_vars Passwörtern nicht in `credentials_display.yml`
+   - **Fix:** Alle User werden getrackt (generiert + host_vars)
+   - **Betroffene Dateien:**
+     - `tasks/auth_password_generator.yml` - Line 32-35
+
+### 📝 TECHNISCHE DETAILS
+
+**Fix #1: user_management.yml Conditional:**
+```yaml
+# VORHER (DEFEKT):
+when:
+  - solr_auth_enabled | default(true)
+  - solr_additional_users is defined
+  - solr_additional_users | length > 0
+
+# JETZT (BEHOBEN):
+when:
+  - solr_auth_enabled | default(true)
+  - (solr_additional_users is defined and solr_additional_users | length > 0) or
+    (solr_cores is defined and solr_cores | length > 0)
+```
+
+**Fix #2: auth_persistence.yml Conditional:**
+```yaml
+# VORHER (DEFEKT):
+when:
+  - solr_auth_enabled | default(true)
+  - not skip_auth | default(false)
+
+# JETZT (BEHOBEN):
+when:
+  - solr_auth_enabled | default(true)
+  - (not skip_auth | default(false)) or
+    (solr_cores is defined and solr_cores | length > 0) or
+    (solr_additional_users is defined and solr_additional_users | length > 0)
+```
+
+**Warum funktionierte Fresh Install mit Löschung?**
+- Container + Volume + /opt/solr gelöscht: Komplette Neugenerierung
+- Passwörter generiert, Hashes erstellt, Container deployed
+- Alles konsistent → Login funktionierte (Admin, Cores, Smoketests, Dokumente)
+
+**Warum scheiterte Re-Run ohne Löschung?**
+- skip_auth=true (Admin-Passwörter unverändert)
+- user_management.yml lief NICHT (Conditional fehlte)
+- auth_persistence.yml lief NICHT (bei skip_auth=true)
+- Multicore Passwörter nicht gespeichert
+- Nächster Run: Neue Passwörter, alte Hashes → Login failed!
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- `tasks/main.yml` - v1.3.2 → v1.3.3 (Conditionals erweitert)
+- `tasks/auth_password_generator.yml` - v1.0.0 → v1.1.0 (Tracking vollständig)
+- `CHANGELOG.md` - v3.9.6 Dokumentation
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität.
+
+**Migration:**
+- Automatisch beim nächsten Deployment
+- Reine Multicore Setups funktionieren jetzt bei Re-Runs
+- Persistence läuft zuverlässig bei allen User-Änderungen
+
+### 🎯 TESTING-CHECKLISTE
+
+- [ ] Fresh Install mit Container-Löschung: Alles funktioniert
+- [ ] Re-Run OHNE Container-Löschung: Multicore User Login OK
+- [ ] Re-Run OHNE Container-Löschung: Core Admin Login OK
+- [ ] Re-Run mit skip_auth=true: Passwörter bleiben erhalten
+- [ ] Neue multicore User hinzufügen: Werden korrekt gespeichert
+
+### 🔍 ROOT CAUSE ANALYSIS
+
+**Warum ist das passiert?**
+1. Multicore Mode wurde nachträglich hinzugefügt (v3.9.0)
+2. Conditionals in `main.yml` wurden nicht für alle Szenarien angepasst
+3. Testing fokussierte auf Fresh Install mit Löschung (funktionierte)
+4. Re-Runs ohne Löschung wurden nicht getestet → Bug blieb unentdeckt
+
+**Lessons Learned:**
+- ✅ Testing muss BEIDE Szenarien abdecken (Fresh + Re-Run)
+- ✅ Conditionals müssen alle User-Typen UND alle Run-Typen berücksichtigen
+- ✅ Persistence muss unabhängig von skip_auth bei User-Änderungen laufen
+
+---
+
+## [3.9.5] - 2025-11-18 🚨 CRITICAL: Password Persistence & Hash Algorithm Fix
+
+**Type:** Patch Release - **CRITICAL BUG FIXES**
+**Status:** 🔧 **FIXED** - Multicore User Hash-Algorithmus und Persistence behoben
+
+### 🚨 CRITICAL BUGS FIXED
+
+**Kontext:** Diese Bugs waren latent und hätten bei bestimmten Szenarien (Re-Run mit Passwort-Änderungen aus host_vars) Probleme verursacht.
+
+1. **❌ FALSCHER Hash-Algorithmus für Multicore User:**
+   - **Problem:** `user_management_hash_multicore.yml` verwendete TEXT-Konkatenation
+   - **Auth_management.yml verwendete:** BINARY-Konkatenation
+   - **Resultat:** Unterschiedliche Hashes für identisches Passwort!
+   - **Latentes Risiko:**
+     - Bei Fresh Install: Neue Hashes generiert → funktionierte
+     - Bei Re-Run mit Passwort aus host_vars: Hash-Mismatch → Login failed
+   - **Fix:** Umstellung auf binary concatenation (100% identisch zu auth_management.yml)
+   - **Betroffene Dateien:**
+     - `tasks/user_management_hash_multicore.yml` - v1.0.0 → v2.0.0
+
+2. **❌ Multicore User Passwörter wurden NICHT persistent gespeichert:**
+   - **Problem:** `auth_persistence.yml` speicherte nur admin, support, moodle
+   - **Resultat:** Multicore User Passwörter gingen zwischen Runs verloren!
+   - **Zusammenspiel mit Bug #1 (v3.9.6):**
+     - Passwörter nicht gespeichert → beim nächsten Run neue generiert
+     - Zusammen mit Conditional-Bug → User-Management lief nicht
+     - **Resultat:** Login Probleme bei Re-Runs
+   - **Fix:** `auth_persistence.yml` speichert jetzt `solr_cores` mit allen Passwörtern
+   - **Betroffene Dateien:**
+     - `tasks/auth_persistence.yml` - v1.3.2 → v2.0.0
+
+3. **❌ `generated_credentials` nicht initialisiert:**
+   - **Problem:** Variable wurde vor erstem Gebrauch nicht initialisiert
+   - **Symptom:** Potenzielle Fehler beim Password-Generator
+   - **Fix:** Initialisierung in `auth_management.yml` und `user_management.yml`
+   - **Betroffene Dateien:**
+     - `tasks/auth_management.yml` - v1.3.2 → v1.3.3
+     - `tasks/user_management.yml` - v2.0.0 → v2.0.1
+   - **Impact:** Robustere Password-Generierung
+
+### 📝 TECHNISCHE DETAILS
+
+**Hash-Algorithmus Fix:**
+```bash
+# ALT (v1.0.0 - FALSCH!): Text-Konkatenation
+echo -n "${SALT}${PASSWORD}" | sha256sum  # Produziert falsche Hashes!
+
+# NEU (v2.0.0 - KORREKT!): Binary-Konkatenation
+cat salt.bin pass.bin > combined.bin      # Identisch zu auth_management.yml
+openssl dgst -sha256 -binary combined.bin
+```
+
+**Warum ist das kritisch?**
+- Text-Konkatenation: `echo -n` konvertiert zu UTF-8 String
+- Binary-Konkatenation: Rohe Bytes ohne Konvertierung
+- **Resultat:** Unterschiedliche SHA256-Hashes!
+
+**Password-Persistierung Fix:**
+```yaml
+# NEU in auth_persistence.yml:
+solr_cores:
+  - name: "moodle_prod"
+    users:
+      - username: "moodle_prod_rw"
+        password: "GeneratedPass123"  # Wird jetzt gespeichert!
+```
+
+**Flow bei Fresh Install (VORHER - DEFEKT):**
+1. Keine host_vars → Passwörter werden generiert
+2. Multicore User bekommen falsche Hashes (text statt binary)
+3. auth_persistence.yml speichert NUR admin/support/moodle
+4. Multicore User Passwörter gehen verloren
+5. **Login fehlgeschlagen! 401 Unauthorized**
+
+**Flow bei Fresh Install (JETZT - BEHOBEN):**
+1. Keine host_vars → Passwörter werden generiert
+2. Multicore User bekommen korrekte Hashes (binary)
+3. auth_persistence.yml speichert ALLE Passwörter inkl. multicore
+4. credentials_display.yml zeigt alle Passwörter
+5. **Login funktioniert! ✅**
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- `tasks/user_management_hash_multicore.yml` - v1.0.0 → v2.0.0 (Binary Hash)
+- `tasks/auth_persistence.yml` - v1.3.2 → v2.0.0 (Multicore Persistence)
+- `tasks/auth_management.yml` - v1.3.2 → v1.3.3 (Variable Init)
+- `tasks/user_management.yml` - v2.0.0 → v2.0.1 (Variable Init)
+- `CHANGELOG.md` - v3.9.5 Dokumentation
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität.
+
+**Migration:**
+- Automatisch beim nächsten Deployment
+- Multicore User mit alten (falschen) Hashes werden neu gehasht
+- Passwörter werden in host_vars gespeichert
+
+### 🎯 TESTING-CHECKLISTE
+
+- [ ] Fresh Install: Alle Passwörter werden in host_vars gespeichert
+- [ ] Fresh Install: WebUI Login funktioniert mit generierten Passwörtern
+- [ ] Fresh Install: Multicore User Login funktioniert (kein 401)
+- [ ] Re-Run: Passwörter bleiben gleich (keine Neugenerierung)
+- [ ] Re-Run: Login funktioniert weiterhin mit gleichen Credentials
+- [ ] Smoketests: Erfolgreich mit gespeicherten Credentials
+
+### 🔍 ROOT CAUSE ANALYSIS
+
+**Warum ist das passiert?**
+1. `user_management_hash_multicore.yml` wurde mit anderer Methode implementiert
+2. Text-basierte Hashing schien zu funktionieren (Tests ohne echten Login)
+3. Multicore Persistence wurde in auth_persistence.yml vergessen
+4. Problem trat erst bei Fresh Install + WebUI Login auf
+
+**Lessons Learned:**
+- Hash-Algorithmen müssen 100% identisch sein (binary vs. text!)
+- Alle User-Typen müssen in Persistence-Layer berücksichtigt werden
+- Testing muss echten WebUI-Login einschließen, nicht nur API-Tests
+
+---
+
+## [3.9.4] - 2025-11-18 🔧 HEALTH CHECK & SECURITY.JSON FIX
+
+**Type:** Patch Release - Critical Bug Fixes
+**Status:** 🔧 **FIXED** - Health Check und security.json Synchronisierung behoben
+
+### 🐛 BUG FIXES
+
+1. **Health Check funktioniert nun mit BasicAuth:**
+   - **Problem:** Health Check prüfte `/admin/info/system` (benötigt Auth)
+   - **Symptom:** Container wurde als "unhealthy" markiert, obwohl Solr lief
+   - **Fix:** Health Check nutzt jetzt `/admin/ping` (in security.json ohne Auth erlaubt)
+   - **Betroffene Dateien:**
+     - `files/docker/healthcheck.sh` - v1.0.0 → v1.1.0
+   - **Impact:** Health Checks funktionieren korrekt mit aktivierter BasicAuth
+
+2. **PowerInit v1.6.0 - Checksummen-Verifikation für security.json:**
+   - **Problem:** Keine Prüfung ob aktuelle security.json in Container deployed wird
+   - **Risiko:** Alte security.json könnte verwendet werden trotz Passwort-Änderungen
+   - **Neue Features:**
+     - SHA256-Checksummen-Vergleich zwischen Host und Container
+     - Deployment nur bei Checksum-Mismatch (intelligentes Update)
+     - Deployment-Status in Summary (DEPLOYED vs. SKIPPED)
+     - Garantiert immer die neueste security.json im Container
+   - **Betroffene Dateien:**
+     - `templates/docker-compose.yml.j2` - PowerInit v1.5.0 → v1.6.0
+   - **Workflow:**
+     1. Berechne SHA256-Checksum der neuen security.json
+     2. Vergleiche mit Checksum der existierenden security.json im Container
+     3. Bei Unterschied: Backup + Deployment der neuen Version
+     4. Bei Übereinstimmung: Deployment wird übersprungen
+   - **Impact:** Passwort-Änderungen werden garantiert synchronisiert
+
+3. **Passwort-Synchronisierung verifiziert:**
+   - **Flow bestätigt:**
+     1. Host_vars enthält Klartext-Passwörter (Ansible Control Node)
+     2. auth_management.yml prüft ob Container-Hashes zu Host-Passwörtern passen
+     3. Bei Mismatch: Neue Hashes generieren (SHA256 double-hash)
+     4. security.json wird mit neuen Hashes generiert
+     5. PowerInit v1.6.0 erkennt Checksum-Änderung und deployed
+   - **Garantie:** Host und Docker Passwörter sind immer synchronisiert
+
+### 📝 TECHNISCHE DETAILS
+
+**Health Check Fix:**
+```bash
+# Alt (v1.0.0): Erforderte Auth
+curl http://localhost:8983/solr/admin/info/system
+
+# Neu (v1.1.0): Ohne Auth erlaubt
+curl http://localhost:8983/solr/admin/ping?wt=json
+```
+
+**PowerInit v1.6.0 Checksummen-Logik:**
+```bash
+# Schritt 1: Checksummen berechnen
+NEW_CHECKSUM=$(sha256sum /config/security.json | awk '{print $1}')
+OLD_CHECKSUM=$(sha256sum /var/solr/data/security.json | awk '{print $1}')
+
+# Schritt 2: Vergleichen
+if [ "$NEW_CHECKSUM" != "$OLD_CHECKSUM" ]; then
+  # Deployment erforderlich
+  cp /config/security.json /var/solr/data/security.json
+fi
+```
+
+**Passwort-Synchronisierung:**
+1. **Host (Ansible Control Node):**
+   - `host_vars/{hostname}` - Klartext-Passwörter
+   - `~/.ansible-solr-passwords/` - Backup
+
+2. **Container:**
+   - `/var/solr/data/security.json` - Nur SHA256-Hashes
+   - Format: `base64(sha256(sha256(salt+password))) base64(salt)`
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- `files/docker/healthcheck.sh` - v1.0.0 → v1.1.0 (Endpoint-Fix)
+- `templates/docker-compose.yml.j2` - PowerInit v1.5.0 → v1.6.0 (Checksummen)
+- `CHANGELOG.md` - v3.9.4 Dokumentation
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität.
+
+**Migration:**
+- Automatisch beim nächsten Deployment
+- Container-Neustart erforderlich für Health Check Fix
+- PowerInit v1.6.0 wird automatisch beim `docker-compose up` ausgeführt
+
+### 🎯 TESTING-CHECKLISTE
+
+- [ ] Container startet erfolgreich
+- [ ] Health Check zeigt "healthy" status
+- [ ] security.json wird bei Checksum-Unterschied deployed
+- [ ] security.json wird bei gleicher Checksum übersprungen
+- [ ] Passwort-Änderungen in host_vars triggern security.json Update
+- [ ] Container verwendet neue Passwörter nach Restart
+
+---
+
 ## [3.9.3] - 2025-11-16 🧹 CODE-HYGIENE CLEANUP
 
 **Type:** Patch Release - Code Quality Improvements

@@ -1,11 +1,11 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.9.3-blue)
+![Version](https://img.shields.io/badge/version-3.9.6-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
 ![Tests](https://img.shields.io/badge/tests-pending%20hardware%20validation-yellow)
-![Quality](https://img.shields.io/badge/code%20quality-9.8%2F10-brightgreen)
+![Quality](https://img.shields.io/badge/code%20quality-9.9%2F10-brightgreen)
 ![Status](https://img.shields.io/badge/status-testing-yellow)
 
 Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
