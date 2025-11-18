@@ -192,66 +192,110 @@
     - existing_security_json.stat.exists
 
 # ============================================================================
-#  PASSWORD AUTO-GENERATION - Generate secure passwords if missing/weak
+#  PASSWORD VALIDATION - Ensure passwords are set in host_vars
 # ============================================================================
+# POLICY CHANGE: Auto-generation is DISABLED
+# Passwords MUST be provided in host_vars
+# This prevents hash/password mismatches and ensures explicit configuration
 
-- name: auth-mgmt - Initialize generated credentials tracker
-  set_fact:
-    generated_credentials: []
-    generate_admin_password: false
-    generate_support_password: false
-    generate_moodle_password: false
+- name: auth-mgmt - Validate admin password is set in host_vars
+  assert:
+    that:
+      - solr_admin_password is defined
+      - solr_admin_password | length >= 12
+    fail_msg: |
+      ==========================================
+      CRITICAL ERROR: Admin password not set!
+      ==========================================
 
-- name: auth-mgmt - Check admin password strength
-  set_fact:
-    generate_admin_password: "{{ (solr_admin_password | default('') | length) < 12 }}"
+      The variable 'solr_admin_password' must be set in host_vars.
 
-- name: auth-mgmt - Generate admin password if needed
-  shell: openssl rand -base64 24 | tr -d '/+=' | head -c 24
-  register: generated_admin_pwd
-  changed_when: false
-  no_log: true
-  when: generate_admin_password | bool
+      REQUIRED:
+        solr_admin_password: "your-secure-password-here"
 
-- name: auth-mgmt - Set admin password (generated or provided)
-  set_fact:
-    solr_admin_password_final: "{{ generated_admin_pwd.stdout if generate_admin_password | bool else solr_admin_password }}"
-    solr_admin_password: "{{ generated_admin_pwd.stdout if generate_admin_password | bool else solr_admin_password }}"
-  no_log: true
+      REQUIREMENTS:
+        - Minimum length: 12 characters
+        - Must be defined in host_vars
 
-- name: auth-mgmt - Check support password strength
-  set_fact:
-    generate_support_password: "{{ (solr_support_password | default('') | length) < 12 }}"
+      LOCATION:
+        {{ inventory_dir }}/{{ inventory_hostname }}
+        or
+        {{ playbook_dir }}/host_vars/{{ inventory_hostname }}.yml
 
-- name: auth-mgmt - Generate support password if needed
-  shell: openssl rand -base64 24 | tr -d '/+=' | head -c 24
-  register: generated_support_pwd
-  changed_when: false
-  no_log: true
-  when: generate_support_password | bool
+      ==========================================
+    success_msg: "Admin password validated (length: {{ solr_admin_password | length }})"
+  when: not skip_auth
 
-- name: auth-mgmt - Set support password (generated or provided)
-  set_fact:
-    solr_support_password_final: "{{ generated_support_pwd.stdout if generate_support_password | bool else solr_support_password }}"
-    solr_support_password: "{{ generated_support_pwd.stdout if generate_support_password | bool else solr_support_password }}"
-  no_log: true
+- name: auth-mgmt - Validate support password is set in host_vars
+  assert:
+    that:
+      - solr_support_password is defined
+      - solr_support_password | length >= 12
+    fail_msg: |
+      ==========================================
+      CRITICAL ERROR: Support password not set!
+      ==========================================
 
-- name: auth-mgmt - Check moodle password strength
-  set_fact:
-    generate_moodle_password: "{{ (solr_moodle_password | default('') | length) < 12 }}"
+      The variable 'solr_support_password' must be set in host_vars.
 
-- name: auth-mgmt - Generate moodle password if needed
-  shell: openssl rand -base64 24 | tr -d '/+=' | head -c 24
-  register: generated_moodle_pwd
-  changed_when: false
-  no_log: true
-  when: generate_moodle_password | bool
+      REQUIRED:
+        solr_support_password: "your-secure-password-here"
 
-- name: auth-mgmt - Set moodle password (generated or provided)
-  set_fact:
-    solr_moodle_password_final: "{{ generated_moodle_pwd.stdout if generate_moodle_password | bool else solr_moodle_password }}"
-    solr_moodle_password: "{{ generated_moodle_pwd.stdout if generate_moodle_password | bool else solr_moodle_password }}"
-  no_log: true
+      REQUIREMENTS:
+        - Minimum length: 12 characters
+        - Must be defined in host_vars
+
+      LOCATION:
+        {{ inventory_dir }}/{{ inventory_hostname }}
+        or
+        {{ playbook_dir }}/host_vars/{{ inventory_hostname }}.yml
+
+      ==========================================
+    success_msg: "Support password validated (length: {{ solr_support_password | length }})"
+  when: not skip_auth
+
+- name: auth-mgmt - Validate moodle password is set in host_vars
+  assert:
+    that:
+      - solr_moodle_password is defined
+      - solr_moodle_password | length >= 12
+    fail_msg: |
+      ==========================================
+      CRITICAL ERROR: Moodle password not set!
+      ==========================================
+
+      The variable 'solr_moodle_password' must be set in host_vars.
+
+      REQUIRED:
+        solr_moodle_password: "your-secure-password-here"
+
+      REQUIREMENTS:
+        - Minimum length: 12 characters
+        - Must be defined in host_vars
+
+      LOCATION:
+        {{ inventory_dir }}/{{ inventory_hostname }}
+        or
+        {{ playbook_dir }}/host_vars/{{ inventory_hostname }}.yml
+
+      ==========================================
+    success_msg: "Moodle password validated (length: {{ solr_moodle_password | length })"
+  when: not skip_auth
+
+- name: auth-mgmt - Display password source confirmation
+  debug:
+    msg:
+      - "=========================================="
+      - "PASSWORD VALIDATION SUCCESSFUL"
+      - "=========================================="
+      - "All passwords loaded from host_vars:"
+      - "  Admin password: SET ({{ solr_admin_password | length }} chars)"
+      - "  Support password: SET ({{ solr_support_password | length }} chars)"
+      - "  Moodle password: SET ({{ solr_moodle_password | length }} chars)"
+      - ""
+      - "NO AUTO-GENERATION - Using explicit host_vars only"
+      - "=========================================="
+  when: not skip_auth
 
 # ============================================================================
 #  HASHING - Generate new hashes if needed
@@ -259,47 +303,6 @@
 
 # REMOVED: meta: end_host was stopping the entire playbook
 # Now relies on 'when: not skip_auth' conditionals for subsequent tasks
-
-- name: auth-mgmt - Password hashing with guaranteed cleanup
-  block:
-    - name: auth-mgmt - Create temp directory for hashing
-      file:
-        path: /tmp/solr_hash_{{ ansible_date_time.epoch }}
-        state: directory
-        mode: '0700'
-      register: hash_temp_dir
-
-    - name: auth-mgmt - Check if passwords are defined
-      debug:
-        msg: "WARNING: Password for {{ item.name }} not defined, generating random password"
-      when: item.password is not defined or item.password | length == 0
-      loop:
-        - { name: "admin", password: "{{ solr_admin_password | default('') }}" }
-        - { name: "support", password: "{{ solr_support_password | default('') }}" }
-        - { name: "moodle", password: "{{ solr_moodle_password | default('') }}" }
-      loop_control:
-        label: "{{ item.name }}"
-
-- name: auth-mgmt - Display password source status
-  debug:
-    msg:
-      - "Password sources:"
-      - "  Admin: {{ 'GENERATED (weak/missing)' if generate_admin_password | bool else 'host_vars' }}"
-      - "  Support: {{ 'GENERATED (weak/missing)' if generate_support_password | bool else 'host_vars' }}"
-      - "  Moodle: {{ 'GENERATED (weak/missing)' if generate_moodle_password | bool else 'host_vars' }}"
-  when: not skip_auth
-
-- name: auth-mgmt - Validate all passwords are now available (after generation)
-  assert:
-    that:
-      - solr_admin_password is defined and solr_admin_password | length >= 12
-      - solr_support_password is defined and solr_support_password | length >= 12
-      - solr_moodle_password is defined and solr_moodle_password | length >= 12
-    fail_msg: |
-      CRITICAL: Password generation failed!
-      This should not happen - please check password generation tasks.
-    success_msg: "All passwords ready (from host_vars or auto-generated)"
-  when: not skip_auth
 
 - name: auth-mgmt - Build auth_users_with_passwords list
   set_fact:
@@ -316,82 +319,85 @@
   no_log: true
   when: not skip_auth
 
-- name: auth-mgmt - Generate SHA256 hashes for all users
-  shell: |
-    set -e
+- name: auth-mgmt - Password hashing with guaranteed cleanup
+  block:
+    - name: auth-mgmt - Create temp directory for hashing
+      file:
+        path: /tmp/solr_hash_{{ ansible_date_time.epoch }}
+        state: directory
+        mode: '0700'
+      register: hash_temp_dir
 
-    # Detect base64 command
-    if base64 --help 2>&1 | grep -q 'wrap'; then
-      BASE64_CMD="base64 -w0"
-    else
-      BASE64_CMD="base64"
-    fi
+    - name: auth-mgmt - Generate SHA256 hashes for all users
+      shell: |
+        set -e
 
-    # Generate random salt
-    openssl rand {{ solr_hash_salt_bytes }} > {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin
+        # Detect base64 command
+        if base64 --help 2>&1 | grep -q 'wrap'; then
+          BASE64_CMD="base64 -w0"
+        else
+          BASE64_CMD="base64"
+        fi
 
-    # Write password from environment variable (safe from injection)
-    printf '%s' "$USER_PASSWORD" > {{ hash_temp_dir.path }}/{{ item.name }}_pass.bin
+        # Generate random salt
+        openssl rand {{ solr_hash_salt_bytes }} > {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin
 
-    # Binary concatenation
-    cat {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin {{ hash_temp_dir.path }}/{{ item.name }}_pass.bin > {{ hash_temp_dir.path }}/{{ item.name }}_combined.bin
+        # Write password from environment variable (safe from injection)
+        printf '%s' "$USER_PASSWORD" > {{ hash_temp_dir.path }}/{{ item.name }}_pass.bin
 
-    # Double SHA256
-    openssl dgst -sha256 -binary {{ hash_temp_dir.path }}/{{ item.name }}_combined.bin > {{ hash_temp_dir.path }}/{{ item.name }}_hash1.bin
-    openssl dgst -sha256 -binary {{ hash_temp_dir.path }}/{{ item.name }}_hash1.bin > {{ hash_temp_dir.path }}/{{ item.name }}_hash2.bin
+        # Binary concatenation
+        cat {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin {{ hash_temp_dir.path }}/{{ item.name }}_pass.bin > {{ hash_temp_dir.path }}/{{ item.name }}_combined.bin
 
-    # Base64 encode
-    HASH_B64=$(${BASE64_CMD} < {{ hash_temp_dir.path }}/{{ item.name }}_hash2.bin | tr -d '\n\r')
-    SALT_B64=$(${BASE64_CMD} < {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin | tr -d '\n\r')
+        # Double SHA256
+        openssl dgst -sha256 -binary {{ hash_temp_dir.path }}/{{ item.name }}_combined.bin > {{ hash_temp_dir.path }}/{{ item.name }}_hash1.bin
+        openssl dgst -sha256 -binary {{ hash_temp_dir.path }}/{{ item.name }}_hash1.bin > {{ hash_temp_dir.path }}/{{ item.name }}_hash2.bin
 
-    # Output format: "HASH SALT"
-    echo "${HASH_B64} ${SALT_B64}"
-  args:
-    executable: /bin/bash
-  environment:
-    USER_PASSWORD: "{{ item.password }}"
-  loop: "{{ auth_users_with_passwords }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: generated_hashes
-  changed_when: false
-  no_log: true
+        # Base64 encode
+        HASH_B64=$(${BASE64_CMD} < {{ hash_temp_dir.path }}/{{ item.name }}_hash2.bin | tr -d '\n\r')
+        SALT_B64=$(${BASE64_CMD} < {{ hash_temp_dir.path }}/{{ item.name }}_salt.bin | tr -d '\n\r')
+
+        # Output format: "HASH SALT"
+        echo "${HASH_B64} ${SALT_B64}"
+      args:
+        executable: /bin/bash
+      environment:
+        USER_PASSWORD: "{{ item.password }}"
+      loop: "{{ auth_users_with_passwords }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: generated_hashes
+      changed_when: false
+      no_log: true
+
+    - name: auth-mgmt - Set password and hash facts
+      set_fact:
+        solr_admin_password: "{{ auth_users_with_passwords[0].password }}"
+        solr_support_password: "{{ auth_users_with_passwords[1].password }}"
+        solr_moodle_password: "{{ auth_users_with_passwords[2].password }}"
+        admin_password: "{{ auth_users_with_passwords[0].password }}"
+        support_password: "{{ auth_users_with_passwords[1].password }}"
+        moodle_password: "{{ auth_users_with_passwords[2].password }}"
+        admin_password_hash: "{{ generated_hashes.results[0].stdout }}"
+        support_password_hash: "{{ generated_hashes.results[1].stdout }}"
+        moodle_password_hash: "{{ generated_hashes.results[2].stdout }}"
+      no_log: true
+
+    - name: auth-mgmt - Validate hash format
+      assert:
+        that:
+          - item.stdout is match('^[A-Za-z0-9+/=]+ [A-Za-z0-9+/=]+$')
+          - item.stdout.split(' ') | length == 2
+        fail_msg: "Hash validation failed for {{ item.item.name }}"
+      loop: "{{ generated_hashes.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: auth-mgmt - Cleanup hashing temp directory
+      file:
+        path: "{{ hash_temp_dir.path }}"
+        state: absent
+      failed_when: false
   when: not skip_auth
-
-- name: auth-mgmt - Set password and hash facts
-  set_fact:
-    solr_admin_password: "{{ auth_users_with_passwords[0].password }}"
-    solr_support_password: "{{ auth_users_with_passwords[1].password }}"
-    solr_moodle_password: "{{ auth_users_with_passwords[2].password }}"
-    admin_password: "{{ auth_users_with_passwords[0].password }}"
-    support_password: "{{ auth_users_with_passwords[1].password }}"
-    moodle_password: "{{ auth_users_with_passwords[2].password }}"
-    admin_password_hash: "{{ generated_hashes.results[0].stdout }}"
-    support_password_hash: "{{ generated_hashes.results[1].stdout }}"
-    moodle_password_hash: "{{ generated_hashes.results[2].stdout }}"
-  no_log: true
-  when: not skip_auth
-
-- name: auth-mgmt - Validate hash format
-  assert:
-    that:
-      - item.stdout is match('^[A-Za-z0-9+/=]+ [A-Za-z0-9+/=]+$')
-      - item.stdout.split(' ') | length == 2
-    fail_msg: "Hash validation failed for {{ item.item.name }}"
-  loop: "{{ generated_hashes.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  when: not skip_auth
-
-- name: auth-mgmt - Cleanup hashing temp directory
-  file:
-    path: "{{ hash_temp_dir.path }}"
-    state: absent
-  when:
-    - not skip_auth
-    - hash_temp_dir is defined
-    - hash_temp_dir.path is defined
-  failed_when: false
 
 - name: auth-mgmt - Display hash summary
   debug:
