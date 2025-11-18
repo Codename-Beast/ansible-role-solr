@@ -65,17 +65,21 @@
     ProxyTimeout 300
     ProxyBadHeader Ignore
 
-    # Fix for Solr Admin UI bug - Proxy SolrCloud API calls to Standalone endpoints
-    # The Solr 9.9.0 Admin UI incorrectly tries to use SolrCloud API endpoints
-    # even when running in Standalone mode. We proxy these to the correct endpoints.
-    <Location /api/cluster>
+    # Fix for Solr Admin UI bug - Rewrite SolrCloud API paths to Standalone API
+    # The Solr 9.9.0 Admin UI calls /api/cluster/security/authorization (SolrCloud)
+    # but Standalone mode needs /solr/admin/authorization (without /security/)
+    RewriteEngine On
+    RewriteRule ^/api/cluster/security/(.*)$ /solr/admin/$1 [PT,QSA]
+
+    # Proxy the rewritten path to Solr
+    <LocationMatch "^/solr/admin/(authorization|authentication)">
         ProxyPass http://127.0.0.1:{{ solr_port }}/solr/admin nocanon
         ProxyPassReverse http://127.0.0.1:{{ solr_port }}/solr/admin
 
         # Forward auth headers
         RequestHeader set X-Forwarded-Proto "{% if solr_ssl_enabled | default(false) %}https{% else %}http{% endif %}"
         RequestHeader set X-Forwarded-Host "{{ solr_app_domain | default(ansible_fqdn) }}"
-    </Location>
+    </LocationMatch>
 
     # Solr Proxy Location
     <Location {{ solr_proxy_path | default('/solr-admin') }}>
