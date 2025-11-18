@@ -17,7 +17,7 @@
   set_fact:
     host_vars_dir: >-
       {{
-        inventory_dir | default(playbook_dir + '/host_vars_generated')
+        inventory_dir + '/host_vars'
         if (inventory_dir is defined and inventory_dir | length > 0 and inventory_dir != '/')
         else playbook_dir + '/host_vars_generated'
       }}
@@ -36,6 +36,14 @@
       - "Credentials will be saved but may not persist across runs"
   when: not can_persist_to_inventory
   delegate_to: localhost
+
+- name: auth-persist - Ensure host_vars directory exists
+  file:
+    path: "{{ host_vars_dir }}"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
 
 - name: auth-persist - Read current host_vars if exists
   stat:
