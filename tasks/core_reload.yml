@@ -1,8 +1,10 @@
 ---
-# Version: 1.0.0
+# Version: 1.0.1
 # Description: Reload all Solr cores to pick up config changes
 # When to use: After updating solrconfig.xml or other core configs
 # Why needed: Cores cache their config - reload forces re-read from disk
+# Changelog v1.0.1:
+#   - FIXED: Added authentication to /admin/ping endpoint
 
 # ============================================================================
 # RELOAD ALL CORES (Multi-Core Mode)
@@ -12,6 +14,9 @@
   uri:
     url: "http://localhost:{{ solr_port }}/solr/admin/ping"
     method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
     status_code: 200
   register: solr_health
   until: solr_health.status == 200
