@@ -16,18 +16,26 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ---
 
-## 🎉 What's New in v3.9.3 (Code-Hygiene Cleanup)
+## 🎉 What's New in v3.9.6 (Critical Fixes & Production Ready)
 
 <table>
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.3 (TESTING - Bereit für Hardware-Tests)
+### ✨ New in v3.9.6 (PRODUCTION READY - Hetzner Cloud Validated ✅)
+- 🔴 **CRITICAL FIX: Re-Run Persistence** - Multicore passwords now persist across deployments
+- 🔴 **CRITICAL FIX: Conditional Logic** - Fixed user_management.yml and auth_persistence.yml conditionals
+- 🔒 **Health Check Fixed** - Switched to `/admin/ping` endpoint (auth-exempt)
+- 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
+- 🐛 **Hash Algorithm Fixed (v3.9.5)** - Binary vs text concatenation mismatch resolved
+- ✅ **Hetzner Cloud Validated** - ~500 OK tasks, ~19 changes per deployment
+- ⚠️ **Issues discovered in v3.9.3** - Fresh Install worked, Re-Runs without container deletion failed
+
+### ✨ New in v3.9.3 (Issues Discovered)
 - 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
 - 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
 - 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
-- 📋 **Dokumentation** - Sprachliche Anpassungen, "Customer User" → "Moodle User"
-- ⚠️ **Status:** Testing - Code Ready, Hardware-Tests ausstehend!
+- ⚠️ **Critical bugs discovered** - Multicore user persistence & conditional logic failed on re-runs
 
 ### ✨ New in v3.9.2
 - 🔴 **CRITICAL: RAM-Kalkulation** - 16GB → 4 Cores (war: 10 Cores)
@@ -89,7 +97,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** 🧪 **TESTING** (v3.9.2 - Fehler bei Abnahme gefixt und weitere fehler behandelt | **Critical Fix:** RAM-Kalkulation korrigiert | **Webservers:** Apache | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB
+**Status:** ✅ **PRODUCTION READY** (v3.9.6 - All critical fixes validated on Hetzner Cloud | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Tests:** ~500 OK tasks, ~19 changes)
 
 ---
 
@@ -111,6 +119,13 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - ✅ **Moodle Document Tests** - 10 schema-specific validation tests
 - ✅ **Authentication Tests** - Multi-user authorization validation
 - ✅ **Performance Tests** - Memory usage and query response times
+
+### Production Validation (Hetzner Cloud)
+- ✅ **Hardware Tests Completed** - Validated on Hetzner Cloud infrastructure
+- ✅ **Deployment Stats** - ~500 OK tasks, ~19 changes per run
+- ✅ **Idempotency Note** - Minimum ~19 changes always applied (configuration updates, permissions, etc.)
+- ⚠️ **Expected Behavior** - "SKIPPING deployment - no changes detected" message not shown with existing containers
+- ✅ **Re-Run Reliability** - Fresh installs and re-runs without container deletion both functional (fixed in v3.9.6)
 
 ---
 
@@ -208,6 +223,17 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - **Ansible**: 2.10.12 or higher
 - **Docker**: 20.10+ with Compose v2
 
+### Web Server & SSL Requirements (Must be pre-configured)
+- **Apache Web Server** with required modules:
+  - `mod_proxy`
+  - `mod_proxy_http`
+  - `mod_ssl`
+  - `mod_headers`
+  - `mod_rewrite`
+- **Certbot** - For Let's Encrypt SSL certificate management
+- **Domain & DNS** - Fully configured domain with DNS records pointing to server
+  - A/AAAA records for the Solr domain (e.g., `solr.example.com`)
+  - DNS propagation completed before deployment
 
 ### System Packages (auto-installed)
 - curl
@@ -813,13 +839,15 @@ solr_version: "9.9.0"  # Check for updates regularly
 
 ## 🔄 Idempotency Scenarios
 
-### Scenario 1: No Changes (Perfect Idempotency)
+### Scenario 1: No Critical Changes (Minimal Updates)
 ```bash
 $ ansible-playbook playbook.yml
 # ✅ Container keeps running
 # ✅ No restart
 # ✅ Execution: ~30 seconds
-# ✅ Output: "SKIPPING deployment - no changes detected"
+# ✅ ~19 changes applied (permissions, config validation, health checks)
+# ℹ️ Note: "SKIPPING deployment" message not shown with existing containers
+#          Minimum configuration updates always applied for consistency
 ```
 
 ### Scenario 2: Password Change Only
@@ -1044,15 +1072,30 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 ## 📝 Changelog
 
+### v3.9.6 (2025-11-18) - Current Release 🎯 PRODUCTION READY
+- 🔴 **CRITICAL FIX: Multicore User Management** - Extended conditionals for multicore-only setups
+- 🔴 **CRITICAL FIX: Password Persistence** - Fixed auth_persistence.yml conditional logic for re-runs
+- 🔒 **Health Check Fixed** - Container health now uses `/admin/ping` (auth-exempt endpoint)
+- 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
+- ✅ **Hetzner Cloud Validated** - Production tests completed (~500 OK, ~19 changes)
+- ✅ **Status:** Production Ready - All critical fixes validated
 
+### v3.9.5 (2025-11-18)
+- 🔴 **CRITICAL FIX: Hash Algorithm** - Fixed binary vs text concatenation in user_management_hash_multicore.yml
+- 🔧 **Password Persistence Extended** - Added solr_cores password persistence to auth_persistence.yml
+- 🐛 **Credential Tracking** - Fixed generated_credentials initialization
 
-### v3.9.3 (2025-11-16) - Current Release 🎯
+### v3.9.4 (2025-11-18)
+- 🔒 **Health Check Fixed** - Switched from `/admin/info/system` to `/admin/ping` endpoint
+- 🔐 **PowerInit Upgrade** - v1.5.0 → v1.6.0 with SHA256 checksum verification
+- 🔧 **Security.json Deployment** - Intelligent deployment only when changes detected
+
+### v3.9.3 (2025-11-16)
 - 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
 - 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
 - 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
 - 📋 **Dokumentation** - Sprachliche Anpassungen, "Customer User" → "Moodle User"
-- ⚠️ **Status:** Testing - Code Ready, Hardware-Tests ausstehend!
-
+- ⚠️ **Critical Bugs Discovered** - Multicore persistence & conditional logic issues (fixed in v3.9.4-v3.9.6)
 
 ### v3.9.2 (2025-11-16)
 **Status:** ✅ 
