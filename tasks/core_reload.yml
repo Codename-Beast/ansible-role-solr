@@ -1,0 +1,81 @@
+---
+# Version: 1.0.0
+# Description: Reload all Solr cores to pick up config changes
+# When to use: After updating solrconfig.xml or other core configs
+# Why needed: Cores cache their config - reload forces re-read from disk
+
+# ============================================================================
+# RELOAD ALL CORES (Multi-Core Mode)
+# ============================================================================
+
+- name: core-reload - Wait for Solr to be fully ready
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/ping"
+    method: GET
+    status_code: 200
+  register: solr_health
+  until: solr_health.status == 200
+  retries: 10
+  delay: 3
+  changed_when: false
+
+- name: core-reload - Get list of all cores
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=STATUS"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    return_content: yes
+  register: cores_status
+  changed_when: false
+
+- name: core-reload - Parse cores list
+  set_fact:
+    core_names: "{{ cores_status.content | from_json | json_query('status.*.name') }}"
+  changed_when: false
+
+- name: core-reload - Display cores to reload
+  debug:
+    msg:
+      - "=========================================="
+      - "RELOADING CORES TO PICK UP CONFIG CHANGES"
+      - "=========================================="
+      - "Cores found: {{ core_names | length }}"
+      - "Core list: {{ core_names | join(', ') }}"
+      - "=========================================="
+
+- name: core-reload - Reload each core via API
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/admin/cores?action=RELOAD&core={{ item }}"
+    method: GET
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+  loop: "{{ core_names }}"
+  register: reload_results
+  when: core_names | length > 0
+  changed_when: true
+
+- name: core-reload - Display reload summary
+  debug:
+    msg:
+      - "=========================================="
+      - "CORE RELOAD COMPLETED"
+      - "=========================================="
+      - "Cores reloaded: {{ core_names | length }}"
+      - "Status: ✅ All cores now using updated configs"
+      - "Note: Deprecated warnings should be gone now"
+      - "=========================================="
+  when: core_names | length > 0
+
+- name: core-reload - No cores to reload
+  debug:
+    msg:
+      - "=========================================="
+      - "CORE RELOAD SKIPPED"
+      - "=========================================="
+      - "Reason: No cores found"
+      - "=========================================="
+  when: core_names | length == 0

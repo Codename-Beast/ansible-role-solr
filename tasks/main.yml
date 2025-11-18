@@ -124,6 +124,12 @@
   tags:
     - install-solr-core
 
+- name: install-solr - Reload cores to pick up config changes
+  include_tasks: core_reload.yml
+  tags:
+    - install-solr-core
+    - install-solr-config
+
 - name: install-solr - Configure webserver proxy
   include_tasks: proxy_configuration.yml
   when: solr_proxy_enabled | default(false)

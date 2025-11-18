@@ -21,7 +21,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.8 (SECURITY FIX + Log Warnings Fixed)
+### ✨ New in v3.9.8 (SECURITY FIX + Log Warnings Fixed + PowerInit v1.7.0)
 - 🔒 **CRITICAL: Permission Order Fixed** - "all" permission moved to END of list
 - 🔐 **Multi-Core Access Fixed** - Core-specific users can now login and access their cores
 - 👥 **Admin Access Enhanced** - Admin users now have explicit access to all cores
@@ -30,10 +30,16 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
   - Removed deprecated `enableRemoteStreaming` from solrconfig.xml (Solr 9.x uses sys-prop)
   - Removed obsolete `numVersionBuckets` from solrconfig.xml (fixed at 65536 in Solr 9.x)
   - SSL Warning is expected (SSL on proxy-level, not Solr-level - correct architecture)
+- 🔄 **PowerInit v1.7.0**:
+  - Auto-deploys solrconfig.xml to ALL configSets
+  - Auto-deploys solrconfig.xml to ALL existing cores
+  - New core_reload.yml task reloads cores after config changes
+  - IMPACT: Config updates now apply to existing cores automatically
 - ⚠️ **Previously Known Issues** (ALL FIXED):
   - Users can only login with admin user ✅ FIXED
   - Security.json "all" tag caused permission conflicts ✅ FIXED
   - Deprecated warnings in logs ✅ FIXED
+  - Existing cores not picking up new configs ✅ FIXED
 - 🔧 **Status**: Tested on production server, awaiting final validation
 
 ### ✨ New in v3.9.7 (Hardware Test Pending ⚠️)

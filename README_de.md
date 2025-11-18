@@ -17,7 +17,7 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
 
 ---
 
-## 🔒 Version 3.9.8 - SECURITY FIX + Log-Warnungen Behoben
+## 🔒 Version 3.9.8 - SECURITY FIX + Log-Warnungen Behoben + PowerInit v1.7.0
 
 **KRITISCH:** Diese Version behebt ein Permission-Problem in `security.json.j2`, das verhinderte, dass Core-spezifische Benutzer sich einloggen konnten.
 
@@ -30,6 +30,11 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
   - Deprecated `enableRemoteStreaming` aus solrconfig.xml entfernt (Solr 9.x nutzt sys-prop)
   - Obsolete `numVersionBuckets` aus solrconfig.xml entfernt (fest auf 65536 in Solr 9.x)
   - SSL-Warnung ist erwartet (SSL auf Proxy-Ebene, nicht Solr-Ebene - korrekte Architektur)
+- 🔄 **PowerInit v1.7.0**:
+  - Deployed solrconfig.xml automatisch in ALLE configSets
+  - Deployed solrconfig.xml automatisch in ALLE existierenden Cores
+  - Neuer core_reload.yml Task lädt Cores nach Config-Änderungen neu
+  - EFFEKT: Config-Updates werden jetzt automatisch auf existierende Cores angewendet
 
 **Status:** Auf Production-Server getestet, wartet auf finale Validierung
 
