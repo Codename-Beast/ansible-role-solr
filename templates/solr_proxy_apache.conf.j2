@@ -65,6 +65,12 @@
     ProxyTimeout 300
     ProxyBadHeader Ignore
 
+    # Fix for Solr Admin UI bug - Redirect SolrCloud API to Standalone API
+    # The Solr 9.9.0 Admin UI incorrectly tries to use SolrCloud endpoints
+    # even when running in Standalone mode. This rewrites those calls.
+    RewriteEngine On
+    RewriteRule ^/api/cluster/security/(.*)$ {{ solr_proxy_path | default('/solr-admin') }}/admin/$1 [PT,QSA]
+
     # Solr Proxy Location
     <Location {{ solr_proxy_path | default('/solr-admin') }}>
         {% if solr_proxy_auth_enabled | default(false) %}
