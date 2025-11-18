@@ -287,8 +287,82 @@
 # CREDENTIAL DISPLAY - Show generated passwords for admin reference
 # ============================================================================
 
-- name: install-solr - Display generated credentials if any
-  include_tasks: credentials_display.yml
+- name: credentials-display - Check if any passwords were generated
+  set_fact:
+    has_generated_passwords: "{{ (generate_admin_password | default(false)) or (generate_support_password | default(false)) or (generate_moodle_password | default(false)) or (generated_credentials | default([]) | length > 0) }}"
+
+- name: credentials-display - Build credential message block
+  set_fact:
+    credential_message: |
+      ╔══════════════════════════════════════════════════════════════════════╗
+      ║                 🔐 GENERATED CREDENTIALS                              ║
+      ║                                                                       ║
+      ║  ⚠️  WICHTIG: Passwörter wurden automatisch generiert!                ║
+      ║  Bitte in host_vars speichern und WebUI-Login testen!                ║
+      ╠══════════════════════════════════════════════════════════════════════╣
+      ║  GLOBALE ADMIN-USER:                                                  ║
+      ║                                                                       ║
+      {% if generate_admin_password | default(false) %}║  ✨ Admin User (NEU GENERIERT):                                       ║
+      ║     Username: {{ solr_admin_user }}
+      ║     Password: {{ solr_admin_password_final }}
+      ║     Hinzufügen zu host_vars:                                          ║
+      ║     solr_admin_password: "{{ solr_admin_password_final }}"
+      ║                                                                       ║
+      {% endif %}{% if generate_support_password | default(false) %}║  ✨ Support User (NEU GENERIERT):                                     ║
+      ║     Username: {{ solr_support_user }}
+      ║     Password: {{ solr_support_password_final }}
+      ║     Hinzufügen zu host_vars:                                          ║
+      ║     solr_support_password: "{{ solr_support_password_final }}"
+      ║                                                                       ║
+      {% endif %}{% if generate_moodle_password | default(false) %}║  ✨ Moodle User (NEU GENERIERT):                                      ║
+      ║     Username: {{ solr_moodle_user }}
+      ║     Password: {{ solr_moodle_password_final }}
+      ║     Hinzufügen zu host_vars:                                          ║
+      ║     solr_moodle_password: "{{ solr_moodle_password_final }}"
+      ║                                                                       ║
+      {% endif %}{% if generated_credentials | default([]) | length > 0 %}╠══════════════════════════════════════════════════════════════════════╣
+      ║  MULTI-CORE USER (NEU GENERIERT):                                    ║
+      ║                                                                       ║
+      {% for cred in generated_credentials %}{% if cred.was_generated %}║  Core: {{ cred.core }}_core
+      ║     Username: {{ cred.username }}
+      ║     Password: {{ cred.password }}
+      ║                                                                       ║
+      ║     Hinzufügen zu host_vars:                                          ║
+      ║     solr_cores:                                                       ║
+      ║       - name: "{{ cred.core }}"
+      ║         users:                                                        ║
+      ║           - username: "{{ cred.username }}"
+      ║             password: "{{ cred.password }}"
+      ║                                                                       ║
+      {% endif %}{% endfor %}{% endif %}╠══════════════════════════════════════════════════════════════════════╣
+      ║  🌐 WEBUI LOGIN TESTEN:                                               ║
+      ║                                                                       ║
+      ║  URL: {{ 'https' if solr_ssl_enabled | default(false) else 'http' }}://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/
+      ║                                                                       ║
+      ║  Test-Befehle:                                                        ║
+      {% if generate_admin_password | default(false) %}║  curl -u {{ solr_admin_user }}:{{ solr_admin_password_final }} \
+      ║       {{ 'https' if solr_ssl_enabled | default(false) else 'http' }}://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/admin/ping
+      ║                                                                       ║
+      {% endif %}{% if generated_credentials | default([]) | length > 0 %}{% for cred in generated_credentials %}{% if cred.was_generated %}║  curl -u {{ cred.username }}:{{ cred.password }} \
+      ║       {{ 'https' if solr_ssl_enabled | default(false) else 'http' }}://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/{{ cred.core }}_core/admin/ping
+      ║                                                                       ║
+      {% endif %}{% endfor %}{% endif %}╠══════════════════════════════════════════════════════════════════════╣
+      ║  💾 WICHTIG: Credentials in host_vars sichern!                        ║
+      ║  Sonst werden beim nächsten Deployment neue Passwörter generiert!    ║
+      ╚══════════════════════════════════════════════════════════════════════╝
+  when: has_generated_passwords | bool
+
+- name: credentials-display - Display generated credentials
+  debug:
+    msg: "{{ credential_message }}"
+  when: has_generated_passwords | bool
+
+- name: credentials-display - No passwords generated
+  debug:
+    msg:
+      - "✅ Alle Passwörter wurden aus host_vars übernommen"
+      - "   Keine automatische Generierung erforderlich"
+  when: not has_generated_passwords | bool
 
 - name: install-solr - Display Happy final summary maybe? 
   debug:

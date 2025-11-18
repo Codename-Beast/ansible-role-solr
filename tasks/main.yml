@@ -119,13 +119,8 @@
   tags:
     - install-solr-auth
 
-- name: install-solr - Create Solr core
-  include_tasks: core_creation.yml
-  tags:
-    - install-solr-core
-
-- name: install-solr - Reload cores to pick up config changes
-  include_tasks: core_reload.yml
+- name: install-solr - Create and reload Solr cores
+  include_tasks: core_management.yml
   tags:
     - install-solr-core
     - install-solr-config
