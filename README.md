@@ -21,7 +21,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.7 (TEMPLATE FIX - Hardware Test Pending ⚠️)
+### ✨ New in v3.9.7 (Hardware Test Pending ⚠️)
 - 🐛 **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben
 - 🔧 **Credentials Display:** Keine failed tasks mehr bei Finalization
 - 🔴 **CRITICAL FIX (v3.9.6): Re-Run Persistence** - Multicore passwords persist across deployments
@@ -33,7 +33,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 - 📊 **Last Test (v3.9.3)** - Play recap: ok=496, changed=37 (Fresh Install worked, Re-Runs failed)
 - ✅ **Expected Fix** - Re-Runs AND credentials display should now work
 
-### ✨ New in v3.9.3 (Issues Discovered)
+### ✨ New in v3.9.3
 - 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
 - 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
 - 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
