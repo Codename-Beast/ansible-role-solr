@@ -10,61 +10,52 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 ## [3.9.6] - 2025-11-18 🚨 CRITICAL: Multicore User Management & Persistence Conditionals
 
 **Type:** Patch Release - **CRITICAL BUG FIXES**
-**Status:** 🔧 **FIXED** - Multicore User Processing und Persistence Conditionals behoben
+**Status:** 🔧 **FIXED** - Re-Run Probleme mit Multicore Usern behoben
 
 ### 🚨 CRITICAL BUGS FIXED
 
+**Kontext:** Fresh Install mit Container/Volume-Löschung funktionierte (Admin Login, Cores erstellt, Smoketests OK, Dokumente hochladen/löschen). Problem trat bei Re-Runs **OHNE** Löschung auf: **Multicore User und Core Admins konnten sich nicht mehr einloggen.**
+
 1. **❌ user_management.yml wurde bei reinem Multicore Setup NICHT aufgerufen:**
    - **Problem:** Conditional in `main.yml` prüfte nur `solr_additional_users`
-   - **Impact bei reinem Multicore Setup:**
+   - **Impact bei Re-Run ohne Container-Löschung:**
+     - Bei reinem Multicore Setup (ohne `solr_additional_users`)
      - `user_management.yml` wurde ÜBERHAUPT NICHT ausgeführt
-     - Multicore User wurden NICHT gehasht
-     - security.json enthielt KEINE Multicore User Hashes
-     - **Multicore User konnten sich NICHT anmelden!** (Showstopper)
-   - **Scenario:**
-     ```yaml
-     # host_vars - NUR solr_cores definiert
-     solr_cores:
-       - name: "prod"
-         users:
-           - username: "produser"
-             password: "SecurePass123"
-     # solr_additional_users: NICHT definiert!
-     ```
-   - **Resultat vorher:** produser wird NICHT gehasht → Login unmöglich!
+     - Multicore User wurden NICHT neu gehasht
+     - Container behielt alte Hashes, aber neue Passwörter
+     - **Multicore User Login: 401 Unauthorized**
+   - **Warum funktionierte Fresh Install?**
+     - Bei Fresh Install mit Löschung: Alles neu generiert, konsistent
+     - Problem trat erst bei Re-Run auf (skip_auth=true, keine User-Verwaltung)
    - **Fix:** Conditional erweitert um `solr_cores` Check
    - **Betroffene Dateien:**
      - `tasks/main.yml` - Line 42-51
-   - **Impact:** Multicore Setups funktionieren jetzt auch ohne `solr_additional_users`
 
 2. **❌ auth_persistence.yml wurde bei skip_auth=true NICHT aufgerufen:**
    - **Problem:** Persistence lief nur bei `skip_auth=false`
-   - **Impact bei Re-Run mit unveränderten Passwörtern:**
+   - **Impact bei Re-Run:**
      - admin/support/moodle Passwörter unverändert → skip_auth=true
      - `auth_persistence.yml` wurde NICHT ausgeführt
-     - Multicore User Passwörter wurden NICHT gespeichert
-     - **Nächster Run: Neue Passwörter generiert!**
-   - **Scenario:**
-     1. Fresh Install: Multicore User deployed und gespeichert
-     2. Re-Run: admin/support/moodle unverändert → skip_auth=true
-     3. Neue multicore user hinzugefügt
-     4. auth_persistence läuft NICHT → neue User NICHT gespeichert!
-     5. Nächster Run: Neue Passwörter für diese User!
-   - **Fix:** Conditional erweitert um Multicore/Additional User Check
+     - **Multicore User Passwörter wurden NICHT in host_vars gespeichert!**
+     - Nächster Run: Keine Passwörter in host_vars → NEUE generiert
+     - Container hat alte Hashes, neue Passwörter generiert
+     - **Multicore User und Core Admin Login: FAILED**
+   - **Workflow (DEFEKT):**
+     1. Fresh Install: Container + Volume gelöscht, alles neu → funktioniert
+     2. Re-Run: skip_auth=true → auth_persistence läuft NICHT
+     3. Multicore Passwörter NICHT gespeichert
+     4. Nächster Run: Neue Passwörter generiert (weil nicht in host_vars)
+     5. Container hat alte Hashes → Login fehlgeschlagen!
+   - **Fix:** Conditional erweitert - Persistence läuft immer bei User-Änderungen
    - **Betroffene Dateien:**
      - `tasks/main.yml` - Line 112-120
-   - **Impact:** Persistence läuft immer wenn User-Änderungen vorhanden
 
 3. **⚠️ generated_credentials unvollständig (Medium Priority):**
-   - **Problem:** Nur generierte Passwörter wurden getrackt
-   - **Impact:**
-     - User mit Passwort aus host_vars wurden NICHT in `generated_credentials` eingefügt
-     - `credentials_display.yml` zeigte diese User nicht an
-     - Inkonsistente Display-Ausgabe
-   - **Fix:** `generated_credentials` wird für ALLE User gefüllt
+   - **Problem:** Nur generierte Passwörter wurden in Display getrackt
+   - **Impact:** User mit host_vars Passwörtern nicht in `credentials_display.yml`
+   - **Fix:** Alle User werden getrackt (generiert + host_vars)
    - **Betroffene Dateien:**
      - `tasks/auth_password_generator.yml` - Line 32-35
-   - **Impact:** Vollständige Credential-Anzeige
 
 ### 📝 TECHNISCHE DETAILS
 
@@ -98,26 +89,23 @@ when:
     (solr_additional_users is defined and solr_additional_users | length > 0)
 ```
 
-**Fix #3: generated_credentials Tracking:**
-```yaml
-# VORHER (DEFEKT):
-- name: auth-pwd-gen - Track generated credential
-  set_fact:
-    generated_credentials: "{{ generated_credentials + [...] }}"
-  when: need_password_generation | bool  # NUR generierte!
+**Warum funktionierte Fresh Install mit Löschung?**
+- Container + Volume + /opt/solr gelöscht: Komplette Neugenerierung
+- Passwörter generiert, Hashes erstellt, Container deployed
+- Alles konsistent → Login funktionierte (Admin, Cores, Smoketests, Dokumente)
 
-# JETZT (BEHOBEN):
-- name: auth-pwd-gen - Track ALL credentials
-  set_fact:
-    generated_credentials: "{{ generated_credentials + [...] }}"
-  # KEIN when: - ALLE User werden getrackt!
-```
+**Warum scheiterte Re-Run ohne Löschung?**
+- skip_auth=true (Admin-Passwörter unverändert)
+- user_management.yml lief NICHT (Conditional fehlte)
+- auth_persistence.yml lief NICHT (bei skip_auth=true)
+- Multicore Passwörter nicht gespeichert
+- Nächster Run: Neue Passwörter, alte Hashes → Login failed!
 
 ### 📦 FILES CHANGED
 
 **Modified:**
-- `tasks/main.yml` - v1.3.2 → v1.3.3 (Conditionals)
-- `tasks/auth_password_generator.yml` - v1.0.0 → v1.1.0 (Tracking)
+- `tasks/main.yml` - v1.3.2 → v1.3.3 (Conditionals erweitert)
+- `tasks/auth_password_generator.yml` - v1.0.0 → v1.1.0 (Tracking vollständig)
 - `CHANGELOG.md` - v3.9.6 Dokumentation
 
 ### ⚠️ BREAKING CHANGES
@@ -126,66 +114,65 @@ when:
 
 **Migration:**
 - Automatisch beim nächsten Deployment
-- Reine Multicore Setups funktionieren jetzt out-of-the-box
+- Reine Multicore Setups funktionieren jetzt bei Re-Runs
 - Persistence läuft zuverlässig bei allen User-Änderungen
 
 ### 🎯 TESTING-CHECKLISTE
 
-- [ ] Reines Multicore Setup (ohne solr_additional_users): User werden gehasht
-- [ ] Multicore User Login funktioniert
-- [ ] Re-Run mit skip_auth=true: Multicore Passwörter bleiben erhalten
-- [ ] Neue multicore User hinzufügen: Werden gespeichert
-- [ ] credentials_display.yml zeigt ALLE User (generiert + host_vars)
+- [ ] Fresh Install mit Container-Löschung: Alles funktioniert
+- [ ] Re-Run OHNE Container-Löschung: Multicore User Login OK
+- [ ] Re-Run OHNE Container-Löschung: Core Admin Login OK
+- [ ] Re-Run mit skip_auth=true: Passwörter bleiben erhalten
+- [ ] Neue multicore User hinzufügen: Werden korrekt gespeichert
 
 ### 🔍 ROOT CAUSE ANALYSIS
 
 **Warum ist das passiert?**
 1. Multicore Mode wurde nachträglich hinzugefügt (v3.9.0)
-2. Conditionals in `main.yml` wurden nicht angepasst
-3. Testing fokussierte auf Mixed Mode (additional_users + cores)
-4. Pure Multicore Setups wurden nicht getestet
+2. Conditionals in `main.yml` wurden nicht für alle Szenarien angepasst
+3. Testing fokussierte auf Fresh Install mit Löschung (funktionierte)
+4. Re-Runs ohne Löschung wurden nicht getestet → Bug blieb unentdeckt
 
 **Lessons Learned:**
-- ✅ Conditionals müssen ALLE User-Typen berücksichtigen!
-- ✅ Testing muss alle möglichen Konfigurationen abdecken
-- ✅ Pure Multicore Setups sind genauso wichtig wie Mixed Mode
+- ✅ Testing muss BEIDE Szenarien abdecken (Fresh + Re-Run)
+- ✅ Conditionals müssen alle User-Typen UND alle Run-Typen berücksichtigen
+- ✅ Persistence muss unabhängig von skip_auth bei User-Änderungen laufen
 
 ---
 
 ## [3.9.5] - 2025-11-18 🚨 CRITICAL: Password Persistence & Hash Algorithm Fix
 
 **Type:** Patch Release - **CRITICAL BUG FIXES**
-**Status:** 🔧 **FIXED** - Multicore User Passwörter und Hash-Algorithmus behoben
+**Status:** 🔧 **FIXED** - Multicore User Hash-Algorithmus und Persistence behoben
 
 ### 🚨 CRITICAL BUGS FIXED
+
+**Kontext:** Diese Bugs waren latent und hätten bei bestimmten Szenarien (Re-Run mit Passwort-Änderungen aus host_vars) Probleme verursacht.
 
 1. **❌ FALSCHER Hash-Algorithmus für Multicore User:**
    - **Problem:** `user_management_hash_multicore.yml` verwendete TEXT-Konkatenation
    - **Auth_management.yml verwendete:** BINARY-Konkatenation
    - **Resultat:** Unterschiedliche Hashes für identisches Passwort!
-   - **Symptom:** Multicore User konnten sich NICHT anmelden, 401 Unauthorized
-   - **Fix:** Umstellung auf binary concatenation (identisch zu auth_management.yml)
+   - **Latentes Risiko:**
+     - Bei Fresh Install: Neue Hashes generiert → funktionierte
+     - Bei Re-Run mit Passwort aus host_vars: Hash-Mismatch → Login failed
+   - **Fix:** Umstellung auf binary concatenation (100% identisch zu auth_management.yml)
    - **Betroffene Dateien:**
      - `tasks/user_management_hash_multicore.yml` - v1.0.0 → v2.0.0
-   - **Impact:** Multicore User Passwörter funktionieren jetzt korrekt
 
 2. **❌ Multicore User Passwörter wurden NICHT persistent gespeichert:**
    - **Problem:** `auth_persistence.yml` speicherte nur admin, support, moodle
    - **Resultat:** Multicore User Passwörter gingen zwischen Runs verloren!
-   - **Symptom bei Fresh Install:**
-     - Passwörter wurden generiert
-     - Login auf WebUI funktionierte NICHT
-     - Smoketests schlugen fehl (401 Unauthorized)
-   - **Symptom bei Re-Run:**
-     - Neue Passwörter wurden generiert
-     - Alte Credentials funktionierten nicht mehr
-   - **Fix:** auth_persistence.yml speichert jetzt solr_cores mit allen Passwörtern
+   - **Zusammenspiel mit Bug #1 (v3.9.6):**
+     - Passwörter nicht gespeichert → beim nächsten Run neue generiert
+     - Zusammen mit Conditional-Bug → User-Management lief nicht
+     - **Resultat:** Login Probleme bei Re-Runs
+   - **Fix:** `auth_persistence.yml` speichert jetzt `solr_cores` mit allen Passwörtern
    - **Betroffene Dateien:**
      - `tasks/auth_persistence.yml` - v1.3.2 → v2.0.0
-   - **Impact:** Passwörter bleiben zwischen Runs erhalten
 
 3. **❌ `generated_credentials` nicht initialisiert:**
-   - **Problem:** Variable wurde nicht vor erstem Gebrauch initialisiert
+   - **Problem:** Variable wurde vor erstem Gebrauch nicht initialisiert
    - **Symptom:** Potenzielle Fehler beim Password-Generator
    - **Fix:** Initialisierung in `auth_management.yml` und `user_management.yml`
    - **Betroffene Dateien:**
