@@ -25,7 +25,7 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 ### ✨ New in v3.9.18 (Security Panel Proxy Fix)
 - 🔧 **Apache Proxy Fix**: Added ProxyPass for SolrCloud API paths (Will not really work)
 - 🐛 **Admin UI Compatibility**: Rewrites `/api/cluster/security/*` to Standalone endpoints
-- 📊 **Production Tested**: SRH Campus deployment - ok=506, changed=62, failed=0
+- 📊 **Production Tested**: Hetznercloud deployment
 - ✅ **Smoke Tests**: 10/10 tests PASSED (100% success rate)
 - 🏢 **Multi-Core Validated**: 4 cores running on 16GB server
 - 🔒 **Username Conventions**: Auto-role assignment (*_admin → admin, *_moodle → moodle, *_readonly → support)
