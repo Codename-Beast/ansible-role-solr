@@ -179,7 +179,7 @@
 
 - name: auth-mgmt - Initialize generated credentials tracker
   set_fact:
-    generated_credentials: []
+    generated_credentials: "{{ generated_credentials | default([]) }}"
     generate_admin_password: false
     generate_support_password: false
     generate_moodle_password: false

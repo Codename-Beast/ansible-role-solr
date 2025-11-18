@@ -1,7 +1,12 @@
 ---
 # Description: Generate password hash for Multi-Core mode users
+# Version: 2.0.0 - FIXED: Binary concatenation like auth_management.yml
 # This file is included by user_management.yml for each core user
 # Receives: core_user_item (tuple of core config and user config)
+# Changelog v2.0.0:
+#   - CRITICAL FIX: Changed to binary concatenation (like auth_management.yml)
+#   - REASON: Text concatenation produces DIFFERENT hashes than binary!
+#   - IMPACT: Multicore user passwords now work correctly
 
 - name: user-hash-mc - Extract user config
   set_fact:
@@ -20,32 +25,63 @@
   no_log: true
   when: mc_generated_cred is not none and mc_generated_cred.was_generated | default(false)
 
-- name: user-hash-mc - Generate random salt for {{ mc_user.username }}
-  command: openssl rand -base64 {{ solr_hash_salt_bytes | default(48) }}
-  register: mc_salt_output
+- name: user-hash-mc - Create temp directory for hashing
+  file:
+    path: /tmp/solr_mc_hash_{{ ansible_date_time.epoch }}_{{ mc_user.username | regex_replace('[^a-zA-Z0-9]', '_') }}
+    state: directory
+    mode: '0700'
+  register: mc_hash_temp_dir
+
+- name: user-hash-mc - Generate hash for {{ mc_user.username }} with binary concatenation
+  shell: |
+    set -e
+
+    # Detect base64 command
+    if base64 --help 2>&1 | grep -q 'wrap'; then
+      BASE64_CMD="base64 -w0"
+    else
+      BASE64_CMD="base64"
+    fi
+
+    # Generate random salt (32 bytes for SHA256)
+    openssl rand {{ solr_hash_salt_bytes | default(32) }} > {{ mc_hash_temp_dir.path }}/salt.bin
+
+    # Write password from environment variable (safe from injection)
+    printf '%s' "$USER_PASSWORD" > {{ mc_hash_temp_dir.path }}/pass.bin
+
+    # Binary concatenation (SAME as auth_management.yml!)
+    cat {{ mc_hash_temp_dir.path }}/salt.bin {{ mc_hash_temp_dir.path }}/pass.bin > {{ mc_hash_temp_dir.path }}/combined.bin
+
+    # Double SHA256
+    openssl dgst -sha256 -binary {{ mc_hash_temp_dir.path }}/combined.bin > {{ mc_hash_temp_dir.path }}/hash1.bin
+    openssl dgst -sha256 -binary {{ mc_hash_temp_dir.path }}/hash1.bin > {{ mc_hash_temp_dir.path }}/hash2.bin
+
+    # Base64 encode
+    HASH_B64=$(${BASE64_CMD} < {{ mc_hash_temp_dir.path }}/hash2.bin | tr -d '\n\r')
+    SALT_B64=$(${BASE64_CMD} < {{ mc_hash_temp_dir.path }}/salt.bin | tr -d '\n\r')
+
+    # Output format: "HASH SALT"
+    echo "${HASH_B64} ${SALT_B64}"
+  args:
+    executable: /bin/bash
+  environment:
+    USER_PASSWORD: "{{ mc_user.password }}"
+  register: mc_hash_output
   changed_when: false
   no_log: true
 
-- name: user-hash-mc - Store salt for {{ mc_user.username }}
+- name: user-hash-mc - Cleanup temp directory
+  file:
+    path: "{{ mc_hash_temp_dir.path }}"
+    state: absent
+  when:
+    - mc_hash_temp_dir is defined
+    - mc_hash_temp_dir.path is defined
+  failed_when: false
+
+- name: user-hash-mc - Store hash
   set_fact:
-    mc_salt: "{{ mc_salt_output.stdout }}"
-  no_log: true
-
-- name: user-hash-mc - Generate first SHA256 hash for {{ mc_user.username }}
-  shell: echo -n "{{ mc_salt }}{{ mc_user.password }}" | sha256sum | awk '{print $1}'
-  register: mc_first_hash
-  changed_when: false
-  no_log: true
-
-- name: user-hash-mc - Generate second SHA256 hash for {{ mc_user.username }}
-  shell: echo -n "{{ mc_first_hash.stdout }}" | sha256sum | awk '{print $1}'
-  register: mc_second_hash
-  changed_when: false
-  no_log: true
-
-- name: user-hash-mc - Combine salt and double hash for {{ mc_user.username }}
-  set_fact:
-    mc_combined_hash: "{{ mc_salt }} {{ mc_second_hash.stdout }}"
+    mc_combined_hash: "{{ mc_hash_output.stdout }}"
   no_log: true
 
 - name: user-hash-mc - Determine roles for {{ mc_user.username }}

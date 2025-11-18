@@ -7,6 +7,130 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [3.9.5] - 2025-11-18 🚨 CRITICAL: Password Persistence & Hash Algorithm Fix
+
+**Type:** Patch Release - **CRITICAL BUG FIXES**
+**Status:** 🔧 **FIXED** - Multicore User Passwörter und Hash-Algorithmus behoben
+
+### 🚨 CRITICAL BUGS FIXED
+
+1. **❌ FALSCHER Hash-Algorithmus für Multicore User:**
+   - **Problem:** `user_management_hash_multicore.yml` verwendete TEXT-Konkatenation
+   - **Auth_management.yml verwendete:** BINARY-Konkatenation
+   - **Resultat:** Unterschiedliche Hashes für identisches Passwort!
+   - **Symptom:** Multicore User konnten sich NICHT anmelden, 401 Unauthorized
+   - **Fix:** Umstellung auf binary concatenation (identisch zu auth_management.yml)
+   - **Betroffene Dateien:**
+     - `tasks/user_management_hash_multicore.yml` - v1.0.0 → v2.0.0
+   - **Impact:** Multicore User Passwörter funktionieren jetzt korrekt
+
+2. **❌ Multicore User Passwörter wurden NICHT persistent gespeichert:**
+   - **Problem:** `auth_persistence.yml` speicherte nur admin, support, moodle
+   - **Resultat:** Multicore User Passwörter gingen zwischen Runs verloren!
+   - **Symptom bei Fresh Install:**
+     - Passwörter wurden generiert
+     - Login auf WebUI funktionierte NICHT
+     - Smoketests schlugen fehl (401 Unauthorized)
+   - **Symptom bei Re-Run:**
+     - Neue Passwörter wurden generiert
+     - Alte Credentials funktionierten nicht mehr
+   - **Fix:** auth_persistence.yml speichert jetzt solr_cores mit allen Passwörtern
+   - **Betroffene Dateien:**
+     - `tasks/auth_persistence.yml` - v1.3.2 → v2.0.0
+   - **Impact:** Passwörter bleiben zwischen Runs erhalten
+
+3. **❌ `generated_credentials` nicht initialisiert:**
+   - **Problem:** Variable wurde nicht vor erstem Gebrauch initialisiert
+   - **Symptom:** Potenzielle Fehler beim Password-Generator
+   - **Fix:** Initialisierung in `auth_management.yml` und `user_management.yml`
+   - **Betroffene Dateien:**
+     - `tasks/auth_management.yml` - v1.3.2 → v1.3.3
+     - `tasks/user_management.yml` - v2.0.0 → v2.0.1
+   - **Impact:** Robustere Password-Generierung
+
+### 📝 TECHNISCHE DETAILS
+
+**Hash-Algorithmus Fix:**
+```bash
+# ALT (v1.0.0 - FALSCH!): Text-Konkatenation
+echo -n "${SALT}${PASSWORD}" | sha256sum  # Produziert falsche Hashes!
+
+# NEU (v2.0.0 - KORREKT!): Binary-Konkatenation
+cat salt.bin pass.bin > combined.bin      # Identisch zu auth_management.yml
+openssl dgst -sha256 -binary combined.bin
+```
+
+**Warum ist das kritisch?**
+- Text-Konkatenation: `echo -n` konvertiert zu UTF-8 String
+- Binary-Konkatenation: Rohe Bytes ohne Konvertierung
+- **Resultat:** Unterschiedliche SHA256-Hashes!
+
+**Password-Persistierung Fix:**
+```yaml
+# NEU in auth_persistence.yml:
+solr_cores:
+  - name: "moodle_prod"
+    users:
+      - username: "moodle_prod_rw"
+        password: "GeneratedPass123"  # Wird jetzt gespeichert!
+```
+
+**Flow bei Fresh Install (VORHER - DEFEKT):**
+1. Keine host_vars → Passwörter werden generiert
+2. Multicore User bekommen falsche Hashes (text statt binary)
+3. auth_persistence.yml speichert NUR admin/support/moodle
+4. Multicore User Passwörter gehen verloren
+5. **Login fehlgeschlagen! 401 Unauthorized**
+
+**Flow bei Fresh Install (JETZT - BEHOBEN):**
+1. Keine host_vars → Passwörter werden generiert
+2. Multicore User bekommen korrekte Hashes (binary)
+3. auth_persistence.yml speichert ALLE Passwörter inkl. multicore
+4. credentials_display.yml zeigt alle Passwörter
+5. **Login funktioniert! ✅**
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- `tasks/user_management_hash_multicore.yml` - v1.0.0 → v2.0.0 (Binary Hash)
+- `tasks/auth_persistence.yml` - v1.3.2 → v2.0.0 (Multicore Persistence)
+- `tasks/auth_management.yml` - v1.3.2 → v1.3.3 (Variable Init)
+- `tasks/user_management.yml` - v2.0.0 → v2.0.1 (Variable Init)
+- `CHANGELOG.md` - v3.9.5 Dokumentation
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität.
+
+**Migration:**
+- Automatisch beim nächsten Deployment
+- Multicore User mit alten (falschen) Hashes werden neu gehasht
+- Passwörter werden in host_vars gespeichert
+
+### 🎯 TESTING-CHECKLISTE
+
+- [ ] Fresh Install: Alle Passwörter werden in host_vars gespeichert
+- [ ] Fresh Install: WebUI Login funktioniert mit generierten Passwörtern
+- [ ] Fresh Install: Multicore User Login funktioniert (kein 401)
+- [ ] Re-Run: Passwörter bleiben gleich (keine Neugenerierung)
+- [ ] Re-Run: Login funktioniert weiterhin mit gleichen Credentials
+- [ ] Smoketests: Erfolgreich mit gespeicherten Credentials
+
+### 🔍 ROOT CAUSE ANALYSIS
+
+**Warum ist das passiert?**
+1. `user_management_hash_multicore.yml` wurde mit anderer Methode implementiert
+2. Text-basierte Hashing schien zu funktionieren (Tests ohne echten Login)
+3. Multicore Persistence wurde in auth_persistence.yml vergessen
+4. Problem trat erst bei Fresh Install + WebUI Login auf
+
+**Lessons Learned:**
+- Hash-Algorithmen müssen 100% identisch sein (binary vs. text!)
+- Alle User-Typen müssen in Persistence-Layer berücksichtigt werden
+- Testing muss echten WebUI-Login einschließen, nicht nur API-Tests
+
+---
+
 ## [3.9.4] - 2025-11-18 🔧 HEALTH CHECK & SECURITY.JSON FIX
 
 **Type:** Patch Release - Critical Bug Fixes

@@ -1,8 +1,12 @@
 ---
-# Version: 1.3.2
+# Version: 2.0.0
 # Description: Persist Solr credentials with idempotency and selective updates
+# Changelog v2.0.0:
+#   - CRITICAL FIX: Persist multicore user passwords to host_vars
+#   - REASON: Multicore user passwords were lost between runs!
+#   - IMPACT: Passwords now persist correctly for all users
 # Changelog v1.3.2:
-#   - FIXED: Support for dynamic inventory 
+#   - FIXED: Support for dynamic inventory
 # Changelog v1.3.1:
 #   - FIXED: No more duplicate entries in host_vars (proper marker usage)
 #   - FIXED: Idempotent backup (no timestamp in filename)
@@ -39,6 +43,37 @@
   register: host_vars_file
   delegate_to: localhost
 
+- name: auth-persist - Build multicore credentials block
+  set_fact:
+    multicore_creds_block: |
+      {% if solr_cores is defined and solr_cores | length > 0 %}
+      # Multi-Core User Credentials
+      solr_cores:
+      {% for core in solr_cores %}
+        - name: "{{ core.name }}"
+      {% if core.domain is defined %}
+          domain: "{{ core.domain }}"
+      {% endif %}
+      {% if core.users is defined and core.users | length > 0 %}
+          users:
+      {% for user in core.users %}
+            - username: "{{ user.username }}"
+      {% set gen_cred = generated_credentials | selectattr('core', 'equalto', core.name) | selectattr('username', 'equalto', user.username) | list | first | default(None) %}
+      {% if gen_cred is not none and gen_cred.was_generated %}
+              password: "{{ gen_cred.password }}"  # AUTO-GENERATED
+      {% elif user.password is defined %}
+              password: "{{ user.password }}"
+      {% else %}
+              password: ""  # NOT SET - Will be auto-generated on next run!
+      {% endif %}
+      {% if user.roles is defined %}
+              roles: {{ user.roles | to_json }}
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+
 - name: auth-persist - Update credentials in host_vars
   blockinfile:
     path: "{{ host_vars_dir }}/{{ inventory_hostname }}"
@@ -54,6 +89,7 @@
       # IMPORTANT: Only change these values if you want to update credentials
       # After changing, run the playbook to apply changes
 
+      # Global Admin Users
       solr_admin_password: "{{ solr_admin_password }}"
       solr_support_password: "{{ solr_support_password }}"
       solr_moodle_password: "{{ solr_moodle_password }}"
@@ -62,8 +98,11 @@
       solr_support_user: "{{ solr_support_user | default('support') }}"
       solr_moodle_user: "{{ solr_moodle_user | default('moodle') }}"
 
+      # Core Configuration
       solr_core_name_override: "{{ solr_core_name }}"
       solr_port: {{ solr_port }}
+
+      {{ multicore_creds_block }}
   delegate_to: localhost
   run_once: true
 
@@ -77,11 +116,17 @@
       - "Control Node: $HOME/.ansible-solr-passwords/{{ inventory_hostname }}/"
       - "Container: /var/solr/data/security.json (hashes only)"
       - ""
+      - "SAVED CREDENTIALS:"
+      - "  - Global: admin, support, moodle"
+      - "  - Multicore: {{ solr_cores | length if solr_cores is defined else 0 }} cores"
+      - "  - Generated: {{ generated_credentials | selectattr('was_generated') | list | length if generated_credentials is defined else 0 }} passwords"
+      - ""
       - "IDEMPOTENCY:"
       - "  - Multiple runs: No duplicates"
       - "  - Only updates: Changed values"
       - ""
       - "SECURITY:"
+      - "  - Host vars: Plaintext passwords"
       - "  - Container: Hashes only (SHA256 double-hash)"
       - ""
       - "========================================"
