@@ -7,7 +7,7 @@
 ![Tests](https://img.shields.io/badge/tests-v3.9.7%20validation%20pending-yellow)
 ![Status](https://img.shields.io/badge/status-awaiting%20v3.9.7%20test-yellow)
 
-Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
+Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with BasicAuth, Moodle schema support (file indexing), full idempotency, user management, automated backup, and comprehensive monitoring.
 
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
@@ -122,39 +122,38 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 - ✅ **Performance Tests** - Memory usage and query response times
 
 ### Production Validation (Hetzner Cloud)
-- ⚠️ **v3.9.6 Test Pending** - Hardware validation on Hetzner Cloud required
+- ⚠️ **v3.9.7 Test Pending** - Hardware validation on Hetzner Cloud required
 - 📊 **Last Test (v3.9.3)** - Play recap: ok=496, changed=37 (failed on re-run)
 - ✅ **Idempotency Note** - Minimum ~37 changes always applied (configuration updates, permissions, health checks, etc.)
-- ⚠️ **Expected Behavior** - "SKIPPING deployment - no changes detected" message not shown with existing containers
-- 🔧 **Critical Fixes Applied** - v3.9.4-v3.9.6 fixes should resolve re-run authentication issues
+- 🔧 **Critical Fixes Applied** - v3.9.4-v3.9.7 fixes should resolve re-run authentication issues
 - ✅ **Expected Outcome** - Fresh installs AND re-runs without container deletion should both work
 
 ---
 
-## 📊FEATURE SUPPORT MATRIX
+## 📊 FEATURE SUPPORT MATRIX
 
 ### 🔐 SECURITY & AUTHENTICATION FRAMEWORK
 
 | Feature | Admin | Support | Customer | Anonymous | Implementation | Status |
 |---------|-------|---------|----------|-----------|----------------|--------|
 | **Authentication Layer** |
-| BasicAuth Login | ✅ | ✅ | ✅ | ❌ | SHA-256 Hashing | ✅Ready |
-| Session Management | ✅ | ✅ | ✅ | ❌ | Solr Native | ✅Ready |
-| Password Rotation | ✅ | ✅ | ✅ | ❌ | Zero-Downtime API | ✅Ready |
+| BasicAuth Login | ✅ | ✅ | ✅ | ❌ | SHA-256 Hashing | ✅ Ready |
+| Session Management | ✅ | ✅ | ✅ | ❌ | Solr Native | ✅ Ready |
+| Password Rotation | ✅ | ✅ | ✅ | ❌ | Zero-Downtime API | ✅ Ready |
 | **Authorization Matrix** |
-| Security Panel Access | ✅ | ❌ | ❌ | ❌ | security-read/edit | ✅Ready |
-| Core Administration | ✅ | ❌ | ❌ | ❌ | core-admin-edit | ✅Ready |
-| Schema Management | ✅ | ❌ | ❌ | ❌ | schema-edit | ✅Ready |
-| Collection Admin | ✅ | ❌ | ❌ | ❌ | collection-admin-edit | ✅Ready |
+| Security Panel Access | ✅ | ❌ | ❌ | ❌ | security-read/edit | ✅ Ready |
+| Core Administration | ✅ | ❌ | ❌ | ❌ | core-admin-edit | ✅ Ready |
+| Schema Management | ✅ | ❌ | ❌ | ❌ | schema-edit | ✅ Ready |
+| Collection Admin | ✅ | ❌ | ❌ | ❌ | collection-admin-edit | ✅ Ready |
 | **Data Operations** |
-| Document Read | ✅ | ✅ | ✅ | ❌ | Collection-scoped | ✅Ready |
-| Document Write/Index | ✅ | ❌ | ✅ | ❌ | Collection-scoped | ✅Ready |
+| Document Read | ✅ | ✅ | ✅ | ❌ | Collection-scoped | ✅ Ready |
+| Document Write/Index | ✅ | ❌ | ✅ | ❌ | Collection-scoped | ✅ Ready |
 | Document Delete | ✅ | ❌ | ❌ | ❌ | Admin-only | ✅ v3.4 |
 | **System Operations** |
 | Metrics Access | ✅ | ✅ | ❌ | ❌ | /admin/metrics | ✅ v3.4 |
 | Backup Operations | ✅ | ❌ | ❌ | ❌ | /admin/cores | ✅ v3.4 |
 | Log Management | ✅ | ✅ | ❌ | ❌ | /admin/logging | ✅ v3.4 |
-| Health Checks | ✅ | ✅ | ✅ | ✅ | Public endpoints | ✅Ready |
+| Health Checks | ✅ | ✅ | ✅ | ✅ | Public endpoints | ✅ Ready |
 
 ### 🏗️ INFRASTRUCTURE & DEPLOYMENT MATRIX
 
@@ -221,11 +220,11 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 ## 📋 Requirements
 
 ### System Requirements
-- **OS**:  Debian 11/12
+- **OS**: Debian 11/12
 - **Ansible**: 2.10.12 or higher
 - **Docker**: 20.10+ with Compose v2
 - **Apache**
-- **Lets Entcrypt**
+- **Let's Encrypt**
 
 ### Web Server & SSL Requirements (Must be pre-configured)
 - **Apache Web Server** with required modules:
@@ -250,7 +249,17 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 ---
 
 ## 🚀 Quick Start
+
 ### 1. Install the Role
+```bash
+# From Git
+git clone -b main \
+  https://github.com/Codename-Beast/ansible-role-solr.git roles/solr
+
+# Or from Ansible Galaxy (when published)
+ansible-galaxy install eledia.solr
+```
+
 ### 2. Create Playbook
 ```yaml
 # playbook.yml
@@ -264,12 +273,12 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
         moodle_app_domain: "moodle.eledia.de"
         solr_core_name: "eledia_core"
         # Use ansible-vault for passwords!
-        solr_admin_password: "{{ vault_solr_admin_password }} or Plaintext"
-        solr_support_password: "{{ vault_solr_support_password }} or Plaintext"
-        solr_moodle_password: "{{ vault_solr_moodle_password }}  or Plaintext"
+        solr_admin_password: "{{ vault_solr_admin_password }}"  # or Plaintext
+        solr_support_password: "{{ vault_solr_support_password }}"  # or Plaintext
+        solr_moodle_password: "{{ vault_solr_moodle_password }}"  # or Plaintext
 ```
 
-### 4. Run
+### 3. Run
 ```bash
 ansible-playbook -i inventory/hosts playbook.yml
 ```
@@ -280,8 +289,8 @@ ansible-playbook -i inventory/hosts playbook.yml
 
 ### Required Variables
 ```yaml
-customer_name: "eledia.de"           # Customer identifier
-moodle_app_domain: "moodle.eledia.de" # Your Moodle domain
+customer_name: "eledia.de"              # Customer identifier
+moodle_app_domain: "moodle.eledia.de"   # Your Moodle domain
 ```
 
 ### Authentication (Use ansible-vault!)
@@ -298,10 +307,10 @@ solr_moodle_user: "moodle"               # Default: moodle
 
 ### Container Configuration
 ```yaml
-solr_version: "9.9.0"  # Upgrade to 9.10.0 validated and ready (compatible, not tested)
-solr_port: 8983                          # Solr port (default: 8983)
-solr_heap_size: "2g"                     # Java heap size
-solr_memory_limit: "2g"                  # Container memory limit
+solr_version: "9.9.0"        # Upgrade to 9.10.0 validated and ready (compatible, not tested)
+solr_port: 8983              # Solr port (default: 8983)
+solr_heap_size: "2g"         # Java heap size
+solr_memory_limit: "2g"      # Container memory limit
 ```
 
 ### Directory Structure
@@ -377,7 +386,7 @@ curl -u admin:password "http://localhost:8983/solr/admin/health"
 # Development: Minimal overhead
 solr_health_check_mode: "basic"
 
-#Ready: Balanced monitoring (default)
+# Production: Balanced monitoring (default)
 solr_health_check_mode: "standard"
 solr_health_disk_threshold: 10      # Alert if < 10% free
 solr_health_memory_threshold: 90    # Alert if > 90% used
@@ -398,42 +407,34 @@ solr_health_check_enabled: false
 
 Deploy up to **4-5 Moodle instances** on a 16GB server, or **10 instances** on a 32GB server with automatic RAM management and password generation.
 
-#### ⚠️ RAM Calculation (Fixed)
+#### ⚠️ RAM Calculation
 
-**Problem:** Caches sind **PER-CORE** und multiplizieren sich (nicht geteilt)!
-
-**Korrekte Berechnung basierend auf Offizeler Dokumentation**
+**Correct calculation based on official documentation:**
 
 ```
-16GB Server mit 8GB Heap:
+16GB Server with 8GB Heap:
 ├── JVM Heap:        8GB  (Solr/Lucene operations)
-├── OS Disk Cache:   6GB  (MMapDirectory)
+├── OS Disk Cache:   6GB  (MMapDirectory - CRITICAL!)
 └── System:          2GB  (Docker, OS processes)
 
-Pro Core RAM-Bedarf (effektiv):
+Per Core RAM Requirements:
 ├── ramBufferSizeMB:  75-100MB (PER-CORE!)
-├── filterCache:      ~50MB    (512 entries @ 12.5MB max, PER-CORE!)
+├── filterCache:      ~50MB    (PER-CORE!)
 ├── queryResultCache: ~50MB    (PER-CORE!)
 ├── documentCache:    ~50MB    (PER-CORE!)
-├── Misc/Temp:        4-6GB   (global, nicht pro Core)
-└── Working Memory:   Rest    (Query processing)
+└── Working Memory:   Rest
 
-EFFEKTIV PRO CORE: ~1.5-2GB
+EFFECTIVE PER CORE: ~1.5-2GB
 ```
 
-**Limits für Moodle mit File-Indexing:**
+**Limits for Moodle with File-Indexing:**
 
 | Server RAM | Heap | OS Cache | Max Cores | RAM/Core | Status |
 |------------|------|----------|-----------|----------|--------|
-| **16GB** | 8GB | 6GB | **4-5** | ~1.5-2GB | ✅ Empfohlen |
-| 16GB | 8GB | 6GB | 6 | ~1GB | ⚠️ Performance-Einbußen |
-| 16GB | 8GB | 6GB | >6 | <1GB | ❌ Deployment blockiert |
-| **32GB** | 20GB | 10GB | **10** | ~1.5-2GB | ✅ Empfohlen |
-
-**Quellen:**
-- Apache Solr Memory Tuning Guide
-- Moodle.org: 10-20GB Heap für File-Indexing
-- Lucidworks Best Practices, Solr 9.x Performance Guide
+| **16GB** | 8GB | 6GB | **4-5** | ~1.5-2GB | ✅ Recommended |
+| 16GB | 8GB | 6GB | 6 | ~1GB | ⚠️ Performance degradation |
+| 16GB | 8GB | 6GB | >6 | <1GB | ❌ Deployment blocked |
+| **32GB** | 20GB | 10GB | **10** | ~1.5-2GB | ✅ Recommended |
 
 #### Multi-Core Example Configuration
 
@@ -441,7 +442,7 @@ EFFEKTIV PRO CORE: ~1.5-2GB
 # Global settings (16GB Server, max 4-5 cores)
 customer_name: "school-district"
 solr_app_domain: "solr.schools.edu"
-solr_heap_size: "8g"            # 8GB für 16GB Server
+solr_heap_size: "8g"            # 8GB for 16GB Server
 solr_memory_limit: "14g"        # Container: 8GB Heap + 6GB OS Cache
 solr_webserver: "nginx"
 solr_ssl_enabled: true
@@ -452,7 +453,7 @@ solr_cores:
     domain: "moodle.gymnasium-nord.de"
     users:
       - username: "moodle_gym_nord"
-        password: "GymNord2024SecureKey"  
+        password: "GymNord2024SecureKey"
         roles: ["core-admin-gymnasium_nord_core"]
 
   - name: "realschule_sued"
@@ -480,31 +481,7 @@ solr_cores:
 **Generated passwords:**
 - 24 characters long
 - Base64-encoded (alphanumeric + safe special chars)
-- Displayed after deployment with hostvars example
-
-**Deployment Output Example:**
-```
-╔══════════════════════════════════════════════════════════════════════╗
-║                 🔐 GENERATED CREDENTIALS                             ║
-║                                                                      ║
-║  ⚠️  WICHTIG: Passwörter wurden automatisch generiert!               ║
-║  Bitte in host_vars speichern und WebUI-Login testen!                ║
-╠══════════════════════════════════════════════════════════════════════╣
-║  ✨ Realschule Süd User (NEU GENERIERT):                             ║
-║     Username: moodle_real_sued                                       ║
-║     Password: Xk9mP2vL7nR4wQ8tY5sH6jF3                               ║
-║     Hinzufügen zu host_vars:                                         ║
-║     solr_cores:                                                      ║
-║       - name: "realschule_sued"                                      ║
-║         users:                                                       ║
-║           - username: "moodle_real_sued"                             ║
-║             password: "Xk9mP2vL7nR4wQ8tY5sH6jF3"                     ║
-║                                                                      ║
-║  🌐 WEBUI LOGIN TESTEN:                                              ║
-║  curl -u moodle_real_sued:Xk9mP2vL7nR4wQ8tY5sH6jF3 \                 ║
-║ https://solr.schools.edu/solr-admin/realschule_sued_core/admin/ping  ║
-╚══════════════════════════════════════════════════════════════════════╝
-```
+- Displayed after deployment with host_vars example
 
 **IMPORTANT:** Copy generated passwords to `host_vars` immediately! Otherwise, new passwords will be generated on next deployment.
 
@@ -526,7 +503,7 @@ password: "My-P@ssw0rd!#2024"  # Quotes required for @ ! # : etc.
 
 ### Example 1: First Installation
 ```yaml
-- hosts:{{hosts}}
+- hosts: solr_servers
   become: true
   roles:
     - role: solr
@@ -575,15 +552,15 @@ solr_force_recreate: true  # Force recreate with new version
 ansible-playbook -i inventory playbook.yml
 ```
 
-### Example 6: Multi-Core Deployment (v3.9.0+ )
+### Example 6: Multi-Core Deployment (v3.9.0+)
 
-Deploy 10 school Moodle instances on one Solr server (**32GB RAM erforderlich!**):
+Deploy 10 school Moodle instances on one Solr server (**32GB RAM required!**):
 
 ```yaml
-# host_vars/solr-prod-01.yml (32GB Server für 10 Cores)
+# host_vars/solr-prod-01.yml (32GB Server for 10 cores)
 customer_name: "schulverbund-nord"
 solr_app_domain: "solr.schulverbund.de"
-solr_heap_size: "20g"       # : 20GB für 10 Cores (~1.5GB/Core effektiv)
+solr_heap_size: "20g"       # 20GB for 10 cores (~1.5GB/core effective)
 solr_memory_limit: "28g"    # Container: 20GB Heap + 8GB OS Cache
 
 # Define all 10 cores
@@ -613,14 +590,14 @@ ansible-playbook -i inventory playbook.yml
 
 # Result:
 # - 10 isolated cores created
-# - ~1.5-2GB heap per core effektiv (!)
+# - ~1.5-2GB heap per core effective
 # - Missing passwords auto-generated and displayed
 # - Each school has dedicated core + user
 ```
 
 **16GB Server Alternative (max 4 cores):**
 ```yaml
-# Für 16GB Server: Nur 4 Schulen möglich
+# For 16GB Server: Only 4 schools possible
 solr_heap_size: "8g"
 solr_memory_limit: "14g"
 solr_cores:
@@ -632,7 +609,7 @@ solr_cores:
 
 **Add cores later (idempotent):**
 ```yaml
-# Für 32GB Server: 11. Core hinzufügen
+# For 32GB Server: Add 11th core
 solr_cores:
   # ... existing 10 cores ...
   - name: "berufsschule_ost"  # NEW (11th core)
@@ -644,7 +621,7 @@ solr_cores:
 # Re-run playbook - only new core is created, existing cores untouched
 ansible-playbook -i inventory playbook.yml
 
-# Warning: >10 cores, ~1.3GB per core (Performance-Einbußen)
+# Warning: >10 cores, ~1.3GB per core (performance degradation)
 ```
 
 ---
@@ -679,7 +656,7 @@ ansible-playbook -i inventory playbook.yml
            │
 ┌──────────▼───────────┐
 │ 7. Container Deploy  │ → Deploys with rollback protection
-│   ┌───────────────┐  │ 
+│   ┌───────────────┐  │
 │   │ BLOCK         │  │   ├─ Check config changes
 │   │  Deploy       │  │   ├─ Stop if needed
 │   └───────┬───────┘  │   ├─ Start with init
@@ -832,15 +809,15 @@ solr_version: "9.9.0"  # Check for updates regularly
 
 ## 🔄 Idempotency Scenarios
 
-### Scenario 1: No Critical Changes (Minimal Updates)
+### Scenario 1: No Critical Changes
 ```bash
 $ ansible-playbook playbook.yml
 # ✅ Container keeps running
 # ✅ No restart
 # ✅ Execution: ~30 seconds
 # ✅ Play recap: ok=496, changed=37 (typical values)
-# ℹ️ Note: "SKIPPING deployment" message not shown with existing containers
-#          Minimum ~40 changes always applied (permissions, config validation, health checks)
+# ℹ️ Note: Minimum ~37 changes always applied
+#          (permissions, config validation, health checks)
 ```
 
 ### Scenario 2: Password Change Only
@@ -848,13 +825,11 @@ $ ansible-playbook playbook.yml
 # Edit host_vars: solr_admin_password: "new_password"
 $ ansible-playbook playbook.yml
 
-# ✅ API update only
-# ✅ NO container restart
-# ✅ Downtime: 0 seconds
-# ✅ Password active immediately
+# ✅ Container restart (15-30s downtime)
+# ✅ Password active after restart
 ```
 
-### Scenario 3: Config File Change (Minimal Downtime)
+### Scenario 3: Config File Change
 ```bash
 # Edit: solr_heap_size: "4g"
 $ ansible-playbook playbook.yml
@@ -887,7 +862,7 @@ $ ansible-playbook playbook.yml
 
 ---
 
-## Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Common Issues
 
@@ -913,12 +888,7 @@ docker inspect <container_name> | grep -A 10 Health
 # Check Solr logs
 docker logs <container_name>
 
-# Common causes:
-# - Insufficient memory → Increase solr_heap_size
-# - Port conflict → Check port availability
-# - Invalid security.json → Validate JSON syntax
-
-# Solution:
+# Solution: Force recreate
 ansible-playbook playbook.yml -e "solr_force_recreate=true"
 ```
 
@@ -927,8 +897,6 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 # Test auth manually
 curl -u admin:password http://localhost:8983/solr/admin/info/system
 
-# Should return 200, not 401
-
 # Verify security.json deployed
 docker exec <container_name> cat /var/solr/data/security.json
 
@@ -936,26 +904,12 @@ docker exec <container_name> cat /var/solr/data/security.json
 ansible-playbook playbook.yml -e "solr_force_reconfigure_auth=true"
 ```
 
-#### 4. Deployment Fails Mid-Way
-```bash
-# Check deployment log
-cat /var/log/solr_deployment_*.log
-
-# Rollback is automatic, but if manual intervention needed:
-cd /opt/solr/<customer>/
-docker compose down
-docker compose up -d
-
-# Fix issue, then re-run Ansible
-```
-
-#### 5. Port Already in Use
+#### 4. Port Already in Use
 ```bash
 # Find process using port
 ss -ltnp | grep :8983
 
-# Kill process or change port
-# In host_vars:
+# Change port in host_vars:
 solr_port: 8984
 
 # Re-run playbook
@@ -1141,13 +1095,7 @@ curl http://localhost:8983/solr/admin/ping?wt=json
 
 ---
 
-## 🧪 Testing Status
-
-### v3.9.7 - Pending Hardware Validation
-
-**Status:** ⚠️ **TESTING REQUIRED**
-
-All critical fixes + template fix implemented and committed, but v3.9.7 hardware validation on Hetzner Cloud pending:
+## 📖 Documentation
 
 - ✅ **Code Changes:** All conditionals, hash algorithms, persistence logic, and template syntax fixed
 - ✅ **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben (v3.9.7)
@@ -1230,8 +1178,8 @@ All critical fixes + template fix implemented and committed, but v3.9.7 hardware
 ## 👤 Author
 
 **Bernd Schreistetter**
-- Role: DevOps Engineer / Administrator / Laravel Developer
-- Organization: Eledia Gmbh
+Role: DevOps Engineer / Administrator / Laravel Developer
+Organization: Eledia GmbH
 
 ---
 
@@ -1241,6 +1189,4 @@ MIT License
 
 ---
 
-**Made with ❤️ for the Eledia & Moodle**
-
-**Fully documented** ✅ 
+**Made with ❤️ for Eledia & Moodle Community**
