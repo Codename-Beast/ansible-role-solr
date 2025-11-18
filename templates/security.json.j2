@@ -17,10 +17,14 @@
 
  Current Implementation:
  - Global permissions only (admin, support, moodle roles)
- - All users can access all cores (Solr Standalone limitation)
- - Admin has full access to security, schema, config APIs
+ - Admin has FULL access via "all" permission (for Admin UI to work)
  - Support has read-only access to configs and metrics
  - Moodle has read/write access to all cores for indexing
+
+ Permission Ordering (CRITICAL):
+ - "all" permission for admin MUST be FIRST
+ - Otherwise Admin UI will break (many APIs needed)
+ - Solr uses FIRST matching permission only
 #}
 {% set multi_core = (solr_cores | default([]) | length) > 0 %}
 {
@@ -55,33 +59,22 @@
   "authorization": {
     "class": "solr.RuleBasedAuthorizationPlugin",
     "permissions": [
+      {# CRITICAL: "all" permission for admin MUST BE FIRST for Admin UI to work #}
+      { "name": "all", "role": "admin" },
+
       {# Health check endpoints - accessible without auth #}
       { "name": "health-check-ping", "path": "/admin/ping", "role": null },
       { "name": "health-check-detailed", "path": "/admin/health", "role": null },
       { "name": "health-check-simple", "path": "/admin/healthcheck", "role": null },
 
-      {# Admin-only operations #}
-      { "name": "security-read", "role": "admin" },
-      { "name": "security-edit", "role": "admin" },
-      { "name": "schema-read", "role": "admin" },
-      { "name": "schema-edit", "role": "admin" },
-      { "name": "config-edit", "role": "admin" },
-      { "name": "core-admin-edit", "role": "admin" },
-      { "name": "collection-admin-edit", "role": "admin" },
-
-      {# Support can read configs and metrics #}
+      {# Support read-only permissions #}
       { "name": "config-read", "role": ["admin", "support"] },
-      { "name": "core-admin-read", "role": ["admin", "support"] },
-      { "name": "collection-admin-read", "role": ["admin", "support"] },
       { "name": "metrics-read", "role": ["admin", "support"] },
       { "name": "health", "role": ["admin", "support"] },
 
       {# Global read/write permissions - applies to ALL cores in standalone mode #}
       { "name": "read", "role": ["admin", "support", "moodle"] },
-      { "name": "update", "role": ["admin", "moodle"] },
-
-      {# Fallback: admin has access to everything #}
-      { "name": "all", "role": "admin" }
+      { "name": "update", "role": ["admin", "moodle"] }
     ],
     "user-role": {
       "{{ solr_admin_user | default('admin') }}": ["admin"],
@@ -95,10 +88,19 @@
 {% if multi_core %}
 {# Multi-Core Mode: Add user-role mappings from cores #}
 {# NOTE: In standalone mode, these users will have access to ALL cores, not just their assigned core #}
+{# Auto-assign roles based on username conventions: *_admin → admin, *_moodle → moodle, *_readonly → support #}
 {% for core in solr_cores %}
 {% if core.users is defined %}
 {% for user in core.users %}
+{% if user.username.endswith('_admin') %}
+      ,"{{ user.username }}": ["admin"]
+{% elif user.username.endswith('_moodle') %}
+      ,"{{ user.username }}": ["moodle"]
+{% elif user.username.endswith('_readonly') %}
+      ,"{{ user.username }}": ["support"]
+{% else %}
       ,"{{ user.username }}": {{ user.roles | default(['moodle']) | to_json }}
+{% endif %}
 {% endfor %}
 {% endif %}
 {% endfor %}
