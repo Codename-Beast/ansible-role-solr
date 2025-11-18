@@ -1,11 +1,17 @@
 {#
- Security configuration template for Solr (v3.9.0+)
+ Security configuration template for Solr (v3.9.8+)
  Features:
  1. Multi-Core Support: Dynamic permissions for multiple cores
  2. Single-Core Backward Compatibility: Works with legacy setups
  3. Per-Core Access Control: Each core can have dedicated users
  4. Dynamic User Management: solr_additional_users support
  5. Automatic Role Assignment: core-admin-<corename> roles
+
+ IMPORTANT (v3.9.8 Security Fix):
+ - Permission order matters! Solr checks permissions in order.
+ - Core-specific permissions MUST come BEFORE the catch-all "all" permission
+ - The "all" permission is now at the END as a fallback for admin users
+ - This allows core-specific users to access their cores without being blocked
 #}
 {% set multi_core = (solr_cores | default([]) | length) > 0 %}
 {
@@ -43,7 +49,6 @@
       { "name": "health-check-ping", "path": "/admin/ping", "role": null },
       { "name": "health-check-detailed", "path": "/admin/health", "role": null },
       { "name": "health-check-simple", "path": "/admin/healthcheck", "role": null },
-      { "name": "all", "role": "admin" },
       { "name": "security-read", "role": "admin" },
       { "name": "security-edit", "role": "admin" },
       { "name": "schema-read", "role": "admin" },
@@ -55,7 +60,7 @@
       { "name": "collection-admin-read", "role": "admin" },
       { "name": "collection-admin-edit", "role": "admin" },
       { "name": "metrics-read", "role": ["admin", "support"] },
-      { "name": "health", "role": ["admin", "support"] }{% if multi_core %},{% endif %}
+      { "name": "health", "role": ["admin", "support"] },
 {% if multi_core %}
 {# Multi-Core Mode: Create permissions for each core #}
 {% for core in solr_cores %}
@@ -64,7 +69,7 @@
         "collection": "{{ core.name }}_core",
         "path": ["/*"],
         "method": ["GET", "HEAD", "POST", "PUT", "DELETE"],
-        "role": ["core-admin-{{ core.name }}_core"]
+        "role": ["core-admin-{{ core.name }}_core", "admin"]
       },
       {
         "name": "core-{{ core.name }}_core-read",
@@ -72,16 +77,18 @@
         "path": ["/*"],
         "method": ["GET", "HEAD"],
         "role": ["support"]
-      }{% if not loop.last %},{% endif %}
+      },
 {% endfor %}
+      {# IMPORTANT: "all" permission at the END as fallback for admin #}
+      { "name": "all", "role": "admin" }
 {% else %}
 {# Single-Core Mode (Legacy) #}
-      ,{
+      {
         "name": "core-{{ solr_core_name }}-admin",
         "collection": "{{ solr_core_name }}",
         "path": ["/*"],
         "method": ["GET", "HEAD", "POST", "PUT", "DELETE"],
-        "role": ["{{ solr_core_admin_role | default(solr_core_admin_role_prefix ~ '-' ~ solr_core_name) }}"]
+        "role": ["{{ solr_core_admin_role | default(solr_core_admin_role_prefix ~ '-' ~ solr_core_name) }}", "admin"]
       },
       {
         "name": "core-{{ solr_core_name }}-moodle",
@@ -96,7 +103,9 @@
         "path": ["/*"],
         "method": ["GET", "HEAD"],
         "role": ["support"]
-      }
+      },
+      {# IMPORTANT: "all" permission at the END as fallback for admin #}
+      { "name": "all", "role": "admin" }
 {% endif %}
     ],
     "user-role": {

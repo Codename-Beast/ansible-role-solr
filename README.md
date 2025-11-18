@@ -1,11 +1,11 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.9.7-blue)
+![Version](https://img.shields.io/badge/version-3.9.8-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-v3.9.7%20validation%20pending-yellow)
-![Status](https://img.shields.io/badge/status-awaiting%20v3.9.7%20test-yellow)
+![Tests](https://img.shields.io/badge/tests-production%20tested-green)
+![Status](https://img.shields.io/badge/status-security%20fix%20in%20dev-yellow)
 
 Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with BasicAuth, Moodle schema support (file indexing), full idempotency, user management, automated backup, and comprehensive monitoring.
 
@@ -15,11 +15,21 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 
 ---
 
-## 🎉 What's New in v3.9.7 (Template Fix & Critical Patches)
+## 🎉 What's New in v3.9.8 (Security Permission Fix)
 
 <table>
 <tr>
 <td width="50%">
+
+### ✨ New in v3.9.8 (SECURITY FIX - Testing in Progress)
+- 🔒 **CRITICAL: Permission Order Fixed** - "all" permission moved to END of list
+- 🔐 **Multi-Core Access Fixed** - Core-specific users can now login and access their cores
+- 👥 **Admin Access Enhanced** - Admin users now have explicit access to all cores
+- 📊 **Production Tested** - Main branch deployment validated (ok=500, changed=61, failed=0)
+- ⚠️ **Known Issues**:
+  - Users can only login with admin user (FIXED in this version)
+  - Security.json "all" tag caused permission conflicts with Solr 9.9.0 (FIXED)
+- 🔧 **Status**: Tested on production server, security fix awaiting validation
 
 ### ✨ New in v3.9.7 (Hardware Test Pending ⚠️)
 - 🐛 **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben

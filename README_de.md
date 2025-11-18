@@ -1,11 +1,11 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.9.7-blue)
+![Version](https://img.shields.io/badge/version-3.9.8-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-v3.9.7%20validation%20pending-yellow)
-![Status](https://img.shields.io/badge/status-awaiting%20v3.9.7%20test-yellow)
+![Tests](https://img.shields.io/badge/tests-production%20getestet-green)
+![Status](https://img.shields.io/badge/status-security%20fix%20in%20dev-yellow)
 
 Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht getestet) mit BasicAuth, Moodle-Schema-Unterstützung (Datei-Indexierung), vollständiger Idempotenz, Benutzerverwaltung, automatisiertem Backup und umfassendem Monitoring.
 
@@ -14,6 +14,20 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
 **Projekt-Zeitraum**: 24.09.2025 - 18.11.2025 (56 Tage)
 
 > 📖 **[English Version](README.md)** | **[Changelog](CHANGELOG.md)**
+
+---
+
+## 🔒 Version 3.9.8 - SECURITY FIX (In Testing)
+
+**KRITISCH:** Diese Version behebt ein Permission-Problem in `security.json.j2`, das verhinderte, dass Core-spezifische Benutzer sich einloggen konnten.
+
+**Was wurde gefixt:**
+- 🔒 **Permission-Reihenfolge korrigiert**: "all" permission an das Ende der Liste verschoben
+- 🔐 **Multi-Core Zugriff repariert**: Core-spezifische Benutzer können sich jetzt einloggen und auf ihre Cores zugreifen
+- 👥 **Admin-Zugriff verbessert**: Admin-Benutzer haben jetzt expliziten Zugriff auf alle Cores
+- 📊 **Production getestet**: Main-Branch Deployment validiert (ok=500, changed=61, failed=0)
+
+**Status:** Auf Production-Server getestet, Security-Fix wartet auf finale Validierung
 
 ---
 
