@@ -4,10 +4,10 @@
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-development%20ready-brightgreen)
-![Status](https://img.shields.io/badge/status-development%20deployed-success)
+![Tests](https://img.shields.io/badge/tests-dev%20ready-brightgreen)
+![Status](https://img.shields.io/badge/status-Dev%20deployed-success)
 
-Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency, multi-core support, user management, automated backup, and comprehensive monitoring.
+Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency, multi-core support and user management
 
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
@@ -22,7 +22,7 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.18 (Security Panel Proxy Fix)
+### ✨ New in v3.9.18
 - 🔧 **Apache Proxy Fix**: Added ProxyPass for SolrCloud API paths (Will not really work)
 - 🐛 **Admin UI Compatibility**: Rewrites `/api/cluster/security/*` to Standalone endpoints
 - 📊 **Production Tested**: Hetznercloud deployment
