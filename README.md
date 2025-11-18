@@ -12,25 +12,25 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
 **Project Timeline**: 24.09.2025 - 18.11.2025 (56 days)
-**Production Status**: ✅ Deployed and tested on SRH Campus (4 cores, 16GB RAM)
+**Production Status**: ✅ Deployed and tested on Hetzcloud server (4 cores, 8GB RAM should be 16 for 4 Cores)
 
 ---
 
-## 🎉 What's New in v3.9.18 (PRODUCTION READY)
+## 🎉 What's New in v3.9.18
 
 <table>
 <tr>
 <td width="50%">
 
 ### ✨ New in v3.9.18 (Security Panel Proxy Fix)
-- 🔧 **Apache Proxy Fix**: Added ProxyPass for SolrCloud API paths
+- 🔧 **Apache Proxy Fix**: Added ProxyPass for SolrCloud API paths (Will not really work)
 - 🐛 **Admin UI Compatibility**: Rewrites `/api/cluster/security/*` to Standalone endpoints
 - 📊 **Production Tested**: SRH Campus deployment - ok=506, changed=62, failed=0
 - ✅ **Smoke Tests**: 10/10 tests PASSED (100% success rate)
 - 🏢 **Multi-Core Validated**: 4 cores running on 16GB server (gs_heidelberg, rs_mannheim, gym_stuttgart, bs_karlsruhe)
 - 🔒 **Username Conventions**: Auto-role assignment (*_admin → admin, *_moodle → moodle, *_readonly → support)
 - 🔐 **Security.json**: All users correctly assigned, permissions working
-- 🚀 **Ready for Production**: All critical bugs fixed, idempotent re-runs working
+- 🚀 **Ready for Real Data**: All critical bugs fixed, idempotent re-runs working
 
 **Known Issues:**
 - ⚠️ **Security Panel Browser Display**: Admin UI Security Panel may show 404 in browser (backend API works correctly)
@@ -47,65 +47,6 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
   - `rundeck_output.yml` removed (unused)
 - 📝 **Better Maintainability**: Cleaner role structure, easier to navigate
 - ✅ **100% Backward Compatible**: No functional changes
-
-### ✨ Username-Based Role Assignment (v3.9.12)
-- 🎯 **Convention Over Configuration**: Usernames ending with `_admin`, `_moodle`, `_readonly` get automatic roles
-- 🚫 **Simplified Config**: No need to define `roles:` in host_vars
-- 🔧 **Examples**:
-  - `gs_heidelberg_admin` → `["admin"]` role automatically
-  - `gs_heidelberg_moodle` → `["moodle"]` role automatically
-  - `gs_heidelberg_readonly` → `["support"]` role automatically
-- 📋 **Fallback**: If username doesn't match convention, uses configured roles
-
-### ✨ Host_vars Path Fix (v3.9.13)
-- 🔴 **CRITICAL FIX**: host_vars written to correct Ansible path
-- ✅ **Correct Path**: `inventory_dir/host_vars/hostname` (not `inventory_dir/hostname`)
-- 🛡️ **Validation**: Fails with clear error if host_vars directory missing
-- 📝 **Convention**: Follows Ansible best practices
-
-</td>
-<td width="50%">
-
-### ✨ New in v3.9.8 (Security Permission Fix)
-- 📖 **Solr Standalone Limitation Documented** - Per official Apache Solr docs, per-core permissions do NOT work in Standalone mode
-- 🔒 **Security.json Simplified** - Removed all collection-specific permissions (don't work without SolrCloud)
-- ⚠️ **Global Permissions** - All authenticated users have access to ALL cores (Solr Standalone limitation)
-- 🧹 **Log Warnings Eliminated**:
-  - Removed deprecated `enableRemoteStreaming` from solrconfig.xml
-  - Removed obsolete `numVersionBuckets` from solrconfig.xml
-  - SSL Warning is expected (SSL on proxy-level, correct architecture)
-- 🔄 **PowerInit v1.7.0**:
-  - Auto-deploys solrconfig.xml to ALL configSets
-  - Auto-deploys solrconfig.xml to ALL existing cores
-  - New core_reload task reloads cores after config changes
-- ❌ **jmespath Dependency Removed** - Core-Reload uses native Jinja2 filters
-
-**Important:** For per-core access control, SolrCloud with ZooKeeper is required. See "Known Limitations" section.
-
-### ✨ New in v3.9.7 (Template Fixes)
-- 🐛 **Template Fix:** Jinja2 syntax error in credentials_display.yml resolved
-- 🔧 **Credentials Display:** No more failed tasks during finalization
-- 🔴 **CRITICAL FIX (v3.9.6): Re-Run Persistence** - Multicore passwords persist across deployments
-- 🔴 **CRITICAL FIX (v3.9.6): Conditional Logic** - Fixed user_management.yml and auth_persistence.yml
-
-### ✨ New in v3.9.2 (RAM Calculation Fix)
-- 🔴 **CRITICAL: RAM Calculation** - 16GB → 4 Cores (was: 10 Cores - WRONG!)
-- 📊 **Real-World Values** - ~2GB/Core instead of 600MB (Caches are PER-CORE!)
-- 🌐 **Apache VHost Generic** - Works with any domain
-- 🔐 **SSL-Awareness** - No more HTTP warnings in WebUI
-- 🛠️ **JVM-Conflicts Resolved** - autoCommit only in solrconfig.xml
-
-### ✨ New in v3.9.0 (Multi-Core Support)
-- 🏢 **Multi-Core Support** - Isolated cores per Moodle instance
-- 🔐 **Auto-Password Generation** - Generates secure passwords
-- 📋 **Credential Display** - Shows all credentials after deployment
-
-### ✅ v3.8.0 Features
-- ✅ **Solr 9.10 Ready** - compatibility validated
-- ✅ **User Management** - Add users and their permissions
-- ✅ **Zero-Downtime User Management** - Hot-reload via API
-- ✅ **Complete Moodle Support** - File indexing fields added
-- ✅ **Production Hardened** - All critical bugs fixed
 
 </td>
 </tr>
@@ -139,13 +80,13 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 ## ✨ Features
 
 ### Core Features
-- ✅ **Apache Solr 9.9.0+** - Latest stable version (9.10 validated)
+- ✅ **Apache Solr 9.9.0+** - Latest stable version
 - ✅ **Docker-based Deployment** - Isolated, reproducible environments
-- ✅ **Multi-Core Support** - Run multiple isolated Solr cores per server
+- ✅ **Multi-Core Support** - Run multiple Solr cores per server
 - ✅ **Moodle Schema** - Complete schema for Moodle 4.1-5.0.3 (file indexing support)
 - ✅ **Full Idempotency** - Unlimited re-runs on same server, no side effects
 - ✅ **Username Conventions** - Automatic role assignment based on username patterns
-- ✅ **Task File Optimization** - 25 well-organized task files (reduced from 28)
+- ✅ **Task File Optimization** - 25 organized task files reduced from 28
 
 ### Security Features
 - 🔒 **BasicAuth Plugin** - Username/password authentication
@@ -153,14 +94,11 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 - 🔒 **SHA256 Double-Hashing** - Secure password storage
 - 🔒 **SSL/TLS Support** - Let's Encrypt integration
 - 🔒 **IP-based Access Control** - Restrict admin access
-- 🔒 **Auto-Password Generation** - Secure 24-character passwords
+- 🔒 **Auto-Password Generation** - Secure 24-character passwords if not set
 
 ### Operational Features
 - 🔄 **PowerInit v1.7.0** - Init-container pattern with checksum verification
-- 🔄 **Zero-Downtime User Updates** - Hot-reload via API
-- 🔄 **Automated Backups** - Scheduled backups with retention
-- 🔄 **Comprehensive Monitoring** - Metrics, health checks, logging
-- 🔄 **Apache/Nginx Proxy** - Reverse proxy with SSL termination
+- 🔄 **Apache** - Reverse proxy with SSL termination
 - 🔄 **Integration Tests** - Automated smoke tests after deployment
 
 ### Developer Features
@@ -185,7 +123,8 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 
 ### Software Requirements
 - **Ansible**: 2.10.12 or higher
-- **Python**: 3.8 or higher
+- **Apache**
+- **Letsencrypt**
 - **Docker**: 20.10 or higher (installed automatically if missing)
 - **Webserver**: Apache 2.4+ or Nginx 1.18+ (for proxy)
 
@@ -201,19 +140,12 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 ### 1. Install the Role
 
 ```bash
-# Via Ansible Galaxy (when published)
-ansible-galaxy install eledia.solr
-
 # Or clone from Git
-git clone https://github.com/eledia/ansible-role-solr.git roles/install-solr
-```
-
 ### 2. Create Inventory
 
 ```bash
 mkdir -p ansible-inventory/my-moodle/host_vars
 ```
-
 ### 3. Create host_vars File
 
 See [Configuration](#configuration) section for examples.
@@ -546,7 +478,7 @@ tasks/
 ### Password Storage
 
 **Production:**
-- Stored in host_vars (Ansible inventory)
+- Stored in host_vars 
 - Encrypted with Ansible Vault (recommended)
 - Hashed in Solr (SHA256 double-hash)
 
@@ -726,27 +658,6 @@ df -h /opt/solr
 
 ---
 
-## 💾 Backup & Recovery
-
-### Automated Backups
-
-**Configuration:**
-
-```yaml
-solr_backup_enabled: true
-solr_backup_schedule: "0 3 * * *"  # Cron format (3 AM daily)
-solr_backup_retention: 14          # Keep 14 days
-solr_backup_dir: /opt/solr/backups
-solr_backup_compress: true
-solr_backup_credentials: true
-```
-
-**Backup includes:**
-- Solr cores (index data)
-- Configuration files (solrconfig.xml, schema)
-- Security configuration (security.json)
-- Credentials (optional)
-
 ### Manual Backup
 
 ```bash
@@ -801,7 +712,7 @@ curl -u admin:password http://localhost:8983/solr/admin/authorization
 
 **Symptom:** Security panel shows 404 error (cosmetic issue only)
 
-**Important:** This is a **browser UI display issue** - the backend API works perfectly! ✅
+**Important:** This is a **browser UI display issue** - the backend API works
 
 **Quick Fix:**
 ```bash
@@ -860,7 +771,7 @@ docker stats solr_customer
 
 # Adjust heap in host_vars
 solr_heap_size: "8g"        # Increase this
-solr_memory_limit: "14g"    # And this
+solr_memory_limit: "16g"    # And this
 ```
 
 **Re-deploy:**
@@ -887,7 +798,7 @@ docker logs -f solr_customer 2>&1 | grep -i error
 
 ### 📊 Quick Summary: What Works vs What Doesn't
 
-**✅ What Works Perfectly (Production Validated):**
+**✅ What Works (Validated):**
 - ✅ Solr server deployment and operation
 - ✅ Multi-core support (4 cores tested on 16GB RAM)
 - ✅ User authentication (BasicAuth with SHA256 hashing)
@@ -900,13 +811,13 @@ docker logs -f solr_customer 2>&1 | grep -i error
 - ✅ SSL/TLS proxy
 - ✅ Production deployment (ok=506, changed=62, failed=0)
 
-**⚠️ Known Limitations (Workarounds Available):**
+**⚠️ Known Limitations:**
 - ⚠️ Per-core access control requires SolrCloud (Solr Standalone limitation)
 - ⚠️ Security Panel browser UI shows 404 (API works, cosmetic issue only)
 - ⚠️ Resource planning critical (2GB RAM per core minimum)
 
 **Bottom Line:**
-> 🎉 **The server is production ready!** All core functionality works perfectly. The limitations are either Solr architectural constraints (per-core permissions) or cosmetic issues (Security Panel UI) that don't affect operations.
+> 🎉 **The server is ready!** All core functionality works perfectly. The limitations are either Solr architectural constraints (per-core permissions) or cosmetic issues (Security Panel UI) that don't affect operations.
 
 ---
 
@@ -919,8 +830,8 @@ According to [official Apache Solr documentation](https://solr.apache.org/guide/
 > "You can't limit access to a specific core through security.json - if you need to limit which users can access which sets of data, you'll have to use SolrCloud and the collections parameter."
 
 **What This Means:**
-- ✅ User authentication works perfectly
-- ✅ Role-based permissions work globally
+- ✅ User authentication (API) works 
+- ✅ Role-based permissions works
 - ✅ Multi-core isolation works (separate indexes)
 - ✅ Admin can access all cores
 - ✅ All smoke tests pass (10/10)
@@ -949,7 +860,7 @@ According to [official Apache Solr documentation](https://solr.apache.org/guide/
    ```
 
 3. **Accept Global Access** (current production setup)
-   - Each Moodle has separate core (data isolated ✅)
+   - Each Moodle has separate core (data isolated)
    - All authenticated users can technically access any core
    - Use strong passwords and audit logging
 
@@ -974,12 +885,12 @@ Result:           404 Not Found in browser UI
 - ✅ **Role Assignment** - Users have correct permissions
 - ✅ **Smoke Tests** - 10/10 tests PASSED (100%)
 - ✅ **Moodle Integration** - Search indexing works
-- ✅ **Production Deployment** - ok=506, changed=62, failed=0
+- ✅ **Deployment** 
 
 **What Doesn't Work:**
 - ❌ **Security Panel Browser UI** - Shows 404 error in Admin UI
   - **Impact**: Cosmetic only - cannot view security config in browser
-  - **Workaround**: Use API directly (works perfectly)
+  - **Workaround**: Use API directly
 
 **The Journey to Fix It:**
 
@@ -1038,17 +949,17 @@ RewriteRule ^/api/cluster/security/(.*)$ /solr/admin/$1 [PT,QSA]
 1. Browser requests: `/api/cluster/security/authorization`
 2. RewriteRule changes to: `/solr/admin/authorization` (strips `/cluster/security`)
 3. LocationMatch proxies to: `http://localhost:8983/solr/admin/authorization`
-4. Solr responds with correct JSON ✅
+4. Solr responds with correct JSON
 
-**Result:** API works perfectly, browser may need hard-refresh (browser caching issue)
+**Result:** API works, browser may need hard-refresh (browser caching issue)
 </details>
 
 **Current Status:**
-- **Backend**: FULLY WORKING ✅
+- **Backend**:  WORKING
 - **Browser UI**: May show 404 due to browser cache (LOW PRIORITY)
 - **Production Impact**: NONE - use API directly
 
-**Workaround (Works Perfectly):**
+**Workaround:**
 
 ```bash
 # View security config directly
@@ -1073,12 +984,12 @@ curl -u admin:password https://solr.example.com/solr/admin/authorization
 
 **This Was a Major Hurdle:**
 
-We originally calculated **600MB per core** (leading to 10 cores on 16GB server) ❌
+I originally calculated **600MB per core** (leading to 10 cores on 16GB server) ❌
 
 **Reality Check (v3.9.2 Fix):**
 - Solr caches are **PER-CORE**, not shared
 - Each core needs **1.5-2GB RAM minimum**
-- 16GB server → **Max 4 cores** (not 10!)
+- 16GB server → **Max 4 cores**
 
 **Correct Server Sizing:**
 
@@ -1100,7 +1011,7 @@ We originally calculated **600MB per core** (leading to 10 cores on 16GB server)
 
 ---
 
-## 🚀 Production Deployment
+## 🚀 Deployment
 
 ### Pre-Deployment Checklist
 
@@ -1170,7 +1081,7 @@ ls -lh /opt/solr/backups/
 docker logs -f solr_customer
 ```
 
-### Production Best Practices
+### Best Practices
 
 1. **Use Ansible Vault** for all passwords
 2. **Delete credentials.yml** from /opt/solr/config/
@@ -1267,22 +1178,11 @@ SOFTWARE.
 
 ## 📞 Support
 
-**Issues:** https://github.com/eledia/ansible-role-solr/issues
 **Email:** support@eledia.de
 **Documentation:** https://docs.eledia.de/solr
-
----
-
-## 🙏 Acknowledgments
-
-- **Apache Solr Team** - For the excellent search platform
-- **Moodle Community** - For the search integration
-- **Ansible Community** - For the automation framework
-- **SRH Campus GmbH** - For production testing and feedback
-
 ---
 
 **Version:** 3.9.18
 **Last Updated:** 2025-11-18
-**Status:** ✅ Production Ready
-**Tested On:** SRH Campus (4 cores, 16GB RAM, ok=506, failed=0)
+**Status:** ✅ Rollout Ready
+**Tested On:** Hetzner Cloud Server (4 cores, 8GB RAM)
