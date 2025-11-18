@@ -84,37 +84,43 @@
     mc_combined_hash: "{{ mc_hash_output.stdout }}"
   no_log: true
 
-- name: user-hash-mc - Determine roles for {{ mc_user.username }} (custom roles)
+- name: user-hash-mc - Check if user has legacy/invalid role assignment
   set_fact:
-    mc_user_roles: "{{ mc_user.roles }}"
-  when: mc_user.roles is defined
+    has_legacy_role: "{{ mc_user.roles is defined and (mc_user.roles[0] | default('')) is match('^core-admin-.*_core$') }}"
 
 - name: user-hash-mc - Determine roles for {{ mc_user.username }} (admin convention)
   set_fact:
     mc_user_roles: ["admin"]
   when:
-    - mc_user.roles is not defined
     - mc_user.username is match('.*_admin$')
+    - has_legacy_role or mc_user.roles is not defined
 
 - name: user-hash-mc - Determine roles for {{ mc_user.username }} (moodle convention)
   set_fact:
     mc_user_roles: ["moodle"]
   when:
-    - mc_user.roles is not defined
     - mc_user.username is match('.*_moodle$')
+    - has_legacy_role or mc_user.roles is not defined
 
 - name: user-hash-mc - Determine roles for {{ mc_user.username }} (readonly convention)
   set_fact:
     mc_user_roles: ["support"]
   when:
-    - mc_user.roles is not defined
     - mc_user.username is match('.*_readonly$')
+    - has_legacy_role or mc_user.roles is not defined
+
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (custom roles - valid)
+  set_fact:
+    mc_user_roles: "{{ mc_user.roles }}"
+  when:
+    - mc_user.roles is defined
+    - not has_legacy_role
 
 - name: user-hash-mc - Determine roles for {{ mc_user.username }} (default fallback)
   set_fact:
     mc_user_roles: ["moodle"]
   when:
-    - mc_user.roles is not defined
+    - mc_user_roles is not defined
     - not (mc_user.username is match('.*_admin$'))
     - not (mc_user.username is match('.*_moodle$'))
     - not (mc_user.username is match('.*_readonly$'))
