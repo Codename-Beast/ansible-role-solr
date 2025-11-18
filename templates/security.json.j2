@@ -85,26 +85,6 @@
       ,"{{ username }}": {{ roles | to_json }}
 {% endfor %}
 {% endif %}
-{% if multi_core %}
-{# Multi-Core Mode: Add user-role mappings from cores #}
-{# NOTE: In standalone mode, these users will have access to ALL cores, not just their assigned core #}
-{# Auto-assign roles based on username conventions: *_admin → admin, *_moodle → moodle, *_readonly → support #}
-{% for core in solr_cores %}
-{% if core.users is defined %}
-{% for user in core.users %}
-{% if user.username.endswith('_admin') %}
-      ,"{{ user.username }}": ["admin"]
-{% elif user.username.endswith('_moodle') %}
-      ,"{{ user.username }}": ["moodle"]
-{% elif user.username.endswith('_readonly') %}
-      ,"{{ user.username }}": ["support"]
-{% else %}
-      ,"{{ user.username }}": {{ user.roles | default(['moodle']) | to_json }}
-{% endif %}
-{% endfor %}
-{% endif %}
-{% endfor %}
-{% endif %}
     }
   }
 }

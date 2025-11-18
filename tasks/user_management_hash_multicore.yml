@@ -84,20 +84,40 @@
     mc_combined_hash: "{{ mc_hash_output.stdout }}"
   no_log: true
 
-- name: user-hash-mc - Determine roles for {{ mc_user.username }}
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (custom roles)
   set_fact:
-    mc_user_roles: >-
-      {%- if mc_user.roles is defined -%}
-        {{ mc_user.roles }}
-      {%- elif mc_user.username.endswith('_admin') -%}
-        ["admin"]
-      {%- elif mc_user.username.endswith('_moodle') -%}
-        ["moodle"]
-      {%- elif mc_user.username.endswith('_readonly') -%}
-        ["support"]
-      {%- else -%}
-        ["moodle"]
-      {%- endif -%}
+    mc_user_roles: "{{ mc_user.roles }}"
+  when: mc_user.roles is defined
+
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (admin convention)
+  set_fact:
+    mc_user_roles: ["admin"]
+  when:
+    - mc_user.roles is not defined
+    - mc_user.username is match('.*_admin$')
+
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (moodle convention)
+  set_fact:
+    mc_user_roles: ["moodle"]
+  when:
+    - mc_user.roles is not defined
+    - mc_user.username is match('.*_moodle$')
+
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (readonly convention)
+  set_fact:
+    mc_user_roles: ["support"]
+  when:
+    - mc_user.roles is not defined
+    - mc_user.username is match('.*_readonly$')
+
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (default fallback)
+  set_fact:
+    mc_user_roles: ["moodle"]
+  when:
+    - mc_user.roles is not defined
+    - not (mc_user.username is match('.*_admin$'))
+    - not (mc_user.username is match('.*_moodle$'))
+    - not (mc_user.username is match('.*_readonly$'))
 
 - name: user-hash-mc - Add user hash to dictionary
   set_fact:
