@@ -39,7 +39,7 @@
 
 - name: core-reload - Parse cores list
   set_fact:
-    core_names: "{{ cores_status.content | from_json | json_query('status.*.name') }}"
+    core_names: "{{ cores_status.json.status.keys() | list }}"
   changed_when: false
 
 - name: core-reload - Display cores to reload
