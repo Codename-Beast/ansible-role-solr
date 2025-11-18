@@ -7,6 +7,151 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [3.9.6] - 2025-11-18 🚨 CRITICAL: Multicore User Management & Persistence Conditionals
+
+**Type:** Patch Release - **CRITICAL BUG FIXES**
+**Status:** 🔧 **FIXED** - Multicore User Processing und Persistence Conditionals behoben
+
+### 🚨 CRITICAL BUGS FIXED
+
+1. **❌ user_management.yml wurde bei reinem Multicore Setup NICHT aufgerufen:**
+   - **Problem:** Conditional in `main.yml` prüfte nur `solr_additional_users`
+   - **Impact bei reinem Multicore Setup:**
+     - `user_management.yml` wurde ÜBERHAUPT NICHT ausgeführt
+     - Multicore User wurden NICHT gehasht
+     - security.json enthielt KEINE Multicore User Hashes
+     - **Multicore User konnten sich NICHT anmelden!** (Showstopper)
+   - **Scenario:**
+     ```yaml
+     # host_vars - NUR solr_cores definiert
+     solr_cores:
+       - name: "prod"
+         users:
+           - username: "produser"
+             password: "SecurePass123"
+     # solr_additional_users: NICHT definiert!
+     ```
+   - **Resultat vorher:** produser wird NICHT gehasht → Login unmöglich!
+   - **Fix:** Conditional erweitert um `solr_cores` Check
+   - **Betroffene Dateien:**
+     - `tasks/main.yml` - Line 42-51
+   - **Impact:** Multicore Setups funktionieren jetzt auch ohne `solr_additional_users`
+
+2. **❌ auth_persistence.yml wurde bei skip_auth=true NICHT aufgerufen:**
+   - **Problem:** Persistence lief nur bei `skip_auth=false`
+   - **Impact bei Re-Run mit unveränderten Passwörtern:**
+     - admin/support/moodle Passwörter unverändert → skip_auth=true
+     - `auth_persistence.yml` wurde NICHT ausgeführt
+     - Multicore User Passwörter wurden NICHT gespeichert
+     - **Nächster Run: Neue Passwörter generiert!**
+   - **Scenario:**
+     1. Fresh Install: Multicore User deployed und gespeichert
+     2. Re-Run: admin/support/moodle unverändert → skip_auth=true
+     3. Neue multicore user hinzugefügt
+     4. auth_persistence läuft NICHT → neue User NICHT gespeichert!
+     5. Nächster Run: Neue Passwörter für diese User!
+   - **Fix:** Conditional erweitert um Multicore/Additional User Check
+   - **Betroffene Dateien:**
+     - `tasks/main.yml` - Line 112-120
+   - **Impact:** Persistence läuft immer wenn User-Änderungen vorhanden
+
+3. **⚠️ generated_credentials unvollständig (Medium Priority):**
+   - **Problem:** Nur generierte Passwörter wurden getrackt
+   - **Impact:**
+     - User mit Passwort aus host_vars wurden NICHT in `generated_credentials` eingefügt
+     - `credentials_display.yml` zeigte diese User nicht an
+     - Inkonsistente Display-Ausgabe
+   - **Fix:** `generated_credentials` wird für ALLE User gefüllt
+   - **Betroffene Dateien:**
+     - `tasks/auth_password_generator.yml` - Line 32-35
+   - **Impact:** Vollständige Credential-Anzeige
+
+### 📝 TECHNISCHE DETAILS
+
+**Fix #1: user_management.yml Conditional:**
+```yaml
+# VORHER (DEFEKT):
+when:
+  - solr_auth_enabled | default(true)
+  - solr_additional_users is defined
+  - solr_additional_users | length > 0
+
+# JETZT (BEHOBEN):
+when:
+  - solr_auth_enabled | default(true)
+  - (solr_additional_users is defined and solr_additional_users | length > 0) or
+    (solr_cores is defined and solr_cores | length > 0)
+```
+
+**Fix #2: auth_persistence.yml Conditional:**
+```yaml
+# VORHER (DEFEKT):
+when:
+  - solr_auth_enabled | default(true)
+  - not skip_auth | default(false)
+
+# JETZT (BEHOBEN):
+when:
+  - solr_auth_enabled | default(true)
+  - (not skip_auth | default(false)) or
+    (solr_cores is defined and solr_cores | length > 0) or
+    (solr_additional_users is defined and solr_additional_users | length > 0)
+```
+
+**Fix #3: generated_credentials Tracking:**
+```yaml
+# VORHER (DEFEKT):
+- name: auth-pwd-gen - Track generated credential
+  set_fact:
+    generated_credentials: "{{ generated_credentials + [...] }}"
+  when: need_password_generation | bool  # NUR generierte!
+
+# JETZT (BEHOBEN):
+- name: auth-pwd-gen - Track ALL credentials
+  set_fact:
+    generated_credentials: "{{ generated_credentials + [...] }}"
+  # KEIN when: - ALLE User werden getrackt!
+```
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- `tasks/main.yml` - v1.3.2 → v1.3.3 (Conditionals)
+- `tasks/auth_password_generator.yml` - v1.0.0 → v1.1.0 (Tracking)
+- `CHANGELOG.md` - v3.9.6 Dokumentation
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität.
+
+**Migration:**
+- Automatisch beim nächsten Deployment
+- Reine Multicore Setups funktionieren jetzt out-of-the-box
+- Persistence läuft zuverlässig bei allen User-Änderungen
+
+### 🎯 TESTING-CHECKLISTE
+
+- [ ] Reines Multicore Setup (ohne solr_additional_users): User werden gehasht
+- [ ] Multicore User Login funktioniert
+- [ ] Re-Run mit skip_auth=true: Multicore Passwörter bleiben erhalten
+- [ ] Neue multicore User hinzufügen: Werden gespeichert
+- [ ] credentials_display.yml zeigt ALLE User (generiert + host_vars)
+
+### 🔍 ROOT CAUSE ANALYSIS
+
+**Warum ist das passiert?**
+1. Multicore Mode wurde nachträglich hinzugefügt (v3.9.0)
+2. Conditionals in `main.yml` wurden nicht angepasst
+3. Testing fokussierte auf Mixed Mode (additional_users + cores)
+4. Pure Multicore Setups wurden nicht getestet
+
+**Lessons Learned:**
+- ✅ Conditionals müssen ALLE User-Typen berücksichtigen!
+- ✅ Testing muss alle möglichen Konfigurationen abdecken
+- ✅ Pure Multicore Setups sind genauso wichtig wie Mixed Mode
+
+---
+
 ## [3.9.5] - 2025-11-18 🚨 CRITICAL: Password Persistence & Hash Algorithm Fix
 
 **Type:** Patch Release - **CRITICAL BUG FIXES**
