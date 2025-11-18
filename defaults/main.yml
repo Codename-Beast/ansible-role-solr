@@ -238,25 +238,44 @@ solr_backup_compress: true
 solr_backup_credentials: false
 
 # ============================================================================
-# MEMORY CONFIGURATION (Optimized for 16GB Server, v3.9.0 Corrected)
+# MEMORY CONFIGURATION (Optimized for 8GB+ Servers, v3.9.1 Corrected)
 # ============================================================================
-# Server RAM: 16GB total
+# IMPORTANT: Adjust these values based on your server's available RAM!
 #
-# KORRIGIERT basierend auf Best Practices 2024/2025:
-# - Apache Solr Memory Tuning Guide (Cloudera)
-# - Moodle.org: 10-20GB Heap für File-Indexing empfohlen
-# - Regel: OS braucht 2× JVM Heap (8GB Heap = 16GB total minimum)
+# Default Configuration (Conservative - Works on 8GB+ servers):
+# Server RAM: 8GB minimum
+# Docker Container: 4GB (allocated to Solr)
+#   ├── JVM Heap: 2GB (Solr application + caches)
+#   └── OS File Cache: 2GB (Lucene MMapDirectory)
+# Host OS: 4GB (outside container - system processes, Docker overhead)
 #
-# Docker Container: 14GB (allocated to Solr)
-#   ├── JVM Heap: 8GB (Solr application + caches)
-#   └── OS File Cache: 6GB (Lucene MMapDirectory - KRITISCH!)
+# Recommended Configurations by Server Size:
 #
-# Host OS: 2GB (outside container - system processes, Docker overhead)
+# 8GB Server (Default):
+#   solr_heap_size: "2g"
+#   solr_memory_limit: "4g"
+#   solr_memory_swap: "4g"
+#   solr_memory_reservation: "3g"
+#   Max Cores: 1-2 (Single-Core recommended)
+#
+# 16GB Server (High Performance):
+#   solr_heap_size: "8g"
+#   solr_memory_limit: "14g"
+#   solr_memory_swap: "14g"
+#   solr_memory_reservation: "12g"
+#   Max Cores: 4-5
+#
+# 32GB Server (Multi-Tenant):
+#   solr_heap_size: "20g"
+#   solr_memory_limit: "28g"
+#   solr_memory_swap: "28g"
+#   solr_memory_reservation: "24g"
+#   Max Cores: 10
 #
 # Memory Split Strategy:
-# - Heap: 8GB (50% of total) - JVM für Solr/Lucene + Per-Core Caches
-# - File Cache: 6GB (37.5%) - Memory-mapped Lucene index segments
-# - OS Buffer: 2GB (12.5%) - System processes, Docker
+# - Heap: 25-50% of total RAM (JVM für Solr/Lucene + Per-Core Caches)
+# - File Cache: 25% (Memory-mapped Lucene index segments)
+# - OS Buffer: 50-25% (System processes, Docker overhead)
 #
 # Why this configuration?
 # 1. Lucene segments sind memory-mapped (off-heap) via MMapDirectory
@@ -266,21 +285,17 @@ solr_backup_credentials: false
 # 5. OS File Cache kritisch für Query Performance (30%+ Verbesserung)
 #
 # Multi-Core Impact (WICHTIG!):
-# Single-Core:  8GB Heap = ~7GB verfügbar für Arbeit
+# Single-Core:  2GB Heap = ~1.8GB verfügbar für Arbeit
 # 4 Cores:      8GB Heap = ~1.5GB pro Core (nach Cache-Overhead)
-# 6 Cores:      8GB Heap = ~1GB pro Core (LIMIT!)
-#
-# Performance Tuning für mehr Cores:
-# - Für 10 Cores: 32GB Server, 20GB Heap, 8GB File Cache
-# - Monitor: docker stats, /admin/metrics, GC logs
+# 10 Cores:     20GB Heap = ~1.5GB pro Core (nach Cache-Overhead)
 
-solr_heap_size: "8g"
-solr_memory_limit: "14g"  # Container limit: Heap (8g) + Off-heap (6g)
-solr_memory_swap: "14g"   # Swap limit matches memory limit
-solr_memory_reservation: "12g"  # Soft limit to prevent OOM
+solr_heap_size: "2g"
+solr_memory_limit: "4g"  # Container limit: Heap (2g) + Off-heap (2g)
+solr_memory_swap: "4g"   # Swap limit matches memory limit
+solr_memory_reservation: "3g"  # Soft limit to prevent OOM
 
-# GC & Performance Optimizations (Tuned for 8GB Heap)
-# G1GC is recommended for Solr 9.x with heaps 4GB+ (Stop-the-world <1s goal)
+# GC & Performance Optimizations (Tuned for 2GB+ Heap)
+# G1GC is recommended for Solr 9.x with heaps 2GB+ (Stop-the-world <1s goal)
 solr_gc_options: >-
   -XX:+UseG1GC
   -XX:+ParallelRefProcEnabled
