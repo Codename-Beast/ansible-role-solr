@@ -17,14 +17,14 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
 
 ---
 
-## 🔒 Version 3.9.8 - SECURITY FIX + Log-Warnungen Behoben + PowerInit v1.7.0
+## 🔒 Version 3.9.8 - SECURITY FIX + Solr Standalone Limitation Dokumentiert
 
-**KRITISCH:** Diese Version behebt ein Permission-Problem in `security.json.j2`, das verhinderte, dass Core-spezifische Benutzer sich einloggen konnten.
+**KRITISCH:** Diese Version dokumentiert eine wichtige Solr-Architektur-Einschränkung und vereinfacht die security.json.
 
-**Was wurde gefixt:**
-- 🔒 **Permission-Reihenfolge korrigiert**: "all" permission an das Ende der Liste verschoben
-- 🔐 **Multi-Core Zugriff repariert**: Core-spezifische Benutzer können sich jetzt einloggen und auf ihre Cores zugreifen
-- 👥 **Admin-Zugriff verbessert**: Admin-Benutzer haben jetzt expliziten Zugriff auf alle Cores
+**Was wurde geändert:**
+- 📖 **Solr Standalone Limitation dokumentiert**: Laut offizieller Apache Solr Doku funktionieren per-core Permissions NICHT im Standalone-Modus
+- 🔒 **Security.json vereinfacht**: Entfernung aller collection-spezifischen Permissions (funktionieren nicht ohne SolrCloud)
+- ⚠️ **Globale Permissions**: Alle authentifizierten User haben jetzt Zugriff auf ALLE Cores (Solr Standalone Limitation)
 - 📊 **Production getestet**: Main-Branch Deployment validiert (ok=500, changed=61, failed=0)
 - 🧹 **Log-Warnungen eliminiert**:
   - Deprecated `enableRemoteStreaming` aus solrconfig.xml entfernt (Solr 9.x nutzt sys-prop)
@@ -35,8 +35,9 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
   - Deployed solrconfig.xml automatisch in ALLE existierenden Cores
   - Neuer core_reload.yml Task lädt Cores nach Config-Änderungen neu
   - EFFEKT: Config-Updates werden jetzt automatisch auf existierende Cores angewendet
+- ❌ **jmespath Dependency entfernt**: Core-Reload nutzt jetzt native Jinja2 Filter
 
-**Status:** Auf Production-Server getestet, wartet auf finale Validierung
+**Wichtig:** Für per-core Zugriffskontrolle wird SolrCloud mit ZooKeeper benötigt. Siehe "Bekannte Einschränkungen" Abschnitt.
 
 ---
 
@@ -852,6 +853,32 @@ solr_port: 8984
 
 # Playbook erneut ausführen
 ```
+
+---
+
+## ⚠️ Bekannte Einschränkungen & Probleme
+
+### 🔒 Per-Core Zugriffskontrolle Einschränkung (Solr Standalone Architektur)
+
+**WICHTIG:** Laut [offizieller Apache Solr Dokumentation](https://solr.apache.org/guide/solr/latest/deployment-guide/rule-based-authorization-plugin.html):
+
+> "You can't limit access to a specific core through security.json - if you need to limit which users can access which sets of data, you'll have to use SolrCloud and the collections parameter."
+
+**Was das bedeutet:**
+- ✅ **Authentifizierung funktioniert**: Alle Benutzer können sich mit ihren Zugangsdaten anmelden
+- ⚠️ **Autorisierung ist global**: Im Standalone-Modus (Docker ohne ZooKeeper) funktionieren collection-spezifische Permissions in `security.json` **NICHT**
+- ⚠️ **Alle authentifizierten Benutzer können auf ALLE Cores zugreifen**: Feinkörnige Per-Core-Zugriffskontrolle benötigt SolrCloud mit ZooKeeper
+
+**Aktuelle Implementierung (v3.9.8):**
+- Nur globale Rollen: `admin`, `support`, `moodle`
+- Alle authentifizierten Benutzer haben Lese-/Schreibzugriff auf alle Cores
+- Admin-Benutzer haben vollen Zugriff auf Security-, Schema- und Config-APIs
+- Support-Benutzer haben Nur-Lese-Zugriff auf Configs und Metriken
+
+**Falls Sie Per-Core-Zugriffskontrolle benötigen:**
+- Migration zu SolrCloud-Modus mit ZooKeeper
+- Verwendung von Collection-Level-Permissions (nicht im Standalone-Modus unterstützt)
+- Oder separate Solr-Instanzen (eine pro Core/Kunde)
 
 ---
 

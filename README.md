@@ -21,10 +21,10 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.8 (SECURITY FIX + Log Warnings Fixed + PowerInit v1.7.0)
-- 🔒 **CRITICAL: Permission Order Fixed** - "all" permission moved to END of list
-- 🔐 **Multi-Core Access Fixed** - Core-specific users can now login and access their cores
-- 👥 **Admin Access Enhanced** - Admin users now have explicit access to all cores
+### ✨ New in v3.9.8 (SECURITY FIX + Solr Standalone Limitation Documented)
+- 📖 **Solr Standalone Limitation Documented** - Per official Apache Solr docs, per-core permissions do NOT work in Standalone mode
+- 🔒 **Security.json Simplified** - Removed all collection-specific permissions (don't work without SolrCloud)
+- ⚠️ **Global Permissions** - All authenticated users now have access to ALL cores (Solr Standalone limitation)
 - 📊 **Production Tested** - Main branch deployment validated (ok=500, changed=61, failed=0)
 - 🧹 **Log Warnings Eliminated**:
   - Removed deprecated `enableRemoteStreaming` from solrconfig.xml (Solr 9.x uses sys-prop)
@@ -35,12 +35,10 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
   - Auto-deploys solrconfig.xml to ALL existing cores
   - New core_reload.yml task reloads cores after config changes
   - IMPACT: Config updates now apply to existing cores automatically
-- ⚠️ **Previously Known Issues** (ALL FIXED):
-  - Users can only login with admin user ✅ FIXED
-  - Security.json "all" tag caused permission conflicts ✅ FIXED
-  - Deprecated warnings in logs ✅ FIXED
-  - Existing cores not picking up new configs ✅ FIXED
+- ❌ **jmespath Dependency Removed** - Core-Reload now uses native Jinja2 filters
 - 🔧 **Status**: Tested on production server, awaiting final validation
+
+**Important:** For per-core access control, SolrCloud with ZooKeeper is required. See "Known Limitations" section.
 
 ### ✨ New in v3.9.7 (Hardware Test Pending ⚠️)
 - 🐛 **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben
@@ -1038,7 +1036,31 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 ---
 
-## ⚠️ Known Issues (v3.9.3)
+## ⚠️ Known Limitations & Issues
+
+### 🔒 Per-Core Access Control Limitation (Solr Standalone Architecture)
+
+**IMPORTANT:** According to [Apache Solr official documentation](https://solr.apache.org/guide/solr/latest/deployment-guide/rule-based-authorization-plugin.html):
+
+> "You can't limit access to a specific core through security.json - if you need to limit which users can access which sets of data, you'll have to use SolrCloud and the collections parameter."
+
+**What this means:**
+- ✅ **Authentication works**: All users can login with their credentials
+- ⚠️ **Authorization is global**: In Standalone mode (Docker without ZooKeeper), collection-specific permissions in `security.json` do **NOT** work
+- ⚠️ **All authenticated users can access ALL cores**: Fine-grained per-core access control requires SolrCloud setup with ZooKeeper
+
+**Current Implementation (v3.9.8):**
+- Global roles only: `admin`, `support`, `moodle`
+- All authenticated users have read/write access to all cores
+- Admin users have full access to security, schema, and config APIs
+- Support users have read-only access to configs and metrics
+
+**If you need per-core access control:**
+- Migrate to SolrCloud mode with ZooKeeper
+- Use collection-level permissions (not supported in standalone mode)
+- Or use separate Solr instances (one per core/customer)
+
+---
 
 ### Authentication Fails on Re-Runs (Fixed in v3.9.4)
 
