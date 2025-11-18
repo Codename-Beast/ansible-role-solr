@@ -1,12 +1,12 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.9.6-blue)
+![Version](https://img.shields.io/badge/version-3.9.7-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-v3.9.6%20validation%20pending-yellow)
+![Tests](https://img.shields.io/badge/tests-v3.9.7%20validation%20pending-yellow)
 ![Quality](https://img.shields.io/badge/code%20quality-9.9%2F10-brightgreen)
-![Status](https://img.shields.io/badge/status-awaiting%20v3.9.6%20test-yellow)
+![Status](https://img.shields.io/badge/status-awaiting%20v3.9.7%20test-yellow)
 
 Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
 
@@ -16,21 +16,23 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ---
 
-## 🎉 What's New in v3.9.6 (Critical Fixes & Production Ready)
+## 🎉 What's New in v3.9.7 (Template Fix & Critical Patches)
 
 <table>
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.6 (CRITICAL FIXES - Hardware Test Pending ⚠️)
-- 🔴 **CRITICAL FIX: Re-Run Persistence** - Multicore passwords now persist across deployments
-- 🔴 **CRITICAL FIX: Conditional Logic** - Fixed user_management.yml and auth_persistence.yml conditionals
-- 🔒 **Health Check Fixed** - Switched to `/admin/ping` endpoint (auth-exempt)
-- 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
-- 🐛 **Hash Algorithm Fixed (v3.9.5)** - Binary vs text concatenation mismatch resolved
-- ⚠️ **Testing Pending** - v3.9.6 hardware validation on Hetzner Cloud required
+### ✨ New in v3.9.7 (TEMPLATE FIX - Hardware Test Pending ⚠️)
+- 🐛 **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben
+- 🔧 **Credentials Display:** Keine failed tasks mehr bei Finalization
+- 🔴 **CRITICAL FIX (v3.9.6): Re-Run Persistence** - Multicore passwords persist across deployments
+- 🔴 **CRITICAL FIX (v3.9.6): Conditional Logic** - Fixed user_management.yml and auth_persistence.yml
+- 🔒 **Health Check Fixed (v3.9.4)** - Switched to `/admin/ping` endpoint (auth-exempt)
+- 🔐 **PowerInit v1.6.0 (v3.9.4)** - SHA256 checksum verification for security.json
+- 🐛 **Hash Algorithm Fixed (v3.9.5)** - Binary vs text concatenation resolved
+- ⚠️ **Testing Pending** - v3.9.7 hardware validation on Hetzner Cloud required
 - 📊 **Last Test (v3.9.3)** - Play recap: ok=496, changed=37 (Fresh Install worked, Re-Runs failed)
-- ✅ **Expected Fix** - Re-Runs without container deletion should now work
+- ✅ **Expected Fix** - Re-Runs AND credentials display should now work
 
 ### ✨ New in v3.9.3 (Issues Discovered)
 - 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
@@ -98,7 +100,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ⚠️ **TESTING REQUIRED** (v3.9.6 - All critical fixes implemented, Hardware validation pending | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Last Test (v3.9.3):** ok=496, changed=37)
+**Status:** ⚠️ **TESTING REQUIRED** (v3.9.7 - Template fix + critical patches, Hardware validation pending | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Last Test (v3.9.3):** ok=496, changed=37)
 
 ---
 
@@ -1155,34 +1157,43 @@ curl http://localhost:8983/solr/admin/ping?wt=json
 
 ## 🧪 Testing Status
 
-### v3.9.6 - Pending Hardware Validation
+### v3.9.7 - Pending Hardware Validation
 
 **Status:** ⚠️ **TESTING REQUIRED**
 
-All critical fixes implemented and committed, but v3.9.6 hardware validation on Hetzner Cloud pending:
+All critical fixes + template fix implemented and committed, but v3.9.7 hardware validation on Hetzner Cloud pending:
 
-- ✅ **Code Changes:** All conditionals, hash algorithms, and persistence logic fixed
+- ✅ **Code Changes:** All conditionals, hash algorithms, persistence logic, and template syntax fixed
+- ✅ **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben (v3.9.7)
 - ✅ **Theoretical Fix:** Root causes identified and resolved
-- ⚠️ **Hardware Test:** Re-Run without container deletion NOT yet validated on v3.9.6
-- 📊 **Last Test:** Play recap ok=496, changed=37 (from earlier failed v3.9.3 run)
+- ⚠️ **Hardware Test:** Re-Run without container deletion NOT yet validated on v3.9.7
+- 📊 **Last Test:** Play recap ok=496, changed=37 (v3.9.3 failed on re-run) | ok=526, changed=40, failed=1 (v3.9.3 template error)
 
 **What needs testing:**
-1. Fresh Install with v3.9.6
+1. Fresh Install with v3.9.7
 2. Re-Run WITHOUT deleting container/volume/opt/solr
 3. Verify multicore user authentication works after re-run
 4. Verify core admin authentication works after re-run
-5. Confirm Play recap metrics (ok=?, changed=?)
+5. Verify credentials display succeeds (no template errors)
+6. Confirm Play recap metrics (ok=?, changed=?, failed=0)
 
 **Expected Outcome:**
 - ✅ Fresh Install: Works (same as v3.9.3)
 - ✅ Re-Run: Should now work (fixed in v3.9.6)
 - ✅ Auth: Multicore users and core admins can login
+- ✅ Credentials: Display succeeds without template errors (fixed in v3.9.7)
 
 ---
 
 ## 📝 Changelog
 
-### v3.9.6 (2025-11-18) - Current Release ⚠️ TESTING PENDING
+### v3.9.7 (2025-11-18) - Current Release ⚠️ TESTING PENDING
+- 🐛 **Template Fix:** Fixed Jinja2 template syntax error in credentials_display.yml
+- 🔧 **Credentials Display:** Converted msg from YAML list to single string block with `|`
+- ✅ **Deployment:** Credentials display no longer fails at finalization step
+- 📊 **Impact:** Fixes "ok=526 changed=40 failed=1" error from credentials template
+
+### v3.9.6 (2025-11-18)
 - 🔴 **CRITICAL FIX: Multicore User Management** - Extended conditionals for multicore-only setups
 - 🔴 **CRITICAL FIX: Password Persistence** - Fixed auth_persistence.yml conditional logic for re-runs
 - 🔒 **Health Check Fixed** - Container health now uses `/admin/ping` (auth-exempt endpoint)

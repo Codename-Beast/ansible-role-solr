@@ -7,6 +7,34 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [3.9.7] - 2025-11-18 🐛 FIX: Jinja2 Template Syntax in credentials_display.yml
+
+**Type:** Patch Release - **BUG FIX**
+**Status:** 🔧 **FIXED** - Template-Fehler in credentials_display.yml behoben
+
+### 🐛 BUG FIXED
+
+**Problem:** Deployment scheiterte bei Finalization mit Jinja2-Template-Fehler
+
+- **Symptom:** `template error while templating string: Unexpected end of template. Jinja was looking for the following tags: 'elif' or 'else' or 'endif'`
+- **Root Cause:** Jinja2-Conditionals (`{% if %}...{% endif %}`) über mehrere YAML-Listen-Einträge verteilt
+  - Ansible verarbeitet jeden Listen-Eintrag als separaten String
+  - `{% if %}` in Zeile 21, `{% endif %}` in Zeile 26 → verschiedene Strings
+  - Jinja2 erwartet, dass if/endif im selben String geschlossen werden
+- **Impact:**
+  - Play recap: `ok=526 changed=40 unreachable=0 failed=1`
+  - Deployment technisch erfolgreich, aber Credentials-Display fehlgeschlagen
+  - Generierte Passwörter wurden nicht angezeigt
+  - User musste credentials.yml manuell lesen
+- **Fix:**
+  - Gesamtes credentials-Display von YAML-Liste zu Single-String-Block mit `|` konvertiert
+  - Alle `{% if %}...{% endif %}` Blöcke jetzt in einem einzigen Template-String
+  - Version: `credentials_display.yml` v2.0.0 → v2.1.0
+- **Betroffene Dateien:**
+  - `tasks/credentials_display.yml` - Complete rewrite of msg block
+
+---
+
 ## [3.9.6] - 2025-11-18 🚨 CRITICAL: Multicore User Management & Persistence Conditionals
 
 **Type:** Patch Release - **CRITICAL BUG FIXES**
