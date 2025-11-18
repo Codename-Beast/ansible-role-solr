@@ -119,10 +119,11 @@
   tags:
     - install-solr-auth
 
-- name: install-solr - Create Solr core
-  include_tasks: core_creation.yml
+- name: install-solr - Create and reload Solr cores
+  include_tasks: core_management.yml
   tags:
     - install-solr-core
+    - install-solr-config
 
 - name: install-solr - Configure webserver proxy
   include_tasks: proxy_configuration.yml

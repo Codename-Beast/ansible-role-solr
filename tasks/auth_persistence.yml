@@ -17,7 +17,7 @@
   set_fact:
     host_vars_dir: >-
       {{
-        inventory_dir | default(playbook_dir + '/host_vars_generated')
+        inventory_dir + '/host_vars'
         if (inventory_dir is defined and inventory_dir | length > 0 and inventory_dir != '/')
         else playbook_dir + '/host_vars_generated'
       }}
@@ -35,6 +35,28 @@
       - "Using fallback directory: {{ host_vars_dir }}"
       - "Credentials will be saved but may not persist across runs"
   when: not can_persist_to_inventory
+  delegate_to: localhost
+
+- name: auth-persist - Check if host_vars directory exists
+  stat:
+    path: "{{ host_vars_dir }}"
+  register: host_vars_dir_stat
+  delegate_to: localhost
+  run_once: true
+
+- name: auth-persist - Fail if host_vars directory does not exist
+  fail:
+    msg: |
+      CRITICAL: host_vars directory does not exist!
+      Expected path: {{ host_vars_dir }}
+
+      Please create it manually:
+        mkdir -p {{ host_vars_dir }}
+
+      Ansible convention requires: inventory_dir/host_vars/
+  when:
+    - can_persist_to_inventory
+    - not host_vars_dir_stat.stat.exists
   delegate_to: localhost
 
 - name: auth-persist - Read current host_vars if exists

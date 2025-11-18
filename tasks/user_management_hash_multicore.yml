@@ -84,9 +84,20 @@
     mc_combined_hash: "{{ mc_hash_output.stdout }}"
   no_log: true
 
-- name: user-hash-mc - Determine roles for {{ mc_user.username }}
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (USERNAME CONVENTION FIRST!)
   set_fact:
-    mc_user_roles: "{{ mc_user.roles | default(['core-admin-' ~ mc_core_name ~ '_core']) }}"
+    mc_user_roles: >-
+      {% if mc_user.username.endswith('_admin') -%}
+        ["admin"]
+      {%- elif mc_user.username.endswith('_moodle') -%}
+        ["moodle"]
+      {%- elif mc_user.username.endswith('_readonly') -%}
+        ["support"]
+      {%- elif mc_user.roles is defined -%}
+        {{ mc_user.roles | to_json }}
+      {%- else -%}
+        ["moodle"]
+      {%- endif %}
 
 - name: user-hash-mc - Add user hash to dictionary
   set_fact:

@@ -24,9 +24,10 @@ services:
       sh -c "
       set -e;
       echo '========================================';
-      echo 'Eledia PowerInit v1.6.1';
+      echo 'Eledia PowerInit v1.7.0';
       echo 'Deploying ALL configs BEFORE Solr starts';
       echo 'Checksum verification for security.json';
+      echo 'NEW: Auto-deploy to configSets + cores';
       echo '=========================================';
 
       echo '[1/6] Installing validation tools...';
@@ -108,6 +109,20 @@ services:
       if [ -f /config/solrconfig.xml ]; then
         echo '  - Deploying solrconfig.xml -> /var/solr/data/configs/';
         cp /config/solrconfig.xml /var/solr/data/configs/solrconfig.xml;
+        echo '  - Updating solrconfig.xml in configSets...';
+        for configset in /var/solr/data/configsets/*/conf; do
+          if [ -d \"$$configset\" ]; then
+            echo \"    -> $$configset/solrconfig.xml\";
+            cp /config/solrconfig.xml \"$$configset/solrconfig.xml\";
+          fi;
+        done;
+        echo '  - Updating solrconfig.xml in existing cores...';
+        for core_conf in /var/solr/data/*/conf; do
+          if [ -d \"$$core_conf\" ] && [ -f \"$$core_conf/core.properties\" ]; then
+            echo \"    -> $$core_conf/solrconfig.xml\";
+            cp /config/solrconfig.xml \"$$core_conf/solrconfig.xml\";
+          fi;
+        done;
       fi;
       if [ -f /config/moodle_schema.xml ]; then
         echo '  - Deploying moodle_schema.xml -> /var/solr/data/configs/';
@@ -150,7 +165,8 @@ services:
       echo '---';
       ls -lah /var/solr/data/configs/ 2>/dev/null || echo 'configs/: EMPTY';
       echo '========================================';
-      echo 'Eledia PowerInit v1.6.0: SUCCESS';
+      echo 'Eledia PowerInit v1.7.0: SUCCESS';
+      echo 'NOTE: Cores will auto-reload new configs';
       echo '========================================';
       exit 0;
       "

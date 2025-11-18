@@ -17,7 +17,8 @@
   Changelog v2.1.0 (v3.9.8):
   - REMOVED: enableRemoteStreaming (deprecated in Solr 9.x)
   - REMOVED: numVersionBuckets (obsolete in Solr 9.x)
-  - IMPACT: Eliminates deprecation warnings in Solr logs
+  - REMOVED: solr.ConfigHandler (deprecated - now implicit in Solr 9.x)
+  - IMPACT: Eliminates all deprecation warnings and init failures in Solr logs
 -->
 <config>
   <!-- Lucene Match Version -->
@@ -219,12 +220,12 @@
     </lst>
   </requestHandler>
 
-  <!-- Config API Handler -->
-  <requestHandler name="/config" class="solr.ConfigHandler">
-    <lst name="invariants">
-      <str name="enable">true</str>
-    </lst>
-  </requestHandler>
+  <!--
+    Config API Handler - REMOVED in v3.9.8
+    Note: solr.ConfigHandler is deprecated in Solr 9.x
+    The /config endpoint is now an implicit handler (built-in)
+    No explicit configuration needed - available by default
+  -->
 
   <!-- Analysis Request Handler -->
   <requestHandler name="/analysis/field"

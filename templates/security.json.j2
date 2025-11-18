@@ -1,17 +1,30 @@
 {#
  Security configuration template for Solr (v3.9.8+)
- Features:
- 1. Multi-Core Support: Dynamic permissions for multiple cores
- 2. Single-Core Backward Compatibility: Works with legacy setups
- 3. Per-Core Access Control: Each core can have dedicated users
- 4. Dynamic User Management: solr_additional_users support
- 5. Automatic Role Assignment: core-admin-<corename> roles
 
- IMPORTANT (v3.9.8 Security Fix):
- - Permission order matters! Solr checks permissions in order.
- - Core-specific permissions MUST come BEFORE the catch-all "all" permission
- - The "all" permission is now at the END as a fallback for admin users
- - This allows core-specific users to access their cores without being blocked
+ IMPORTANT LIMITATION (Standalone Mode):
+ According to Apache Solr documentation:
+ "You can't limit access to a specific core through security.json -
+  if you need to limit which users can access which sets of data,
+  you'll have to use SolrCloud and the collections parameter."
+
+ Source: https://solr.apache.org/guide/solr/latest/deployment-guide/rule-based-authorization-plugin.html
+
+ This means:
+ - In Standalone mode (without ZooKeeper/SolrCloud), collection-specific
+   permissions in security.json do NOT work as expected
+ - All authenticated users have access to all cores/collections
+ - Fine-grained per-core access control requires SolrCloud setup
+
+ Current Implementation:
+ - Global permissions only (admin, support, moodle roles)
+ - Admin has FULL access via "all" permission (for Admin UI to work)
+ - Support has read-only access to configs and metrics
+ - Moodle has read/write access to all cores for indexing
+
+ Permission Ordering (CRITICAL):
+ - "all" permission for admin MUST be FIRST
+ - Otherwise Admin UI will break (many APIs needed)
+ - Solr uses FIRST matching permission only
 #}
 {% set multi_core = (solr_cores | default([]) | length) > 0 %}
 {
@@ -27,18 +40,6 @@
       ,"{{ username }}": "{{ hash }}"
 {% endfor %}
 {% endif %}
-{% if multi_core %}
-{# Multi-Core Mode: Add all users from all cores #}
-{% for core in solr_cores %}
-{% if core.users is defined %}
-{% for user in core.users %}
-{% if user.password_hash is defined %}
-      ,"{{ user.username }}": "{{ user.password_hash }}"
-{% endif %}
-{% endfor %}
-{% endif %}
-{% endfor %}
-{% endif %}
     },
     "realm": "{{ solr_auth_realm | default('Solr Eledia') }}",
     "forwardCredentials": {{ solr_forward_credentials | default('false') | lower }}
@@ -46,67 +47,22 @@
   "authorization": {
     "class": "solr.RuleBasedAuthorizationPlugin",
     "permissions": [
+      {# CRITICAL: "all" permission for admin MUST BE FIRST for Admin UI to work #}
+      { "name": "all", "role": "admin" },
+
+      {# Health check endpoints - accessible without auth #}
       { "name": "health-check-ping", "path": "/admin/ping", "role": null },
       { "name": "health-check-detailed", "path": "/admin/health", "role": null },
       { "name": "health-check-simple", "path": "/admin/healthcheck", "role": null },
-      { "name": "security-read", "role": "admin" },
-      { "name": "security-edit", "role": "admin" },
-      { "name": "schema-read", "role": "admin" },
-      { "name": "schema-edit", "role": "admin" },
+
+      {# Support read-only permissions #}
       { "name": "config-read", "role": ["admin", "support"] },
-      { "name": "config-edit", "role": "admin" },
-      { "name": "core-admin-read", "role": "admin" },
-      { "name": "core-admin-edit", "role": "admin" },
-      { "name": "collection-admin-read", "role": "admin" },
-      { "name": "collection-admin-edit", "role": "admin" },
       { "name": "metrics-read", "role": ["admin", "support"] },
       { "name": "health", "role": ["admin", "support"] },
-{% if multi_core %}
-{# Multi-Core Mode: Create permissions for each core #}
-{% for core in solr_cores %}
-      {
-        "name": "core-{{ core.name }}_core-admin",
-        "collection": "{{ core.name }}_core",
-        "path": ["/*"],
-        "method": ["GET", "HEAD", "POST", "PUT", "DELETE"],
-        "role": ["core-admin-{{ core.name }}_core", "admin"]
-      },
-      {
-        "name": "core-{{ core.name }}_core-read",
-        "collection": "{{ core.name }}_core",
-        "path": ["/*"],
-        "method": ["GET", "HEAD"],
-        "role": ["support"]
-      },
-{% endfor %}
-      {# IMPORTANT: "all" permission at the END as fallback for admin #}
-      { "name": "all", "role": "admin" }
-{% else %}
-{# Single-Core Mode (Legacy) #}
-      {
-        "name": "core-{{ solr_core_name }}-admin",
-        "collection": "{{ solr_core_name }}",
-        "path": ["/*"],
-        "method": ["GET", "HEAD", "POST", "PUT", "DELETE"],
-        "role": ["{{ solr_core_admin_role | default(solr_core_admin_role_prefix ~ '-' ~ solr_core_name) }}", "admin"]
-      },
-      {
-        "name": "core-{{ solr_core_name }}-moodle",
-        "collection": "{{ solr_core_name }}",
-        "path": ["/*"],
-        "method": ["GET", "HEAD", "POST", "DELETE"],
-        "role": ["moodle"]
-      },
-      {
-        "name": "core-{{ solr_core_name }}-support",
-        "collection": "{{ solr_core_name }}",
-        "path": ["/*"],
-        "method": ["GET", "HEAD"],
-        "role": ["support"]
-      },
-      {# IMPORTANT: "all" permission at the END as fallback for admin #}
-      { "name": "all", "role": "admin" }
-{% endif %}
+
+      {# Global read/write permissions - applies to ALL cores in standalone mode #}
+      { "name": "read", "role": ["admin", "support", "moodle"] },
+      { "name": "update", "role": ["admin", "moodle"] }
     ],
     "user-role": {
       "{{ solr_admin_user | default('admin') }}": ["admin"],
@@ -115,16 +71,6 @@
 {% if solr_additional_user_roles is defined %}
 {% for username, roles in solr_additional_user_roles.items() %}
       ,"{{ username }}": {{ roles | to_json }}
-{% endfor %}
-{% endif %}
-{% if multi_core %}
-{# Multi-Core Mode: Add user-role mappings from cores #}
-{% for core in solr_cores %}
-{% if core.users is defined %}
-{% for user in core.users %}
-      ,"{{ user.username }}": {{ user.roles | default(['core-admin-' ~ core.name ~ '_core']) | to_json }}
-{% endfor %}
-{% endif %}
 {% endfor %}
 {% endif %}
     }
