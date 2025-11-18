@@ -260,13 +260,13 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
   roles:
     - role: solr
       vars:
-        customer_name: "acme-corp"
-        moodle_app_domain: "moodle.acme.com"
-        solr_core_name: "acme_core"
+        customer_name: "eledia-corp"
+        moodle_app_domain: "moodle.eledia.de"
+        solr_core_name: "eledia_core"
         # Use ansible-vault for passwords!
-        solr_admin_password: "{{ vault_solr_admin_password }}|| Plaintext"
-        solr_support_password: "{{ vault_solr_support_password }}|| Plaintext"
-        solr_moodle_password: "{{ vault_solr_moodle_password }} || Plaintext"
+        solr_admin_password: "{{ vault_solr_admin_password }} or Plaintext"
+        solr_support_password: "{{ vault_solr_support_password }} or Plaintext"
+        solr_moodle_password: "{{ vault_solr_moodle_password }}  or Plaintext"
 ```
 
 ### 4. Run
@@ -298,7 +298,7 @@ solr_moodle_user: "moodle"               # Default: moodle
 
 ### Container Configuration
 ```yaml
-solr_version: "9.9.0"  # Upgrade to 9.10.0 validated and ready (compatible)
+solr_version: "9.9.0"  # Upgrade to 9.10.0 validated and ready (compatible, not tested)
 solr_port: 8983                          # Solr port (default: 8983)
 solr_heap_size: "2g"                     # Java heap size
 solr_memory_limit: "2g"                  # Container memory limit
@@ -389,7 +389,7 @@ solr_health_memory_threshold: 85
 solr_health_cache_threshold: 75
 ```
 
-**Disable health checks** (not recommended):
+**Disable health checks**:
 ```yaml
 solr_health_check_enabled: false
 ```
@@ -398,7 +398,7 @@ solr_health_check_enabled: false
 
 Deploy up to **4-5 Moodle instances** on a 16GB server, or **10 instances** on a 32GB server with automatic RAM management and password generation.
 
-#### ⚠️ RAM Calculation (Fixed in v3.9.0)
+#### ⚠️ RAM Calculation (Fixed)
 
 **Problem:** Caches sind **PER-CORE** und multiplizieren sich (nicht geteilt)!
 
@@ -679,7 +679,7 @@ ansible-playbook -i inventory playbook.yml
            │
 ┌──────────▼───────────┐
 │ 7. Container Deploy  │ → Deploys with rollback protection
-│   ┌───────────────┐  │   ├─ Backup current state
+│   ┌───────────────┐  │ 
 │   │ BLOCK         │  │   ├─ Check config changes
 │   │  Deploy       │  │   ├─ Stop if needed
 │   └───────┬───────┘  │   ├─ Start with init
@@ -698,7 +698,7 @@ ansible-playbook -i inventory playbook.yml
 └──────────┬───────────┘
            │
 ┌──────────▼───────────┐
-│ 9. Auth Persistence  │ → Saves credentials to host_vars (idempotent)
+│ 9. Auth Persistence  │ → Saves credentials (idempotent)
 └──────────┬───────────┘
            │
 ┌──────────▼───────────┐
@@ -1202,7 +1202,7 @@ All critical fixes + template fix implemented and committed, but v3.9.7 hardware
 ### v3.9.3 (2025-11-16)
 - 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
 - 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
-- 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
+- 🗑️ **Dead Code** - backup_management.yml gelöscht
 - 📋 **Dokumentation** - Sprachliche Anpassungen, "Customer User" → "Moodle User"
 - ⚠️ **Critical Bugs Discovered** - Multicore persistence & conditional logic issues (fixed in v3.9.4-v3.9.6)
 
@@ -1214,7 +1214,7 @@ All critical fixes + template fix implemented and committed, but v3.9.7 hardware
 - ✅ All critical bugs fixed (4 bugs)
 - ✅ Moodle file indexing fields completed
 - ✅ User management (v3.8.0)
-- ✅ 100% Moodle 4.1-5.0.3 compatibility
+- ✅ Moodle 4.1-5.0.3 compatibility
 
 **Critical Fixes:**
 - Fixed circular variable dependency (customer_name)
