@@ -15,7 +15,7 @@
     "credentials": {
       "{{ solr_admin_user | default('admin') }}": "{{ admin_password_hash }}",
       "{{ solr_support_user | default('support') }}": "{{ support_password_hash }}",
-      "{{ solr_moodle_user | default('moodle') }}": "{{ moodle_password_hash }}"{% if solr_additional_user_hashes is defined and solr_additional_user_hashes|length > 0 %},{% endif %}
+      "{{ solr_moodle_user | default('moodle') }}": "{{ moodle_password_hash }}"
 {% if solr_additional_user_hashes is defined %}
 {% for username, hash in solr_additional_user_hashes.items() %}
       ,"{{ username }}": "{{ hash }}"
@@ -102,7 +102,7 @@
     "user-role": {
       "{{ solr_admin_user | default('admin') }}": ["admin"],
       "{{ solr_support_user | default('support') }}": ["support"],
-      "{{ solr_moodle_user | default('moodle') }}": ["moodle"]{% if solr_additional_user_roles is defined and solr_additional_user_roles|length > 0 %},{% endif %}
+      "{{ solr_moodle_user | default('moodle') }}": ["moodle"]
 {% if solr_additional_user_roles is defined %}
 {% for username, roles in solr_additional_user_roles.items() %}
       ,"{{ username }}": {{ roles | to_json }}

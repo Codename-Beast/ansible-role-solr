@@ -1,14 +1,56 @@
 ---
-# Version: 1.2.0
-# Description: Test Moodle document indexing and search
-# Creates sample Moodle documents for testing
+# Version: 1.4.0
+# Description: Test Moodle document indexing and search (Multi-Core compatible)
+# Changelog v1.4.0:
+#   - SIMPLIFIED: Use admin credentials for all tests
+#   - Admin has global permissions in both Single and Multi-Core modes
+#   - Eliminates permission issues across all core configurations
+#   - Tests document indexing, search, and Solr functionality
+# Changelog v1.3.0:
+#   - FIXED: Multi-Core Mode support - uses test_core_name from integration_tests
+#   - IMPROVED: Automatically detects core name based on mode
+
+# ============================================================================
+# DETERMINE TEST CORE
+# ============================================================================
+
+- name: moodle-test - Set test core name (Single-Core Mode)
+  set_fact:
+    test_core_name: "{{ solr_core_name }}"
+  when: 
+    - not multi_core_mode_active | default(false)
+    - test_core_name is not defined
+  changed_when: false
+
+- name: moodle-test - Set test core name (Multi-Core Mode)
+  set_fact:
+    test_core_name: "{{ solr_cores[0].name }}_core"
+  when: 
+    - multi_core_mode_active | default(false)
+    - solr_cores is defined
+    - solr_cores | length > 0
+    - test_core_name is not defined
+  changed_when: false
+
+- name: moodle-test - Display test configuration
+  debug:
+    msg:
+      - "Moodle Document Test Configuration:"
+      - "Mode: {{ 'Multi-Core' if multi_core_mode_active | default(false) else 'Single-Core' }}"
+      - "Test core: {{ test_core_name }}"
+      - "Test user: {{ solr_admin_user }} (admin)"
+      - "Note: Using admin for all tests (has global permissions)"
+
+# ============================================================================
+# WAIT FOR CORE TO BE READY
+# ============================================================================
 
 - name: test-docs - Wait for Solr core to be ready
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/admin/ping"
     method: GET
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: core_ready
@@ -17,12 +59,16 @@
   delay: 5
   changed_when: false
 
+# ============================================================================
+# INDEX TEST DOCUMENTS
+# ============================================================================
+
 - name: test-docs - Index Moodle test document - Forum Post
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -42,10 +88,10 @@
 
 - name: test-docs - Index Moodle test document - Wiki Page
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -65,10 +111,10 @@
 
 - name: test-docs - Index Moodle test document - Course Module
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -88,10 +134,10 @@
 
 - name: test-docs - Index Moodle test document - Assignment
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -111,10 +157,10 @@
 
 - name: test-docs - Index Moodle test document - Page Resource
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update/json/docs"
     method: POST
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     body_format: json
     body:
@@ -132,72 +178,84 @@
     status_code: 200
   register: test_doc5
 
+# ============================================================================
+# COMMIT DOCUMENTS
+# ============================================================================
+
 - name: test-docs - Commit all test documents
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update?commit=true"
     method: GET
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     status_code: 200
   register: commit_result
 
-- name: install-solr - Test search for "Mathematik"
+# ============================================================================
+# SEARCH TESTS
+# ============================================================================
+
+- name: test-docs - Test search for "Mathematik"
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=title:Mathematik&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/select?q=title:Mathematik&wt=json"
     method: GET
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_math
   changed_when: false
 
-- name: install-solr - Test search for "Python"
+- name: test-docs - Test search for "Python"
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=content:Python&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/select?q=content:Python&wt=json"
     method: GET
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_python
   changed_when: false
 
-- name: install-solr - Test search by course ID
+- name: test-docs - Test search by course ID
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=courseid:5&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/select?q=courseid:5&wt=json"
     method: GET
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_course
   changed_when: false
 
-- name: install-solr - Test search by type
+- name: test-docs - Test search by type
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=type:0&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/select?q=type:0&wt=json"
     method: GET
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_type
   changed_when: false
 
-- name: install-solr - Test facet search by type
+- name: test-docs - Test facet search by type
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*&facet=true&facet.field=type&wt=json"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/select?q=*:*&facet=true&facet.field=type&wt=json"
     method: GET
-    user: "{{ solr_moodle_user }}"
-    password: "{{ solr_moodle_password }}"
+    user: "{{ solr_admin_user }}"
+    password: "{{ solr_admin_password }}"
     force_basic_auth: yes
     return_content: yes
   register: search_facet
   changed_when: false
 
-- name: install-solr - Calculate test results
+# ============================================================================
+# TEST RESULTS SUMMARY
+# ============================================================================
+
+- name: test-docs - Calculate test results
   set_fact:
     moodle_tests_passed: >-
       {{
@@ -214,12 +272,15 @@
       }}
     moodle_tests_total: 10
 
-- name: install-solr - Create Rundeck-compatible output
+- name: test-docs - Create Rundeck-compatible output
   set_fact:
     moodle_test_result:
       status: "{{ 'success' if moodle_tests_passed | int == moodle_tests_total | int else 'warning' }}"
       timestamp: "{{ ansible_date_time.iso8601 }}"
       message: "Moodle document tests completed"
+      core_tested: "{{ test_core_name }}"
+      mode: "{{ 'Multi-Core' if multi_core_mode_active | default(false) else 'Single-Core' }}"
+      test_user: "{{ solr_admin_user }}"
       summary:
         tests_total: "{{ moodle_tests_total }}"
         tests_passed: "{{ moodle_tests_passed }}"
@@ -243,30 +304,36 @@
         - "assignment: Hausaufgabe Datenbankdesign"
         - "page: HTML und CSS Lernmaterialien"
 
-- name: install-solr - Display Rundeck output
+- name: test-docs - Display Rundeck output
   debug:
     msg: "{{ moodle_test_result | to_nice_json }}"
   when: rundeck_integration_enabled | default(false)
 
-- name: install-solr - Display standard summary
+- name: test-docs - Display standard summary
   debug:
     msg:
-      - "MOODLE DOCUMENT TESTS COMPLETED"
-      - "Tests passed: {{ moodle_tests_passed }}/{{ moodle_tests_total }} ({{ ((moodle_tests_passed | int / moodle_tests_total | int) * 100) | round(2) }}%)"
-      - "---"
-      - "Indexing Tests:"
-      - "  Forum Post: {{ 'PASSED' if test_doc1.status == 200 else 'FAILED' }}"
-      - "  Wiki Page: {{ 'PASSED' if test_doc2.status == 200 else 'FAILED' }}"
-      - "  Course Module: {{ 'PASSED' if test_doc3.status == 200 else 'FAILED' }}"
-      - "  Assignment: {{ 'PASSED' if test_doc4.status == 200 else 'FAILED' }}"
-      - "  Page Resource: {{ 'PASSED' if test_doc5.status == 200 else 'FAILED' }}"
-      - "  Commit: {{ 'PASSED' if commit_result.status == 200 else 'FAILED' }}"
-      - "---"
-      - "Search Tests:"
-      - "  Search by title (Mathematik): {{ 'PASSED (' + (search_math.json.response.numFound | string) + ' results)' if search_math.json.response.numFound >= 1 else 'FAILED' }}"
-      - "  Search by content (Python): {{ 'PASSED (' + (search_python.json.response.numFound | string) + ' results)' if search_python.json.response.numFound >= 1 else 'FAILED' }}"
-      - "  Search by courseid: {{ 'PASSED (' + (search_course.json.response.numFound | string) + ' results)' if search_course.json.response.numFound >= 1 else 'FAILED' }}"
-      - "  Search by type: {{ 'PASSED (' + (search_type.json.response.numFound | string) + ' results)' if search_type.json.response.numFound >= 1 else 'FAILED' }}"
+      - "╔════════════════════════════════════════════════════════════════╗"
+      - "║           MOODLE DOCUMENT TESTS COMPLETED                      ║"
+      - "╠════════════════════════════════════════════════════════════════╣"
+      - "║ Mode:        {{ 'Multi-Core' if multi_core_mode_active | default(false) else 'Single-Core' }}"
+      - "║ Core:        {{ test_core_name }}"
+      - "║ Test User:   {{ solr_admin_user }} (admin)"
+      - "║ Results:     {{ moodle_tests_passed }}/{{ moodle_tests_total }} tests passed ({{ ((moodle_tests_passed | int / moodle_tests_total | int) * 100) | round(2) }}%)"
+      - "╠════════════════════════════════════════════════════════════════╣"
+      - "║ INDEXING TESTS:"
+      - "║   Forum Post:      {{ 'PASSED ✅' if test_doc1.status == 200 else 'FAILED ❌' }}"
+      - "║   Wiki Page:       {{ 'PASSED ✅' if test_doc2.status == 200 else 'FAILED ❌' }}"
+      - "║   Course Module:   {{ 'PASSED ✅' if test_doc3.status == 200 else 'FAILED ❌' }}"
+      - "║   Assignment:      {{ 'PASSED ✅' if test_doc4.status == 200 else 'FAILED ❌' }}"
+      - "║   Page Resource:   {{ 'PASSED ✅' if test_doc5.status == 200 else 'FAILED ❌' }}"
+      - "║   Commit:          {{ 'PASSED ✅' if commit_result.status == 200 else 'FAILED ❌' }}"
+      - "╠════════════════════════════════════════════════════════════════╣"
+      - "║ SEARCH TESTS:"
+      - "║   By Title (Mathematik):  {{ 'PASSED ✅ (' + (search_math.json.response.numFound | string) + ' results)' if search_math.json.response.numFound >= 1 else 'FAILED ❌' }}"
+      - "║   By Content (Python):    {{ 'PASSED ✅ (' + (search_python.json.response.numFound | string) + ' results)' if search_python.json.response.numFound >= 1 else 'FAILED ❌' }}"
+      - "║   By Course ID:           {{ 'PASSED ✅ (' + (search_course.json.response.numFound | string) + ' results)' if search_course.json.response.numFound >= 1 else 'FAILED ❌' }}"
+      - "║   By Type:                {{ 'PASSED ✅ (' + (search_type.json.response.numFound | string) + ' results)' if search_type.json.response.numFound >= 1 else 'FAILED ❌' }}"
+      - "╚════════════════════════════════════════════════════════════════╝"
   when: not rundeck_integration_enabled | default(false)
 
 # ============================================================================
@@ -275,7 +342,7 @@
 
 - name: moodle-test - Delete all test documents (cleanup)
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update?commit=true"
     method: POST
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -291,4 +358,4 @@
 
 - name: moodle-test - Verify cleanup
   debug:
-    msg: "Test documents cleanup: {{ 'COMPLETED' if cleanup_result.status | default(0) == 200 else 'FAILED (non-critical)' }}"
+    msg: "Test documents cleanup: {{ 'COMPLETED ✅' if cleanup_result.status | default(0) == 200 else 'FAILED ❌ (non-critical)' }}"

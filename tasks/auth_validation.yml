@@ -1,6 +1,11 @@
 ---
-# Version: 1.3.1
-# Description: Authentication validation with loop-based testing
+# Version: 1.4.0
+# Description: Authentication validation with Multi-Core support
+# Changelog v1.4.0:
+#   - NEW: Multi-Core mode support via solr_multi_core_mode detection
+#   - FIXED: Auth validation now skips core-specific tests in Multi-Core mode
+#   - CHANGED: Multi-Core mode tests against global endpoint instead
+#   - IMPROVED: Accepts both 200 and 403 status codes (authenticated but not authorized)
 # Changelog v1.3.1:
 #   - FIXED: Full idempotency support for unlimited re-runs
 #   - OPTIMIZED: Loop-based user testing
@@ -35,7 +40,7 @@
         username: "{{ solr_moodle_user | default('moodle') }}"
         password: "{{ solr_moodle_password }}"
 
-- name: auth-val - Test user authentication against core ping
+- name: auth-val - Test user authentication against core ping (Single-Core)
   uri:
     url: "http://127.0.0.1:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
     method: GET
@@ -47,7 +52,23 @@
   loop_control:
     label: "{{ item.name }}"
   register: user_auth_tests
+  when: not solr_multi_core_mode | default(false)
   failed_when: user_auth_tests.status | default(0) != 200
+
+- name: auth-val - Test user authentication against global endpoint (Multi-Core)
+  uri:
+    url: "http://127.0.0.1:{{ solr_port }}/solr/admin/info/system"
+    method: GET
+    user: "{{ item.username }}"
+    password: "{{ item.password }}"
+    force_basic_auth: yes
+    status_code: [200, 403]  # 200 = access granted, 403 = authenticated but not authorized (OK)
+  loop: "{{ test_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: user_auth_tests_multicore
+  when: solr_multi_core_mode | default(false)
+  failed_when: user_auth_tests_multicore.status | default(0) not in [200, 403]
 
 - name: auth-val - Test admin authorization
   uri:
@@ -76,7 +97,7 @@
   register: support_authz_test
   failed_when: support_authz_test.status not in [401, 403]
 
-- name: auth-val - Calculate test results
+- name: auth-val - Calculate test results (Single-Core)
   set_fact:
     auth_test_summary:
       unauthenticated_blocked: "{{ unauth_test.status == 401 }}"
@@ -85,6 +106,18 @@
       moodle_login: "{{ 'success' if user_auth_tests.results[1].status == 200 else 'failed' }}"
       admin_authorization: "{{ 'full' if admin_authz_test.status == 200 else 'limited' }}"
       support_auth_blocked: "{{ support_authz_test.status in [401, 403] }}"
+  when: not solr_multi_core_mode | default(false)
+
+- name: auth-val - Calculate test results (Multi-Core)
+  set_fact:
+    auth_test_summary:
+      unauthenticated_blocked: "{{ unauth_test.status == 401 }}"
+      admin_login: "{{ 'success' if admin_auth.status == 200 else 'failed' }}"
+      support_login: "{{ 'success' if user_auth_tests_multicore.results[0].status in [200, 403] else 'failed' }}"
+      moodle_login: "{{ 'success' if user_auth_tests_multicore.results[1].status in [200, 403] else 'failed' }}"
+      admin_authorization: "{{ 'full' if admin_authz_test.status == 200 else 'limited' }}"
+      support_auth_blocked: "{{ support_authz_test.status in [401, 403] }}"
+  when: solr_multi_core_mode | default(false)
 
 - name: auth-val - Display validation summary
   debug:
