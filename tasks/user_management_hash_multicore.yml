@@ -84,46 +84,20 @@
     mc_combined_hash: "{{ mc_hash_output.stdout }}"
   no_log: true
 
-- name: user-hash-mc - Check if user has legacy/invalid role assignment
+- name: user-hash-mc - Determine roles for {{ mc_user.username }} (USERNAME CONVENTION FIRST!)
   set_fact:
-    has_legacy_role: "{{ mc_user.roles is defined and (mc_user.roles[0] | default('')) | regex_search('^core-admin-.*_core$') }}"
-
-- name: user-hash-mc - Determine roles for {{ mc_user.username }} (admin convention)
-  set_fact:
-    mc_user_roles: ["admin"]
-  when:
-    - mc_user.username | regex_search('_admin$')
-    - (has_legacy_role | bool) or (mc_user.roles is not defined)
-
-- name: user-hash-mc - Determine roles for {{ mc_user.username }} (moodle convention)
-  set_fact:
-    mc_user_roles: ["moodle"]
-  when:
-    - mc_user.username | regex_search('_moodle$')
-    - (has_legacy_role | bool) or (mc_user.roles is not defined)
-
-- name: user-hash-mc - Determine roles for {{ mc_user.username }} (readonly convention)
-  set_fact:
-    mc_user_roles: ["support"]
-  when:
-    - mc_user.username | regex_search('_readonly$')
-    - (has_legacy_role | bool) or (mc_user.roles is not defined)
-
-- name: user-hash-mc - Determine roles for {{ mc_user.username }} (custom roles - valid)
-  set_fact:
-    mc_user_roles: "{{ mc_user.roles }}"
-  when:
-    - mc_user.roles is defined
-    - not (has_legacy_role | bool)
-
-- name: user-hash-mc - Determine roles for {{ mc_user.username }} (default fallback)
-  set_fact:
-    mc_user_roles: ["moodle"]
-  when:
-    - mc_user_roles is not defined
-    - not (mc_user.username | regex_search('_admin$'))
-    - not (mc_user.username | regex_search('_moodle$'))
-    - not (mc_user.username | regex_search('_readonly$'))
+    mc_user_roles: >-
+      {% if mc_user.username.endswith('_admin') -%}
+        ["admin"]
+      {%- elif mc_user.username.endswith('_moodle') -%}
+        ["moodle"]
+      {%- elif mc_user.username.endswith('_readonly') -%}
+        ["support"]
+      {%- elif mc_user.roles is defined -%}
+        {{ mc_user.roles | to_json }}
+      {%- else -%}
+        ["moodle"]
+      {%- endif %}
 
 - name: user-hash-mc - Add user hash to dictionary
   set_fact:
