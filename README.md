@@ -28,7 +28,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - 🔒 **Health Check Fixed** - Switched to `/admin/ping` endpoint (auth-exempt)
 - 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
 - 🐛 **Hash Algorithm Fixed (v3.9.5)** - Binary vs text concatenation mismatch resolved
-- ✅ **Hetzner Cloud Validated** - ~500 OK tasks, ~19 changes per deployment
+- ✅ **Hetzner Cloud Validated** - Play recap: ok=496, changed=37
 - ⚠️ **Issues discovered in v3.9.3** - Fresh Install worked, Re-Runs without container deletion failed
 
 ### ✨ New in v3.9.3 (Issues Discovered)
@@ -97,7 +97,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ✅ **PRODUCTION READY** (v3.9.6 - All critical fixes validated on Hetzner Cloud | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Tests:** ~500 OK tasks, ~19 changes)
+**Status:** ✅ **PRODUCTION READY** (v3.9.6 - All critical fixes validated on Hetzner Cloud | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Tests:** ok=496, changed=37)
 
 ---
 
@@ -122,8 +122,8 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ### Production Validation (Hetzner Cloud)
 - ✅ **Hardware Tests Completed** - Validated on Hetzner Cloud infrastructure
-- ✅ **Deployment Stats** - ~500 OK tasks, ~19 changes per run
-- ✅ **Idempotency Note** - Minimum ~19 changes always applied (configuration updates, permissions, etc.)
+- ✅ **Deployment Stats** - Play recap: ok=496, changed=37
+- ✅ **Idempotency Note** - Minimum ~37 changes always applied (configuration updates, permissions, health checks, etc.)
 - ⚠️ **Expected Behavior** - "SKIPPING deployment - no changes detected" message not shown with existing containers
 - ✅ **Re-Run Reliability** - Fresh installs and re-runs without container deletion both functional (fixed in v3.9.6)
 
@@ -845,9 +845,9 @@ $ ansible-playbook playbook.yml
 # ✅ Container keeps running
 # ✅ No restart
 # ✅ Execution: ~30 seconds
-# ✅ ~19 changes applied (permissions, config validation, health checks)
+# ✅ Play recap: ok=496, changed=37 (typical values)
 # ℹ️ Note: "SKIPPING deployment" message not shown with existing containers
-#          Minimum configuration updates always applied for consistency
+#          Minimum ~37 changes always applied (permissions, config validation, health checks)
 ```
 
 ### Scenario 2: Password Change Only
@@ -1077,7 +1077,7 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 - 🔴 **CRITICAL FIX: Password Persistence** - Fixed auth_persistence.yml conditional logic for re-runs
 - 🔒 **Health Check Fixed** - Container health now uses `/admin/ping` (auth-exempt endpoint)
 - 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
-- ✅ **Hetzner Cloud Validated** - Production tests completed (~500 OK, ~19 changes)
+- ✅ **Hetzner Cloud Validated** - Production tests completed (Play recap: ok=496, changed=37)
 - ✅ **Status:** Production Ready - All critical fixes validated
 
 ### v3.9.5 (2025-11-18)
