@@ -17,7 +17,7 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
 
 ---
 
-## 🔒 Version 3.9.8 - SECURITY FIX (In Testing)
+## 🔒 Version 3.9.8 - SECURITY FIX + Log-Warnungen Behoben
 
 **KRITISCH:** Diese Version behebt ein Permission-Problem in `security.json.j2`, das verhinderte, dass Core-spezifische Benutzer sich einloggen konnten.
 
@@ -26,8 +26,12 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
 - 🔐 **Multi-Core Zugriff repariert**: Core-spezifische Benutzer können sich jetzt einloggen und auf ihre Cores zugreifen
 - 👥 **Admin-Zugriff verbessert**: Admin-Benutzer haben jetzt expliziten Zugriff auf alle Cores
 - 📊 **Production getestet**: Main-Branch Deployment validiert (ok=500, changed=61, failed=0)
+- 🧹 **Log-Warnungen eliminiert**:
+  - Deprecated `enableRemoteStreaming` aus solrconfig.xml entfernt (Solr 9.x nutzt sys-prop)
+  - Obsolete `numVersionBuckets` aus solrconfig.xml entfernt (fest auf 65536 in Solr 9.x)
+  - SSL-Warnung ist erwartet (SSL auf Proxy-Ebene, nicht Solr-Ebene - korrekte Architektur)
 
-**Status:** Auf Production-Server getestet, Security-Fix wartet auf finale Validierung
+**Status:** Auf Production-Server getestet, wartet auf finale Validierung
 
 ---
 
