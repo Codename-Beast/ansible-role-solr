@@ -27,10 +27,10 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 - 🐛 **Admin UI Compatibility**: Rewrites `/api/cluster/security/*` to Standalone endpoints
 - 📊 **Production Tested**: SRH Campus deployment - ok=506, changed=62, failed=0
 - ✅ **Smoke Tests**: 10/10 tests PASSED (100% success rate)
-- 🏢 **Multi-Core Validated**: 4 cores running on 16GB server (gs_heidelberg, rs_mannheim, gym_stuttgart, bs_karlsruhe)
+- 🏢 **Multi-Core Validated**: 4 cores running on 16GB server
 - 🔒 **Username Conventions**: Auto-role assignment (*_admin → admin, *_moodle → moodle, *_readonly → support)
 - 🔐 **Security.json**: All users correctly assigned, permissions working
-- 🚀 **Ready for Real Data**: All critical bugs fixed, idempotent re-runs working
+- 🚀 **Ready for Real Data**: All known bugs fixed, idempotent re-runs working
 
 **Known Issues:**
 - ⚠️ **Security Panel Browser Display**: Admin UI Security Panel may show 404 in browser (backend API works correctly)
