@@ -1,5 +1,5 @@
 ---
-# Version: 1.2.0
+# Version: 1.3.0
 # Description: Integration tests for Solr installation
 # Fixes/Improvements:
 # 1. Trimmed container status output using ``| trim`` to avoid false negatives when checking ``running`` state.
@@ -7,6 +7,9 @@
 # 3. Maintained existing tests (authentication, core operations, performance, security) for backward compatibility.
 # 4. Added version bump to indicate changes.
 # 5. Provided this header to summarise modifications for future contributors.
+# Changelog v1.3.0:
+#   - FIXED: Multi-Core Mode support - tests now use first core from config
+#   - IMPROVED: Automatically selects test core based on mode
 # Changelog v1.2.0:
 #   - FIXED: Container status check now uses trim filter to remove whitespace
 #   - IMPROVED: Documentation and comments for better maintainability
@@ -17,9 +20,36 @@
 #   - Performance tests
 #   - Security validation
 
+# ============================================================================
+# DETERMINE TEST CORE
+# ============================================================================
+
+- name: install-solr - Set test core name (Single-Core Mode)
+  set_fact:
+    test_core_name: "{{ solr_core_name }}"
+  when: not solr_multi_core_mode | default(false)
+  changed_when: false
+
+- name: install-solr - Set test core name (Multi-Core Mode)
+  set_fact:
+    test_core_name: "{{ solr_multi_core_configs[0].name }}_core"
+  when: solr_multi_core_mode | default(false)
+  changed_when: false
+
+- name: install-solr - Display test configuration
+  debug:
+    msg:
+      - "Integration Test Configuration:"
+      - "Mode: {{ 'Multi-Core' if solr_multi_core_mode | default(false) else 'Single-Core' }}"
+      - "Test core: {{ test_core_name }}"
+
+# ============================================================================
+# AUTHENTICATION & AUTHORIZATION TESTS
+# ============================================================================
+
 - name: install-solr - Test Solr admin ping endpoint
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/admin/ping"
     method: GET
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -30,7 +60,7 @@
 
 - name: install-solr - Test Solr core ping endpoint
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/admin/ping"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/admin/ping"
     method: GET
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -62,7 +92,7 @@
 
 - name: Add test document to core
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update/json/docs"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update/json/docs"
     method: POST
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -72,7 +102,7 @@
     body:
       id: "integration_test_{{ ansible_date_time.epoch }}"
       title: "Integration Test Document"
-      content: "Smoke test document for Solr core {{ solr_core_name }}"
+      content: "Smoke test document for Solr core {{ test_core_name }}"
       contextid: 1
       courseid: 1
       modified: "{{ ansible_date_time.iso8601 }}"
@@ -89,7 +119,7 @@
 
 - name: install-solr - Commit test document
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update?commit=true"
     method: GET
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -100,7 +130,7 @@
 
 - name: install-solr - Test document search
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=title:Integration*"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/select?q=title:Integration*"
     method: GET
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
@@ -119,7 +149,7 @@
 
 - name: install-solr - Delete test document (cleanup)
   uri:
-    url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/update?commit=true"
+    url: "http://localhost:{{ solr_port }}/solr/{{ test_core_name }}/update?commit=true"
     method: POST
     user: "{{ solr_admin_user }}"
     password: "{{ solr_admin_password }}"
