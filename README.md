@@ -2,10 +2,10 @@
 
 ![Version](https://img.shields.io/badge/version-3.9.18-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
-![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
+![Solr](https://img.shields.io/badge/solr-9.9.0)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-production%20ready-brightgreen)
-![Status](https://img.shields.io/badge/status-production%20deployed-success)
+![Tests](https://img.shields.io/badge/tests-development%20ready-brightgreen)
+![Status](https://img.shields.io/badge/status-development%20deployed-success)
 
 Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency, multi-core support, user management, automated backup, and comprehensive monitoring.
 
@@ -26,7 +26,7 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 - 🔧 **Apache Proxy Fix**: Added ProxyPass for SolrCloud API paths (Will not really work)
 - 🐛 **Admin UI Compatibility**: Rewrites `/api/cluster/security/*` to Standalone endpoints
 - 📊 **Production Tested**: Hetznercloud deployment
-- ✅ **Smoke Tests**: 10/10 tests PASSED (100% success rate)
+- ✅ **Smoke Tests**: 10/10 tests PASSED
 - 🏢 **Multi-Core Validated**: 4 cores running on 16GB server
 - 🔒 **Username Conventions**: Auto-role assignment (*_admin → admin, *_moodle → moodle, *_readonly → support)
 - 🔐 **Security.json**: All users correctly assigned, permissions working
@@ -46,7 +46,6 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
   - `credentials_display.yml` → `finalization.yml`
   - `rundeck_output.yml` removed (unused)
 - 📝 **Better Maintainability**: Cleaner role structure, easier to navigate
-- ✅ **100% Backward Compatible**: No functional changes
 
 </td>
 </tr>
@@ -113,11 +112,11 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 ## 📦 Requirements
 
 ### System Requirements
-- **OS**: Debian 11/12, Ubuntu 20.04/22.04/24.04
+- **OS**: Debian 11/12
 - **RAM**:
-  - Single-Core: 4GB minimum
+  - Single-Core: 2.5GB minimum
   - Multi-Core (4 cores): 16GB recommended
-  - Multi-Core (10 cores): 32GB recommended
+  - Multi-Core (8 cores): 32GB recommended
 - **Disk**: 20GB minimum (50GB+ for production)
 - **CPU**: 2+ cores recommended
 
@@ -805,11 +804,11 @@ docker logs -f solr_customer 2>&1 | grep -i error
 - ✅ Role-based permissions (admin, moodle, support)
 - ✅ Core access (all cores accessible to admin)
 - ✅ Moodle search integration
-- ✅ Smoke tests (10/10 passed - 100% success)
+- ✅ Smoke tests (10/10 passed)
 - ✅ Idempotent re-runs (unlimited re-deployments)
 - ✅ Automated backups
 - ✅ SSL/TLS proxy
-- ✅ Production deployment (ok=506, changed=62, failed=0)
+- ✅ Dev deployment
 
 **⚠️ Known Limitations:**
 - ⚠️ Per-core access control requires SolrCloud (Solr Standalone limitation)
@@ -817,7 +816,7 @@ docker logs -f solr_customer 2>&1 | grep -i error
 - ⚠️ Resource planning critical (2GB RAM per core minimum)
 
 **Bottom Line:**
-> 🎉 **The server is ready!** All core functionality works perfectly. The limitations are either Solr architectural constraints (per-core permissions) or cosmetic issues (Security Panel UI) that don't affect operations.
+> 🎉 **The server is ready to deploy!** All core functionality works. The limitations are either Solr architectural constraints (per-core permissions) or cosmetic issues (Security Panel UI) that don't affect operations.
 
 ---
 
@@ -839,7 +838,7 @@ According to [official Apache Solr documentation](https://solr.apache.org/guide/
 - ❌ All authenticated users can access all cores on the same server
 
 **Production Impact:**
-- **LOW for most use cases** - Each Moodle instance uses separate core (data isolation ✅)
+- **LOW for most use cases** - Each Moodle instance uses separate core
 - **MEDIUM if you need strict access control** - Use separate Solr servers per tenant
 
 **Workaround Options:**
@@ -883,7 +882,7 @@ Result:           404 Not Found in browser UI
 - ✅ **Authentication** - Login works, credentials validated
 - ✅ **Core Access** - All 4 cores accessible and working
 - ✅ **Role Assignment** - Users have correct permissions
-- ✅ **Smoke Tests** - 10/10 tests PASSED (100%)
+- ✅ **Smoke Tests** - 10/10 tests PASSED
 - ✅ **Moodle Integration** - Search indexing works
 - ✅ **Deployment** 
 
@@ -984,7 +983,7 @@ curl -u admin:password https://solr.example.com/solr/admin/authorization
 
 **This Was a Major Hurdle:**
 
-I originally calculated **600MB per core** (leading to 10 cores on 16GB server) ❌
+I originally calculated **600MB per core** (leading to 10 cores on 16GB server)
 
 **Reality Check (v3.9.2 Fix):**
 - Solr caches are **PER-CORE**, not shared
@@ -1183,6 +1182,6 @@ SOFTWARE.
 ---
 
 **Version:** 3.9.18
-**Last Updated:** 2025-11-18
+**Last Updated:** 2025-11-18 (22:25)
 **Status:** ✅ Rollout Ready
 **Tested On:** Hetzner Cloud Server (4 cores, 8GB RAM)
