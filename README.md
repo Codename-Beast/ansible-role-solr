@@ -5,14 +5,13 @@
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
 ![Tests](https://img.shields.io/badge/tests-v3.9.7%20validation%20pending-yellow)
-![Quality](https://img.shields.io/badge/code%20quality-9.9%2F10-brightgreen)
 ![Status](https://img.shields.io/badge/status-awaiting%20v3.9.7%20test-yellow)
 
-Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
+Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
 
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
-**Project Timeline**: 24.09.2025 - 16.11.2025 (54 days)
+**Project Timeline**: 24.09.2025 - 18.11.2025 (56 days)
 
 ---
 
@@ -42,7 +41,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ### ✨ New in v3.9.2
 - 🔴 **CRITICAL: RAM-Kalkulation** - 16GB → 4 Cores (war: 10 Cores)
-- 📊 **Korrigierte Werte** - ~2GB/Core statt 600MB (Caches sind PER-CORE!)
+- 📊 **e Werte** - ~2GB/Core statt 600MB (Caches sind PER-CORE!)
 - 🌐 **Apache VHost Generic** - Funktioniert mit jeder Domain
 - 🔐 **SSL-Awareness** - Keine HTTP-Warnings mehr in WebUI
 - 🛠️ **JVM-Konflikte behoben** - autoCommit nur noch in solrconfig.xml
@@ -72,13 +71,12 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 <td width="50%">
 
 ### 🏢 Multi-Core Features (v3.9.2)
-- ✅ **16GB Server:** Max 4 Cores @ ~2GB/Core
+- ✅ **16GB Server:** Max 4 Cores @ ~1.5GB/Core
 - ✅ **32GB Server:** Max 10 Cores @ ~2GB/Core
 - ✅ Each core: dedicated index + users
 - ✅ Caches sind PER-CORE (nicht geteilt!)
 - ✅ Nachträglich erweiterbar
 - ✅ Automatic role assignment per core
-- ⚠️ **Alte Werte (v3.9.0) waren FALSCH!**
 
 ### 🔧 Proxy Improvements
 - ✅ Standalone VirtualHost/Server configs
@@ -100,7 +98,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ⚠️ **TESTING REQUIRED** (v3.9.7 - Template fix + critical patches, Hardware validation pending | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Last Test (v3.9.3):** ok=496, changed=37)
+**Status:** ⚠️ **TESTING REQUIRED** (v3.9.7 - Template fix + critical patches, Hardware validation pending | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Last Test (v3.9.3):**)
 
 ---
 
@@ -118,7 +116,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - ✅ **Performance Monitoring** - JVM metrics, GC optimization, health checks
 
 ### Testing & Validation
-- ✅ **Comprehensive Testing** - 19 integration tests
+- ✅ **Comprehensive Testing** - 19 integration tests 
 - ✅ **Moodle Document Tests** - 10 schema-specific validation tests
 - ✅ **Authentication Tests** - Multi-user authorization validation
 - ✅ **Performance Tests** - Memory usage and query response times
@@ -226,6 +224,8 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - **OS**:  Debian 11/12
 - **Ansible**: 2.10.12 or higher
 - **Docker**: 20.10+ with Compose v2
+- **Apache**
+- **Lets Entcrypt**
 
 ### Web Server & SSL Requirements (Must be pre-configured)
 - **Apache Web Server** with required modules:
@@ -251,15 +251,6 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 
 ## 🚀 Quick Start
 ### 1. Install the Role
-```bash
-# From Git (v3.8.0)
-git clone -b branch \
-  https://github.com/Codename-Beast/ansible-role-solr.git roles/solr
-
-# Or from Ansible Galaxy (when published)
-ansible-galaxy install eledia.solr
-```
-
 ### 2. Create Playbook
 ```yaml
 # playbook.yml
@@ -345,7 +336,7 @@ solr_webserver: "nginx"                  # or "apache"
 solr_proxy_path: "/solr"
 solr_ssl_enabled: true
 
-# Solr Internal Health Checks (NEW in v1.3.2)
+# Solr Internal Health Checks (v1.3.2)
 solr_health_check_enabled: true          # Enable Solr's built-in health check handler
 solr_health_check_mode: "standard"       # Mode: basic, standard, comprehensive
 solr_health_disk_threshold: 10           # Warn if < X% disk space free
@@ -409,16 +400,14 @@ Deploy up to **4-5 Moodle instances** on a 16GB server, or **10 instances** on a
 
 #### ⚠️ RAM Calculation (Fixed in v3.9.0)
 
-**WICHTIG:** Die vorherige Berechnung war **fundamental falsch**!
-
 **Problem:** Caches sind **PER-CORE** und multiplizieren sich (nicht geteilt)!
 
-**Korrekte Berechnung basierend auf Research**
+**Korrekte Berechnung basierend auf Offizeler Dokumentation**
 
 ```
 16GB Server mit 8GB Heap:
 ├── JVM Heap:        8GB  (Solr/Lucene operations)
-├── OS Disk Cache:   6GB  (MMapDirectory - KRITISCH!)
+├── OS Disk Cache:   6GB  (MMapDirectory)
 └── System:          2GB  (Docker, OS processes)
 
 Pro Core RAM-Bedarf (effektiv):
@@ -429,7 +418,7 @@ Pro Core RAM-Bedarf (effektiv):
 ├── Misc/Temp:        4-6GB   (global, nicht pro Core)
 └── Working Memory:   Rest    (Query processing)
 
-EFFEKTIV PRO CORE: ~1.5-2GB (NICHT 600MB!)
+EFFEKTIV PRO CORE: ~1.5-2GB
 ```
 
 **Limits für Moodle mit File-Indexing:**
@@ -442,7 +431,7 @@ EFFEKTIV PRO CORE: ~1.5-2GB (NICHT 600MB!)
 | **32GB** | 20GB | 10GB | **10** | ~1.5-2GB | ✅ Empfohlen |
 
 **Quellen:**
-- Apache Solr Memory Tuning Guide (Cloudera 2024)
+- Apache Solr Memory Tuning Guide
 - Moodle.org: 10-20GB Heap für File-Indexing
 - Lucidworks Best Practices, Solr 9.x Performance Guide
 
@@ -586,7 +575,7 @@ solr_force_recreate: true  # Force recreate with new version
 ansible-playbook -i inventory playbook.yml
 ```
 
-### Example 6: Multi-Core Deployment (v3.9.0+ KORRIGIERT)
+### Example 6: Multi-Core Deployment (v3.9.0+ )
 
 Deploy 10 school Moodle instances on one Solr server (**32GB RAM erforderlich!**):
 
@@ -594,7 +583,7 @@ Deploy 10 school Moodle instances on one Solr server (**32GB RAM erforderlich!**
 # host_vars/solr-prod-01.yml (32GB Server für 10 Cores)
 customer_name: "schulverbund-nord"
 solr_app_domain: "solr.schulverbund.de"
-solr_heap_size: "20g"       # KORRIGIERT: 20GB für 10 Cores (~1.5GB/Core effektiv)
+solr_heap_size: "20g"       # : 20GB für 10 Cores (~1.5GB/Core effektiv)
 solr_memory_limit: "28g"    # Container: 20GB Heap + 8GB OS Cache
 
 # Define all 10 cores
@@ -624,7 +613,7 @@ ansible-playbook -i inventory playbook.yml
 
 # Result:
 # - 10 isolated cores created
-# - ~1.5-2GB heap per core effektiv (KORRIGIERT!)
+# - ~1.5-2GB heap per core effektiv (!)
 # - Missing passwords auto-generated and displayed
 # - Each school has dedicated core + user
 ```
@@ -851,7 +840,7 @@ $ ansible-playbook playbook.yml
 # ✅ Execution: ~30 seconds
 # ✅ Play recap: ok=496, changed=37 (typical values)
 # ℹ️ Note: "SKIPPING deployment" message not shown with existing containers
-#          Minimum ~37 changes always applied (permissions, config validation, health checks)
+#          Minimum ~40 changes always applied (permissions, config validation, health checks)
 ```
 
 ### Scenario 2: Password Change Only
@@ -1074,9 +1063,9 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 ---
 
-## ⚠️ Known Issues (v3.9.3 and Earlier)
+## ⚠️ Known Issues (v3.9.3)
 
-### Authentication Fails on Re-Runs (Fixed in v3.9.4-v3.9.6)
+### Authentication Fails on Re-Runs (Fixed in v3.9.4)
 
 **Symptoms (v3.9.3 and earlier):**
 - ✅ Fresh Install: Admin login works, cores created, smoketests pass
@@ -1110,9 +1099,6 @@ when: (not skip_auth | default(false)) or
 
 #### 3. Hash Algorithm Mismatch (Fixed in v3.9.5)
 ```bash
-# ❌ OLD (v3.9.3): TEXT concatenation
-echo -n "${SALT}${PASSWORD}" | sha256sum
-
 # ✅ NEW (v3.9.5): BINARY concatenation
 cat salt.bin pass.bin > combined.bin
 openssl dgst -sha256 -binary combined.bin
@@ -1167,7 +1153,7 @@ All critical fixes + template fix implemented and committed, but v3.9.7 hardware
 - ✅ **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben (v3.9.7)
 - ✅ **Theoretical Fix:** Root causes identified and resolved
 - ⚠️ **Hardware Test:** Re-Run without container deletion NOT yet validated on v3.9.7
-- 📊 **Last Test:** Play recap ok=496, changed=37 (v3.9.3 failed on re-run) | ok=526, changed=40, failed=1 (v3.9.3 template error)
+- 📊 **Last Test:** (v3.9.3 failed on re-run)
 
 **What needs testing:**
 1. Fresh Install with v3.9.7
@@ -1179,8 +1165,8 @@ All critical fixes + template fix implemented and committed, but v3.9.7 hardware
 
 **Expected Outcome:**
 - ✅ Fresh Install: Works (same as v3.9.3)
-- ✅ Re-Run: Should now work (fixed in v3.9.6)
-- ✅ Auth: Multicore users and core admins can login
+- ✅ Re-Run: Should work (fixed in v3.9.6)
+- ✅ Auth: Multicore users and core admins can login (Testing Pedding)
 - ✅ Credentials: Display succeeds without template errors (fixed in v3.9.7)
 
 ---
@@ -1192,6 +1178,7 @@ All critical fixes + template fix implemented and committed, but v3.9.7 hardware
 - 🔧 **Credentials Display:** Converted msg from YAML list to single string block with `|`
 - ✅ **Deployment:** Credentials display no longer fails at finalization step
 - 📊 **Impact:** Fixes "ok=526 changed=40 failed=1" error from credentials template
+-  ✅ **Status:** Code complete - Hardware validation pending
 
 ### v3.9.6 (2025-11-18)
 - 🔴 **CRITICAL FIX: Multicore User Management** - Extended conditionals for multicore-only setups
@@ -1202,12 +1189,12 @@ All critical fixes + template fix implemented and committed, but v3.9.7 hardware
 - 📊 **Last Test (v3.9.3):** Play recap: ok=496, changed=37 (Re-Run failed)
 - ✅ **Status:** Code complete - Hardware validation pending
 
-### v3.9.5 (2025-11-18)
-- 🔴 **CRITICAL FIX: Hash Algorithm** - Fixed binary vs text concatenation in user_management_hash_multicore.yml
+### v3.9.5 (2025-11-17)
+- 🔴 **CRITICAL FIX: Hash Algorithm** - Fixed binary concatenation in user_management_hash_multicore.yml
 - 🔧 **Password Persistence Extended** - Added solr_cores password persistence to auth_persistence.yml
 - 🐛 **Credential Tracking** - Fixed generated_credentials initialization
 
-### v3.9.4 (2025-11-18)
+### v3.9.4 (2025-11-17)
 - 🔒 **Health Check Fixed** - Switched from `/admin/info/system` to `/admin/ping` endpoint
 - 🔐 **PowerInit Upgrade** - v1.5.0 → v1.6.0 with SHA256 checksum verification
 - 🔧 **Security.json Deployment** - Intelligent deployment only when changes detected
