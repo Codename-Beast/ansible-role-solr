@@ -13,7 +13,92 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 **Organization**: Eledia GmbH
 **Project Timeline**: 24.09.2025 - 18.11.2025 (56 days)
 
-> 📖 **[Deutsche Version](README_de.md)** | **[Changelog](CHANGELOG.md)**
+---
+
+## 🎉 What's New in v3.9.7 (Template Fix & Critical Patches)
+
+<table>
+<tr>
+<td width="50%">
+
+### ✨ New in v3.9.7 (Hardware Test Pending ⚠️)
+- 🐛 **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben
+- 🔧 **Credentials Display:** Keine failed tasks mehr bei Finalization
+- 🔴 **CRITICAL FIX (v3.9.6): Re-Run Persistence** - Multicore passwords persist across deployments
+- 🔴 **CRITICAL FIX (v3.9.6): Conditional Logic** - Fixed user_management.yml and auth_persistence.yml
+- 🔒 **Health Check Fixed (v3.9.4)** - Switched to `/admin/ping` endpoint (auth-exempt)
+- 🔐 **PowerInit v1.6.0 (v3.9.4)** - SHA256 checksum verification for security.json
+- 🐛 **Hash Algorithm Fixed (v3.9.5)** - Binary vs text concatenation resolved
+- ⚠️ **Testing Pending** - v3.9.7 hardware validation on Hetzner Cloud required
+- 📊 **Last Test (v3.9.3)** - Play recap: ok=496, changed=37 (Fresh Install worked, Re-Runs failed)
+- ✅ **Expected Fix** - Re-Runs AND credentials display should now work
+
+### ✨ New in v3.9.3
+- 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
+- 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
+- 🗑️ **Dead Code entfernt** - backup_management.yml gelöscht
+- ⚠️ **Critical bugs discovered** - Multicore user persistence & conditional logic failed on re-runs
+
+### ✨ New in v3.9.2
+- 🔴 **CRITICAL: RAM-Kalkulation** - 16GB → 4 Cores (war: 10 Cores)
+- 📊 **e Werte** - ~2GB/Core statt 600MB (Caches sind PER-CORE!)
+- 🌐 **Apache VHost Generic** - Funktioniert mit jeder Domain
+- 🔐 **SSL-Awareness** - Keine HTTP-Warnings mehr in WebUI
+- 🛠️ **JVM-Konflikte behoben** - autoCommit nur noch in solrconfig.xml
+- 🧹 **Code-Hygiene v3.9.2** - 14 Zeilen "toter Code" entfernt
+
+### ✨ New in v3.9.0
+- 🏢 **Multi-Core Support** - Isolierte Cores pro Moodle-Instanz
+- 🔐 **Auto-Password Generation** - Generiert sichere Passwörter
+- 📋 **Credential Display** - Zeigt alle Zugangsdaten nach Deployment
+
+### ✨ New in v3.8.1
+- 🌐 **Nginx Support** - Apache + Nginx webserver support
+- 📝 **Domain-based Configs** - `solr.kunde.de.conf` naming
+- 🔒 **HTTPS Auto-Testing** - Up to 10 retries, 3s delay
+- 📋 **Let's Encrypt Hints** - Documented certbot commands
+- 🛡️ **IP-based Access Control** - Restrict admin access
+- 🔐 **Solr SSL-Awareness** - No more HTTP warnings in WebUI!
+
+### ✅ v3.8.0 Features
+- ✅ **Solr 9.10 Ready** - compatibility validated
+- ✅ **Add User Management** - Add users and their permissions
+- ✅ **Zero-Downtime User Management** - Hot-reload via API
+- ✅ **Complete Moodle Support** - File indexing fields added
+- ✅ **Production Hardened** - All critical bugs fixed
+
+</td>
+<td width="50%">
+
+### 🏢 Multi-Core Features (v3.9.2)
+- ✅ **16GB Server:** Max 4 Cores @ ~1.5GB/Core
+- ✅ **32GB Server:** Max 10 Cores @ ~2GB/Core
+- ✅ Each core: dedicated index + users
+- ✅ Caches sind PER-CORE (nicht geteilt!)
+- ✅ Nachträglich erweiterbar
+- ✅ Automatic role assignment per core
+
+### 🔧 Proxy Improvements
+- ✅ Standalone VirtualHost/Server configs
+- ✅ Modern SSL/TLS (TLS 1.2+, secure ciphers)
+- ✅ HTTP → HTTPS redirect when SSL enabled
+- ✅ ACME challenge locations for certbot
+- ✅ Optional proxy-level Basic Auth
+- ✅ Public health check endpoint
+- ✅ Solr knows it's behind HTTPS proxy (correct links)
+
+### 🐛 v3.8.0 Critical Fixes
+- ✅ Fixed circular variable dependency
+- ✅ Fixed docker_container_info bug
+- ✅ Fixed Moodle schema fields
+- ✅ Fixed password exposure (no_log)
+- ✅ Corrected RAM documentation
+
+</td>
+</tr>
+</table>
+
+**Status:** ⚠️ **TESTING REQUIRED** (v3.9.7 - Template fix + critical patches, Hardware validation pending | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Last Test (v3.9.3):**)
 
 ---
 
@@ -31,7 +116,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated not Tested) with Ba
 - ✅ **Performance Monitoring** - JVM metrics, GC optimization, health checks
 
 ### Testing & Validation
-- ✅ **Comprehensive Testing** - 19 integration tests
+- ✅ **Comprehensive Testing** - 19 integration tests 
 - ✅ **Moodle Document Tests** - 10 schema-specific validation tests
 - ✅ **Authentication Tests** - Multi-user authorization validation
 - ✅ **Performance Tests** - Memory usage and query response times
@@ -830,12 +915,263 @@ solr_port: 8984
 # Re-run playbook
 ```
 
+### Debug Mode
+```bash
+# Run with increased verbosity
+ansible-playbook playbook.yml -vv
+
+# Or enable debug in playbook
+- hosts: all
+  vars:
+    ansible_verbosity: 2
+  roles:
+    - solr
+```
+
+### Testing Flags
+```bash
+# Run only integration tests (skip deployment)
+ansible-playbook playbook.yml --tags "install-solr-test"
+
+# Run Moodle-specific tests only
+ansible-playbook playbook.yml --tags "install-solr-moodle"
+
+# Skip all tests (faster deployment)
+ansible-playbook playbook.yml --skip-tags "install-solr-test"
+
+# Test authentication only
+ansible-playbook playbook.yml --tags "install-solr-auth"
+
+# Run backup tests
+ansible-playbook playbook.yml --tags "install-solr-backup"
+
+# Full test suite (includes all 19 tests)
+ansible-playbook playbook.yml -e "perform_core_testing=true"
+
+# Validate deployment without changes
+ansible-playbook playbook.yml --check --diff
+```
+
+### Performance Testing
+```bash
+# Monitor memory usage during tests
+ansible-playbook playbook.yml -e "solr_jvm_monitoring=true"
+
+# Enable GC logging for performance analysis
+ansible-playbook playbook.yml -e "solr_gc_logging=true"
+
+# Test with larger heap for performance
+ansible-playbook playbook.yml -e "solr_heap_size=4g solr_memory_limit=8g"
+```
+
+### Logs Locations
+```
+/var/log/solr_deployment_*.log     # Deployment attempts
+/var/log/solr_handlers.log         # Handler executions
+/opt/solr/<customer>/docker-compose.yml  # Generated compose file
+/opt/solr/<customer>/config/       # All config files
+```
+
+---
+
+## 📊 Monitoring & Maintenance
+
+### Health Checks
+```bash
+# Container health
+docker ps | grep solr
+
+# Solr API health
+curl http://localhost:8983/solr/admin/info/system
+
+# Core status
+curl -u admin:password http://localhost:8983/solr/admin/cores?action=STATUS
+
+# Disk usage
+docker system df
+docker volume inspect <volume_name>
+```
+
+### Backup
+```bash
+# Manual backup
+docker exec <container_name> solr backup \
+  -c <core_name> \
+  -d /var/solr/backup \
+  -name backup_$(date +%Y%m%d)
+
+# Restore
+docker exec <container_name> solr restore \
+  -c <core_name> \
+  -d /var/solr/backup \
+  -name backup_20241102
+```
+
+### Updates
+```bash
+# Update Solr version
+# Edit playbook: solr_version: "9.10.0"
+ansible-playbook playbook.yml -e "solr_force_recreate=true"
+```
+
+
+---
+
+## ⚠️ Known Issues (v3.9.3)
+
+### Authentication Fails on Re-Runs (Fixed in v3.9.4)
+
+**Symptoms (v3.9.3 and earlier):**
+- ✅ Fresh Install: Admin login works, cores created, smoketests pass
+- ❌ Re-Run WITHOUT container deletion: Multicore users can't login, core admins authentication fails
+- ⚠️ Only occurred when container/volume NOT deleted between runs
+
+**Root Causes:**
+
+#### 1. Multicore User Management Conditional (Fixed in v3.9.6)
+```yaml
+# ❌ OLD (v3.9.3): Only checked solr_additional_users
+when: solr_additional_users is defined and solr_additional_users | length > 0
+
+# ✅ NEW (v3.9.6): Also checks solr_cores
+when: (solr_additional_users is defined and solr_additional_users | length > 0) or
+      (solr_cores is defined and solr_cores | length > 0)
+```
+**Impact:** Multicore-only setups skipped user hashing entirely
+
+#### 2. Password Persistence Conditional (Fixed in v3.9.6)
+```yaml
+# ❌ OLD (v3.9.3): Only ran when skip_auth=false
+when: not skip_auth | default(false)
+
+# ✅ NEW (v3.9.6): Also runs when user changes present
+when: (not skip_auth | default(false)) or
+      (solr_cores is defined and solr_cores | length > 0) or
+      (solr_additional_users is defined and solr_additional_users | length > 0)
+```
+**Impact:** Re-runs with unchanged admin passwords (skip_auth=true) didn't save multicore credentials
+
+#### 3. Hash Algorithm Mismatch (Fixed in v3.9.5)
+```bash
+# ✅ NEW (v3.9.5): BINARY concatenation
+cat salt.bin pass.bin > combined.bin
+openssl dgst -sha256 -binary combined.bin
+```
+**Impact:** Wrong hashes for multicore users, authentication always failed
+
+#### 4. Missing Multicore Password Persistence (Fixed in v3.9.5)
+- ❌ OLD (v3.9.3): Only saved admin/support/moodle passwords to host_vars
+- ✅ NEW (v3.9.5): Saves complete solr_cores structure with all user passwords
+
+**Impact:** Next run generated new passwords, but container had old hashes
+
+### Health Check Always Unhealthy (Fixed in v3.9.4)
+
+**Symptoms (v3.9.3 and earlier):**
+- Container running, Solr operational
+- Docker health check status: `unhealthy`
+- Health check endpoint requires authentication
+
+**Root Cause:**
+```bash
+# ❌ OLD (v3.9.3): Used endpoint requiring auth
+curl http://localhost:8983/solr/admin/info/system
+
+# ✅ NEW (v3.9.4): Uses auth-exempt endpoint
+curl http://localhost:8983/solr/admin/ping?wt=json
+```
+
+### Security.json Not Updated (Fixed in v3.9.4)
+
+**Symptoms (v3.9.3 and earlier):**
+- Updated security.json in host config
+- Container still uses old security.json
+- No verification if latest version deployed
+
+**Fix (v3.9.4):**
+- PowerInit v1.5.0 → v1.6.0
+- Added SHA256 checksum verification
+- Only deploys when checksums differ
+
 ---
 
 ## 📖 Documentation
 
-- **[Changelog](CHANGELOG.md)** - Version history and release notes
-- **[Deutsche Version](README_de.md)** - German documentation
+- ✅ **Code Changes:** All conditionals, hash algorithms, persistence logic, and template syntax fixed
+- ✅ **Template Fix:** Jinja2 syntax error in credentials_display.yml behoben (v3.9.7)
+- ✅ **Theoretical Fix:** Root causes identified and resolved
+- ⚠️ **Hardware Test:** Re-Run without container deletion NOT yet validated on v3.9.7
+- 📊 **Last Test:** (v3.9.3 failed on re-run)
+
+**What needs testing:**
+1. Fresh Install with v3.9.7
+2. Re-Run WITHOUT deleting container/volume/opt/solr
+3. Verify multicore user authentication works after re-run
+4. Verify core admin authentication works after re-run
+5. Verify credentials display succeeds (no template errors)
+6. Confirm Play recap metrics (ok=?, changed=?, failed=0)
+
+**Expected Outcome:**
+- ✅ Fresh Install: Works (same as v3.9.3)
+- ✅ Re-Run: Should work (fixed in v3.9.6)
+- ✅ Auth: Multicore users and core admins can login (Testing Pedding)
+- ✅ Credentials: Display succeeds without template errors (fixed in v3.9.7)
+
+---
+
+## 📝 Changelog
+
+### v3.9.7 (2025-11-18) - Current Release ⚠️ TESTING PENDING
+- 🐛 **Template Fix:** Fixed Jinja2 template syntax error in credentials_display.yml
+- 🔧 **Credentials Display:** Converted msg from YAML list to single string block with `|`
+- ✅ **Deployment:** Credentials display no longer fails at finalization step
+- 📊 **Impact:** Fixes "ok=526 changed=40 failed=1" error from credentials template
+-  ✅ **Status:** Code complete - Hardware validation pending
+
+### v3.9.6 (2025-11-18)
+- 🔴 **CRITICAL FIX: Multicore User Management** - Extended conditionals for multicore-only setups
+- 🔴 **CRITICAL FIX: Password Persistence** - Fixed auth_persistence.yml conditional logic for re-runs
+- 🔒 **Health Check Fixed** - Container health now uses `/admin/ping` (auth-exempt endpoint)
+- 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
+- ⚠️ **Hetzner Cloud Test Pending** - Hardware validation required to confirm fixes
+- 📊 **Last Test (v3.9.3):** Play recap: ok=496, changed=37 (Re-Run failed)
+- ✅ **Status:** Code complete - Hardware validation pending
+
+### v3.9.5 (2025-11-17)
+- 🔴 **CRITICAL FIX: Hash Algorithm** - Fixed binary concatenation in user_management_hash_multicore.yml
+- 🔧 **Password Persistence Extended** - Added solr_cores password persistence to auth_persistence.yml
+- 🐛 **Credential Tracking** - Fixed generated_credentials initialization
+
+### v3.9.4 (2025-11-17)
+- 🔒 **Health Check Fixed** - Switched from `/admin/info/system` to `/admin/ping` endpoint
+- 🔐 **PowerInit Upgrade** - v1.5.0 → v1.6.0 with SHA256 checksum verification
+- 🔧 **Security.json Deployment** - Intelligent deployment only when changes detected
+
+### v3.9.3 (2025-11-16)
+- 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
+- 📝 **Konsistenz** - Alle "customer" → "moodle" Benennungen bereinigt
+- 🗑️ **Dead Code** - backup_management.yml gelöscht
+- 📋 **Dokumentation** - Sprachliche Anpassungen, "Customer User" → "Moodle User"
+- ⚠️ **Critical Bugs Discovered** - Multicore persistence & conditional logic issues (fixed in v3.9.4-v3.9.6)
+
+### v3.9.2 (2025-11-16)
+**Status:** ✅ 
+
+**Major Updates:**
+- ✅ Solr 9.10.0 compatibility validated (upgrade ready)
+- ✅ All critical bugs fixed (4 bugs)
+- ✅ Moodle file indexing fields completed
+- ✅ User management (v3.8.0)
+- ✅ Moodle 4.1-5.0.3 compatibility
+
+**Critical Fixes:**
+- Fixed circular variable dependency (customer_name)
+- Fixed Moodle schema fields (solr_filecontent, solr_fileindexstatus, etc.)
+- Fixed password exposure in logs (no_log: true)
+- Fixed docker_container_info bug (replaced with docker inspect) <-- Abnahme fehler
+- Corrected RAM documentation (4GB OS buffer)
+
+**See:** [CHANGELOG.md](CHANGELOG.md) for complete version history
 
 ---
 
