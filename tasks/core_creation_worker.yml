@@ -56,12 +56,11 @@
   changed_when: false
 
 - name: core-worker - Check instance core.properties in container
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "test -f /var/solr/data/{{ current_core_name }}/core.properties"
+  command: docker exec {{ solr_container_name }} test -f /var/solr/data/{{ current_core_name }}/core.properties
   register: core_dir_check
   failed_when: false
   changed_when: false
+  become: true
 
 - name: core-worker - Set instance present flag
   set_fact:
