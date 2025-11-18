@@ -99,11 +99,10 @@
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Ensure configSet dir exists in container
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf'"
+  command: docker exec {{ solr_container_name }} sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf'
   register: mk_cfg_dir
   changed_when: mk_cfg_dir.rc == 0
+  become: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Push configSet into container via docker cp
@@ -115,62 +114,55 @@
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Create schema.xml from moodle_schema.xml if missing
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: >
-      sh -lc 'if [ -f /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml ]; then
-                cp /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml;
-              fi'
+  command: >
+    docker exec {{ solr_container_name }} sh -lc 'if [ -f /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml ]; then
+              cp /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml;
+            fi'
   register: schema_copy
   changed_when: schema_copy.rc == 0
+  become: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Set ownership for configSet (root inside container)
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    user: "0"
-    command: >
-      sh -lc 'chown -R 8983:8983 /var/solr/data/configsets/{{ current_core_config }}/conf &&
-              find /var/solr/data/configsets/{{ current_core_config }}/conf -type d -exec chmod 0755 {} \; &&
-              find /var/solr/data/configsets/{{ current_core_config }}/conf -type f -exec chmod 0644 {} \;'
+  command: >
+    docker exec -u 0 {{ solr_container_name }} sh -lc 'chown -R 8983:8983 /var/solr/data/configsets/{{ current_core_config }}/conf &&
+            find /var/solr/data/configsets/{{ current_core_config }}/conf -type d -exec chmod 0755 {} \; &&
+            find /var/solr/data/configsets/{{ current_core_config }}/conf -type f -exec chmod 0644 {} \;'
   register: cfg_chown
   changed_when: cfg_chown.rc == 0
+  become: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Remove any managed-schema from configSet (safety)
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'rm -f /var/solr/data/configsets/{{ current_core_config }}/conf/managed-schema /var/solr/data/configsets/{{ current_core_config }}/conf/old_managed-schema || true'"
+  command: docker exec {{ solr_container_name }} sh -lc 'rm -f /var/solr/data/configsets/{{ current_core_config }}/conf/managed-schema /var/solr/data/configsets/{{ current_core_config }}/conf/old_managed-schema || true'
   changed_when: false
   failed_when: false
+  become: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Check configSet files in container
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'test -f /var/solr/data/configsets/{{ current_core_config }}/conf/solrconfig.xml && test -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml'"
+  command: docker exec {{ solr_container_name }} sh -lc 'test -f /var/solr/data/configsets/{{ current_core_config }}/conf/solrconfig.xml && test -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml'
   register: configset_files_check
   failed_when: configset_files_check.rc != 0
   changed_when: false
+  become: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Ensure lang directory exists in configSet
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf/lang'"
+  command: docker exec {{ solr_container_name }} sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf/lang'
   changed_when: true
+  become: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Copy lang files from deployed location to configSet
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: >
-      sh -lc 'for f in /var/solr/data/lang/*; do
-                if [ -f "$f" ]; then
-                  cp "$f" /var/solr/data/configsets/{{ current_core_config }}/conf/lang/;
-                fi;
-              done'
+  command: >
+    docker exec {{ solr_container_name }} sh -lc 'for f in /var/solr/data/lang/*; do
+              if [ -f "$f" ]; then
+                cp "$f" /var/solr/data/configsets/{{ current_core_config }}/conf/lang/;
+              fi;
+            done'
   changed_when: true
+  become: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 # ============================================================================
