@@ -4,9 +4,9 @@
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-pending%20hardware%20validation-yellow)
+![Tests](https://img.shields.io/badge/tests-v3.9.6%20validation%20pending-yellow)
 ![Quality](https://img.shields.io/badge/code%20quality-9.9%2F10-brightgreen)
-![Status](https://img.shields.io/badge/status-testing-yellow)
+![Status](https://img.shields.io/badge/status-awaiting%20v3.9.6%20test-yellow)
 
 Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency,user management, automated backup, and comprehensive monitoring.
 
@@ -22,14 +22,15 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 <tr>
 <td width="50%">
 
-### ✨ New in v3.9.6 (PRODUCTION READY - Hetzner Cloud Validated ✅)
+### ✨ New in v3.9.6 (CRITICAL FIXES - Hardware Test Pending ⚠️)
 - 🔴 **CRITICAL FIX: Re-Run Persistence** - Multicore passwords now persist across deployments
 - 🔴 **CRITICAL FIX: Conditional Logic** - Fixed user_management.yml and auth_persistence.yml conditionals
 - 🔒 **Health Check Fixed** - Switched to `/admin/ping` endpoint (auth-exempt)
 - 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
 - 🐛 **Hash Algorithm Fixed (v3.9.5)** - Binary vs text concatenation mismatch resolved
-- ✅ **Hetzner Cloud Validated** - Play recap: ok=496, changed=37
-- ⚠️ **Issues discovered in v3.9.3** - Fresh Install worked, Re-Runs without container deletion failed
+- ⚠️ **Testing Pending** - v3.9.6 hardware validation on Hetzner Cloud required
+- 📊 **Last Test (v3.9.3)** - Play recap: ok=496, changed=37 (Fresh Install worked, Re-Runs failed)
+- ✅ **Expected Fix** - Re-Runs without container deletion should now work
 
 ### ✨ New in v3.9.3 (Issues Discovered)
 - 🧹 **Code-Hygiene** - ungenutzte Variablen entfernt
@@ -97,7 +98,7 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 </tr>
 </table>
 
-**Status:** ✅ **PRODUCTION READY** (v3.9.6 - All critical fixes validated on Hetzner Cloud | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Tests:** ok=496, changed=37)
+**Status:** ⚠️ **TESTING REQUIRED** (v3.9.6 - All critical fixes implemented, Hardware validation pending | **Webservers:** Apache + Nginx | **Multi-Core:** 4 cores @ 16GB, 10 cores @ 32GB | **Last Test (v3.9.3):** ok=496, changed=37)
 
 ---
 
@@ -121,11 +122,12 @@ Ansible role for deploying Apache Solr 9.9.0 (9.10 validated) with BasicAuth, Mo
 - ✅ **Performance Tests** - Memory usage and query response times
 
 ### Production Validation (Hetzner Cloud)
-- ✅ **Hardware Tests Completed** - Validated on Hetzner Cloud infrastructure
-- ✅ **Deployment Stats** - Play recap: ok=496, changed=37
+- ⚠️ **v3.9.6 Test Pending** - Hardware validation on Hetzner Cloud required
+- 📊 **Last Test (v3.9.3)** - Play recap: ok=496, changed=37 (failed on re-run)
 - ✅ **Idempotency Note** - Minimum ~37 changes always applied (configuration updates, permissions, health checks, etc.)
 - ⚠️ **Expected Behavior** - "SKIPPING deployment - no changes detected" message not shown with existing containers
-- ✅ **Re-Run Reliability** - Fresh installs and re-runs without container deletion both functional (fixed in v3.9.6)
+- 🔧 **Critical Fixes Applied** - v3.9.4-v3.9.6 fixes should resolve re-run authentication issues
+- ✅ **Expected Outcome** - Fresh installs AND re-runs without container deletion should both work
 
 ---
 
@@ -1070,15 +1072,124 @@ ansible-playbook playbook.yml -e "solr_force_recreate=true"
 
 ---
 
+## ⚠️ Known Issues (v3.9.3 and Earlier)
+
+### Authentication Fails on Re-Runs (Fixed in v3.9.4-v3.9.6)
+
+**Symptoms (v3.9.3 and earlier):**
+- ✅ Fresh Install: Admin login works, cores created, smoketests pass
+- ❌ Re-Run WITHOUT container deletion: Multicore users can't login, core admins authentication fails
+- ⚠️ Only occurred when container/volume NOT deleted between runs
+
+**Root Causes:**
+
+#### 1. Multicore User Management Conditional (Fixed in v3.9.6)
+```yaml
+# ❌ OLD (v3.9.3): Only checked solr_additional_users
+when: solr_additional_users is defined and solr_additional_users | length > 0
+
+# ✅ NEW (v3.9.6): Also checks solr_cores
+when: (solr_additional_users is defined and solr_additional_users | length > 0) or
+      (solr_cores is defined and solr_cores | length > 0)
+```
+**Impact:** Multicore-only setups skipped user hashing entirely
+
+#### 2. Password Persistence Conditional (Fixed in v3.9.6)
+```yaml
+# ❌ OLD (v3.9.3): Only ran when skip_auth=false
+when: not skip_auth | default(false)
+
+# ✅ NEW (v3.9.6): Also runs when user changes present
+when: (not skip_auth | default(false)) or
+      (solr_cores is defined and solr_cores | length > 0) or
+      (solr_additional_users is defined and solr_additional_users | length > 0)
+```
+**Impact:** Re-runs with unchanged admin passwords (skip_auth=true) didn't save multicore credentials
+
+#### 3. Hash Algorithm Mismatch (Fixed in v3.9.5)
+```bash
+# ❌ OLD (v3.9.3): TEXT concatenation
+echo -n "${SALT}${PASSWORD}" | sha256sum
+
+# ✅ NEW (v3.9.5): BINARY concatenation
+cat salt.bin pass.bin > combined.bin
+openssl dgst -sha256 -binary combined.bin
+```
+**Impact:** Wrong hashes for multicore users, authentication always failed
+
+#### 4. Missing Multicore Password Persistence (Fixed in v3.9.5)
+- ❌ OLD (v3.9.3): Only saved admin/support/moodle passwords to host_vars
+- ✅ NEW (v3.9.5): Saves complete solr_cores structure with all user passwords
+
+**Impact:** Next run generated new passwords, but container had old hashes
+
+### Health Check Always Unhealthy (Fixed in v3.9.4)
+
+**Symptoms (v3.9.3 and earlier):**
+- Container running, Solr operational
+- Docker health check status: `unhealthy`
+- Health check endpoint requires authentication
+
+**Root Cause:**
+```bash
+# ❌ OLD (v3.9.3): Used endpoint requiring auth
+curl http://localhost:8983/solr/admin/info/system
+
+# ✅ NEW (v3.9.4): Uses auth-exempt endpoint
+curl http://localhost:8983/solr/admin/ping?wt=json
+```
+
+### Security.json Not Updated (Fixed in v3.9.4)
+
+**Symptoms (v3.9.3 and earlier):**
+- Updated security.json in host config
+- Container still uses old security.json
+- No verification if latest version deployed
+
+**Fix (v3.9.4):**
+- PowerInit v1.5.0 → v1.6.0
+- Added SHA256 checksum verification
+- Only deploys when checksums differ
+
+---
+
+## 🧪 Testing Status
+
+### v3.9.6 - Pending Hardware Validation
+
+**Status:** ⚠️ **TESTING REQUIRED**
+
+All critical fixes implemented and committed, but v3.9.6 hardware validation on Hetzner Cloud pending:
+
+- ✅ **Code Changes:** All conditionals, hash algorithms, and persistence logic fixed
+- ✅ **Theoretical Fix:** Root causes identified and resolved
+- ⚠️ **Hardware Test:** Re-Run without container deletion NOT yet validated on v3.9.6
+- 📊 **Last Test:** Play recap ok=496, changed=37 (from earlier failed v3.9.3 run)
+
+**What needs testing:**
+1. Fresh Install with v3.9.6
+2. Re-Run WITHOUT deleting container/volume/opt/solr
+3. Verify multicore user authentication works after re-run
+4. Verify core admin authentication works after re-run
+5. Confirm Play recap metrics (ok=?, changed=?)
+
+**Expected Outcome:**
+- ✅ Fresh Install: Works (same as v3.9.3)
+- ✅ Re-Run: Should now work (fixed in v3.9.6)
+- ✅ Auth: Multicore users and core admins can login
+
+---
+
 ## 📝 Changelog
 
-### v3.9.6 (2025-11-18) - Current Release 🎯 PRODUCTION READY
+### v3.9.6 (2025-11-18) - Current Release ⚠️ TESTING PENDING
 - 🔴 **CRITICAL FIX: Multicore User Management** - Extended conditionals for multicore-only setups
 - 🔴 **CRITICAL FIX: Password Persistence** - Fixed auth_persistence.yml conditional logic for re-runs
 - 🔒 **Health Check Fixed** - Container health now uses `/admin/ping` (auth-exempt endpoint)
 - 🔐 **PowerInit v1.6.0** - SHA256 checksum verification for security.json deployment
-- ✅ **Hetzner Cloud Validated** - Production tests completed (Play recap: ok=496, changed=37)
-- ✅ **Status:** Production Ready - All critical fixes validated
+- ⚠️ **Hetzner Cloud Test Pending** - Hardware validation required to confirm fixes
+- 📊 **Last Test (v3.9.3):** Play recap: ok=496, changed=37 (Re-Run failed)
+- ✅ **Status:** Code complete - Hardware validation pending
 
 ### v3.9.5 (2025-11-18)
 - 🔴 **CRITICAL FIX: Hash Algorithm** - Fixed binary vs text concatenation in user_management_hash_multicore.yml
