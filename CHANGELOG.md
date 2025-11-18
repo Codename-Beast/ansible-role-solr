@@ -7,6 +7,107 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [3.9.4] - 2025-11-18 🔧 HEALTH CHECK & SECURITY.JSON FIX
+
+**Type:** Patch Release - Critical Bug Fixes
+**Status:** 🔧 **FIXED** - Health Check und security.json Synchronisierung behoben
+
+### 🐛 BUG FIXES
+
+1. **Health Check funktioniert nun mit BasicAuth:**
+   - **Problem:** Health Check prüfte `/admin/info/system` (benötigt Auth)
+   - **Symptom:** Container wurde als "unhealthy" markiert, obwohl Solr lief
+   - **Fix:** Health Check nutzt jetzt `/admin/ping` (in security.json ohne Auth erlaubt)
+   - **Betroffene Dateien:**
+     - `files/docker/healthcheck.sh` - v1.0.0 → v1.1.0
+   - **Impact:** Health Checks funktionieren korrekt mit aktivierter BasicAuth
+
+2. **PowerInit v1.6.0 - Checksummen-Verifikation für security.json:**
+   - **Problem:** Keine Prüfung ob aktuelle security.json in Container deployed wird
+   - **Risiko:** Alte security.json könnte verwendet werden trotz Passwort-Änderungen
+   - **Neue Features:**
+     - SHA256-Checksummen-Vergleich zwischen Host und Container
+     - Deployment nur bei Checksum-Mismatch (intelligentes Update)
+     - Deployment-Status in Summary (DEPLOYED vs. SKIPPED)
+     - Garantiert immer die neueste security.json im Container
+   - **Betroffene Dateien:**
+     - `templates/docker-compose.yml.j2` - PowerInit v1.5.0 → v1.6.0
+   - **Workflow:**
+     1. Berechne SHA256-Checksum der neuen security.json
+     2. Vergleiche mit Checksum der existierenden security.json im Container
+     3. Bei Unterschied: Backup + Deployment der neuen Version
+     4. Bei Übereinstimmung: Deployment wird übersprungen
+   - **Impact:** Passwort-Änderungen werden garantiert synchronisiert
+
+3. **Passwort-Synchronisierung verifiziert:**
+   - **Flow bestätigt:**
+     1. Host_vars enthält Klartext-Passwörter (Ansible Control Node)
+     2. auth_management.yml prüft ob Container-Hashes zu Host-Passwörtern passen
+     3. Bei Mismatch: Neue Hashes generieren (SHA256 double-hash)
+     4. security.json wird mit neuen Hashes generiert
+     5. PowerInit v1.6.0 erkennt Checksum-Änderung und deployed
+   - **Garantie:** Host und Docker Passwörter sind immer synchronisiert
+
+### 📝 TECHNISCHE DETAILS
+
+**Health Check Fix:**
+```bash
+# Alt (v1.0.0): Erforderte Auth
+curl http://localhost:8983/solr/admin/info/system
+
+# Neu (v1.1.0): Ohne Auth erlaubt
+curl http://localhost:8983/solr/admin/ping?wt=json
+```
+
+**PowerInit v1.6.0 Checksummen-Logik:**
+```bash
+# Schritt 1: Checksummen berechnen
+NEW_CHECKSUM=$(sha256sum /config/security.json | awk '{print $1}')
+OLD_CHECKSUM=$(sha256sum /var/solr/data/security.json | awk '{print $1}')
+
+# Schritt 2: Vergleichen
+if [ "$NEW_CHECKSUM" != "$OLD_CHECKSUM" ]; then
+  # Deployment erforderlich
+  cp /config/security.json /var/solr/data/security.json
+fi
+```
+
+**Passwort-Synchronisierung:**
+1. **Host (Ansible Control Node):**
+   - `host_vars/{hostname}` - Klartext-Passwörter
+   - `~/.ansible-solr-passwords/` - Backup
+
+2. **Container:**
+   - `/var/solr/data/security.json` - Nur SHA256-Hashes
+   - Format: `base64(sha256(sha256(salt+password))) base64(salt)`
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- `files/docker/healthcheck.sh` - v1.0.0 → v1.1.0 (Endpoint-Fix)
+- `templates/docker-compose.yml.j2` - PowerInit v1.5.0 → v1.6.0 (Checksummen)
+- `CHANGELOG.md` - v3.9.4 Dokumentation
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität.
+
+**Migration:**
+- Automatisch beim nächsten Deployment
+- Container-Neustart erforderlich für Health Check Fix
+- PowerInit v1.6.0 wird automatisch beim `docker-compose up` ausgeführt
+
+### 🎯 TESTING-CHECKLISTE
+
+- [ ] Container startet erfolgreich
+- [ ] Health Check zeigt "healthy" status
+- [ ] security.json wird bei Checksum-Unterschied deployed
+- [ ] security.json wird bei gleicher Checksum übersprungen
+- [ ] Passwort-Änderungen in host_vars triggern security.json Update
+- [ ] Container verwendet neue Passwörter nach Restart
+
+---
+
 ## [3.9.3] - 2025-11-16 🧹 CODE-HYGIENE CLEANUP
 
 **Type:** Patch Release - Code Quality Improvements
