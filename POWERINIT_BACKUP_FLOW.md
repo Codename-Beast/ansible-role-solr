@@ -1,8 +1,12 @@
-# PowerInit v1.6.0 - Backup & Deployment Flow
+# PowerInit v1.7.0 - Backup & Deployment Flow
 
 ## 📋 Overview
 
-PowerInit ist ein Init-Container, der **VOR** dem Solr-Start läuft und alle Konfigurationsdateien deployed. Diese Dokumentation erklärt den kompletten Flow und wie Ansible und Docker Compose harmonisch zusammenarbeiten.
+PowerInit ist ein Init-Container, der **VOR** dem Solr-Start läuft und alle Konfigurationsdateien deployed.
+
+**Version 1.7.0** fügt **SHA256 Checksum-Verifikation** hinzu um zu garantieren, dass immer die aktuelle security.json deployed wird.
+
+Diese Dokumentation erklärt den kompletten Flow und wie Ansible und Docker Compose harmonisch zusammenarbeiten.
 
 ---
 
@@ -36,18 +40,34 @@ PowerInit ist ein Init-Container, der **VOR** dem Solr-Start läuft und alle Kon
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  POWERINIT v1.6.0 (solr-init container)            │
+│  POWERINIT v1.7.0 (solr-init container)            │
 ├─────────────────────────────────────────────────────┤
-│  [1/7] Install validation tools                    │
-│        - jq, libxml2-utils, coreutils              │
+│  [1/8] Install validation tools                    │
+│        - jq, libxml2-utils, coreutils, sha256sum   │
 │                                                     │
-│  [2/7] Create directories                          │
+│  [2/8] 🔐 CHECKSUM VERIFICATION (NEW v1.7.0!)      │
+│        ┌────────────────────────────────────┐     │
+│        │ Calculate SHA256 checksums:        │     │
+│        │   Source: /config/security.json    │     │
+│        │   Deployed: /var/solr/data/        │     │
+│        │                                     │     │
+│        │ IF checksums MATCH:                │     │
+│        │   → Skip deployment (already OK)   │     │
+│        │   → Skip backup (no changes)       │     │
+│        │                                     │     │
+│        │ IF checksums DIFFER:               │     │
+│        │   → FORCE_DEPLOY=true              │     │
+│        │   → Continue with backup+deploy    │     │
+│        └────────────────────────────────────┘     │
+│                                                     │
+│  [3/8] Create directories                          │
 │        - /var/solr/data                            │
 │        - /var/solr/data/configs                    │
 │        - /var/solr/data/lang                       │
-│        - /var/solr/data/old  ← NEW!                │
+│        - /var/solr/data/old                        │
 │                                                     │
-│  [3/7] INTELLIGENT BACKUP ROTATION                 │
+│  [4/8] INTELLIGENT BACKUP ROTATION                 │
+│        (Only if FORCE_DEPLOY=true!)                │
 │        ┌──────────────────────────────────────┐   │
 │        │ IF security.json exists:              │   │
 │        │   1. Copy to /var/solr/data/old/     │   │
@@ -60,16 +80,18 @@ PowerInit ist ein Init-Container, der **VOR** dem Solr-Start läuft und alle Kon
 │        │      → Keep 3 most recent            │   │
 │        └──────────────────────────────────────┘   │
 │                                                     │
-│  [3.5/7] Backup other config files                 │
+│  [4.5/8] Backup other config files                 │
+│          (Only if FORCE_DEPLOY=true!)              │
 │          (solrconfig.xml, moodle_schema.xml, etc.) │
 │          Same rotation policy: max 3 backups       │
 │                                                     │
-│  [4/7] VALIDATE config files                       │
+│  [5/8] VALIDATE config files                       │
 │        - security.json (JSON syntax)               │
 │        - solrconfig.xml (XML syntax)               │
 │        - moodle_schema.xml (XML syntax)            │
 │                                                     │
-│  [5/7] DEPLOY FRESH configs from Ansible          │
+│  [6/8] DEPLOY FRESH configs from Ansible          │
+│        (Only if FORCE_DEPLOY=true!)                │
 │        Source: /config (mounted from host)         │
 │        Target: /var/solr/data                      │
 │        ┌────────────────────────────────────┐     │
@@ -81,14 +103,25 @@ PowerInit ist ein Init-Container, der **VOR** dem Solr-Start läuft und alle Kon
 │        │ Always uses latest from Ansible    │     │
 │        └────────────────────────────────────┘     │
 │                                                     │
-│  [6/7] Set permissions                             │
+│  [7/8] Set permissions                             │
 │        - chown 8983:8983                           │
 │        - chmod 600 security.json                   │
 │                                                     │
-│  [7/7] Verify deployment                           │
+│  [8/8] 🔐 FINAL VERIFICATION (NEW v1.7.0!)         │
+│        ┌────────────────────────────────────┐     │
+│        │ Recalculate deployed checksum      │     │
+│        │ Compare with source checksum       │     │
+│        │                                     │     │
+│        │ IF MATCH: ✅ SUCCESS               │     │
+│        │ IF MISMATCH: ❌ EXIT 1 (FAIL)      │     │
+│        │                                     │     │
+│        │ This guarantees deployed version   │     │
+│        │ is exactly what Ansible generated! │     │
+│        └────────────────────────────────────┘     │
 │        - Show active config                        │
 │        - List backups (max 3)                      │
-│        - Confirm success                           │
+│        - Display deployment stats                  │
+│        - Confirm checksum verification             │
 └─────────────────────────────────────────────────────┘
                     ↓
           Solr container starts

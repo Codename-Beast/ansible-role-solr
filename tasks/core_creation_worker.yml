@@ -1,6 +1,10 @@
 ---
-# Version: 2.0.0
+# Version: 2.1.0
 # Description: Worker task for creating individual cores (Multi-Core Mode)
+# Changelog v2.1.0:
+#   - FIXED: Replaced community.docker.docker_container_exec with shell-based docker exec
+#   - REASON: Avoid Docker SDK for Python dependency (ModuleNotFoundError: No module named 'docker')
+#   - IMPACT: No longer requires python3-docker package on target host
 # Changelog v2.0.0:
 #   - NEW: Worker task for Multi-Core Mode
 #   - Receives core_config from parent loop
@@ -82,9 +86,7 @@
   changed_when: false
 
 - name: core-worker - Check instance core.properties in container
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "test -f /var/solr/data/{{ current_core_name }}/core.properties"
+  shell: docker exec {{ solr_container_name }} test -f /var/solr/data/{{ current_core_name }}/core.properties
   register: core_dir_check
   failed_when: false
   changed_when: false
@@ -126,9 +128,7 @@
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Ensure configSet dir exists in container
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf'"
+  shell: docker exec {{ solr_container_name }} sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf'
   register: mk_cfg_dir
   changed_when: mk_cfg_dir.rc == 0
   when: not core_instance_present or solr_force_recreate_core | default(false)
@@ -142,61 +142,48 @@
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Create schema.xml from moodle_schema.xml if missing
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: >
-      sh -lc 'if [ -f /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml ]; then
-                cp /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml;
-              fi'
+  shell: >
+    docker exec {{ solr_container_name }} sh -lc 'if [ -f /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml ]; then
+              cp /var/solr/data/configsets/{{ current_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml;
+            fi'
   register: schema_copy
   changed_when: schema_copy.rc == 0
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Set ownership for configSet (root inside container)
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    user: "0"
-    command: >
-      sh -lc 'chown -R 8983:8983 /var/solr/data/configsets/{{ current_core_config }}/conf &&
-              find /var/solr/data/configsets/{{ current_core_config }}/conf -type d -exec chmod 0755 {} \; &&
-              find /var/solr/data/configsets/{{ current_core_config }}/conf -type f -exec chmod 0644 {} \;'
+  shell: >
+    docker exec --user 0 {{ solr_container_name }} sh -lc 'chown -R 8983:8983 /var/solr/data/configsets/{{ current_core_config }}/conf &&
+            find /var/solr/data/configsets/{{ current_core_config }}/conf -type d -exec chmod 0755 {} \; &&
+            find /var/solr/data/configsets/{{ current_core_config }}/conf -type f -exec chmod 0644 {} \;'
   register: cfg_chown
   changed_when: cfg_chown.rc == 0
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Remove any managed-schema from configSet (safety)
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'rm -f /var/solr/data/configsets/{{ current_core_config }}/conf/managed-schema /var/solr/data/configsets/{{ current_core_config }}/conf/old_managed-schema || true'"
+  shell: docker exec {{ solr_container_name }} sh -lc 'rm -f /var/solr/data/configsets/{{ current_core_config }}/conf/managed-schema /var/solr/data/configsets/{{ current_core_config }}/conf/old_managed-schema || true'
   changed_when: false
   failed_when: false
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Check configSet files in container
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'test -f /var/solr/data/configsets/{{ current_core_config }}/conf/solrconfig.xml && test -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml'"
+  shell: docker exec {{ solr_container_name }} sh -lc 'test -f /var/solr/data/configsets/{{ current_core_config }}/conf/solrconfig.xml && test -f /var/solr/data/configsets/{{ current_core_config }}/conf/schema.xml'
   register: configset_files_check
   failed_when: configset_files_check.rc != 0
   changed_when: false
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Ensure lang directory exists in configSet
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: "sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf/lang'"
+  shell: docker exec {{ solr_container_name }} sh -lc 'mkdir -p /var/solr/data/configsets/{{ current_core_config }}/conf/lang'
   changed_when: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
 - name: core-worker - Copy lang files from deployed location to configSet
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: >
-      sh -lc 'for f in /var/solr/data/lang/*; do
-                if [ -f "$f" ]; then
-                  cp "$f" /var/solr/data/configsets/{{ current_core_config }}/conf/lang/;
-                fi;
-              done'
+  shell: >
+    docker exec {{ solr_container_name }} sh -lc 'for f in /var/solr/data/lang/*; do
+              if [ -f "$f" ]; then
+                cp "$f" /var/solr/data/configsets/{{ current_core_config }}/conf/lang/;
+              fi;
+            done'
   changed_when: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
