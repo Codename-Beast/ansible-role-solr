@@ -19,9 +19,7 @@
       container_name: "{{ solr_container_name }}"
       core_name: "{{ solr_core_name }}"
       solr_url: "http://localhost:{{ solr_port }}/solr"
-      proxy_url: "http://{{ solr_app_domain }}{{ solr_proxy_path }}"
       auth_enabled: "{{ solr_auth_enabled | default(true) }}"
-      ssl_enabled: "{{ solr_ssl_enabled | default(true) }}"
       backup_enabled: "{{ solr_backup_enabled | default(true) }}"
       Deployment ID: "{{ ansible_date_time.epoch }}-{{ inventory_hostname }}"
       Deployment Host: "{{ ansible_hostname }}"
@@ -59,12 +57,10 @@
       
       ## Network Configuration
       - Internal URL: http://localhost:{{ solr_port }}/solr
-      - Proxy URL: http://{{ solr_app_domain }}{{ solr_proxy_path }}
-      - Proxy Path: {{ solr_proxy_path }}
-      
+      - Note: SSL/TLS and reverse proxy handled by Caddy externally
+
       ## Security
       - Authentication: {{ 'ENABLED' if solr_auth_enabled | default(true) else 'DISABLED' }}
-      - SSL/TLS: {{ 'ENABLED' if solr_ssl_enabled | default(true) else 'DISABLED' }}
       - Admin User: {{ solr_admin_user }}
       - Support User: {{ solr_support_user }}
       - Moodle User: {{ solr_moodle_user }}
@@ -179,8 +175,7 @@
       Deployment Time: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
       Solr URL: http://localhost:{{ solr_port }}/solr
       Core URL: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}
-      Proxy URL: http://{{ solr_app_domain }}{{ solr_proxy_path }}
-      
+
       Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}
 
       Admin User: {{ solr_admin_user }}
@@ -258,7 +253,6 @@
       urls:
         internal: "http://localhost:{{ solr_port }}/solr"
         core: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
-        proxy: "http://{{ solr_app_domain }}{{ solr_proxy_path }}"
         admin_ui: "http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
       resources:
         memory_usage: "{{ container_stats.stdout if container_stats.rc == 0 else 'N/A' }}"
@@ -337,14 +331,14 @@
       {% endif %}{% endfor %}{% endif %}╠══════════════════════════════════════════════════════════════════════╣
       ║  🌐 WEBUI LOGIN TESTEN:                                               ║
       ║                                                                       ║
-      ║  URL: {{ 'https' if solr_ssl_enabled | default(false) else 'http' }}://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/
+      ║  URL: http://localhost:{{ solr_port }}/solr/
       ║                                                                       ║
       ║  Test-Befehle:                                                        ║
       {% if generate_admin_password | default(false) %}║  curl -u {{ solr_admin_user }}:{{ solr_admin_password_final }} \
-      ║       {{ 'https' if solr_ssl_enabled | default(false) else 'http' }}://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/admin/ping
+      ║       http://localhost:{{ solr_port }}/solr/admin/ping
       ║                                                                       ║
       {% endif %}{% if generated_credentials | default([]) | length > 0 %}{% for cred in generated_credentials %}{% if cred.was_generated %}║  curl -u {{ cred.username }}:{{ cred.password }} \
-      ║       {{ 'https' if solr_ssl_enabled | default(false) else 'http' }}://{{ solr_app_domain }}{{ solr_proxy_path | default('/solr-admin') }}/{{ cred.core }}_core/admin/ping
+      ║       http://localhost:{{ solr_port }}/solr/{{ cred.core }}_core/admin/ping
       ║                                                                       ║
       {% endif %}{% endfor %}{% endif %}╠══════════════════════════════════════════════════════════════════════╣
       ║  💾 WICHTIG: Credentials in host_vars sichern!                        ║
@@ -378,7 +372,6 @@
       - "URLS:"
       - "  Internal: http://localhost:{{ solr_port }}/solr"
       - "  Core: http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}"
-      - "  Proxy: http://{{ solr_app_domain }}{{ solr_proxy_path }}"
       - "  Admin UI: http://localhost:{{ solr_port }}/solr/#/{{ solr_core_name }}"
       - ""
       - "CREDENTIALS:"

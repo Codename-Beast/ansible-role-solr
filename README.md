@@ -1,13 +1,13 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.9.18-blue)
+![Version](https://img.shields.io/badge/version-4.0.0-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
 ![Solr](https://img.shields.io/badge/solr-9.9.0)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
 ![Tests](https://img.shields.io/badge/tests-dev%20ready-brightgreen)
 ![Status](https://img.shields.io/badge/status-Dev%20deployed-success)
 
-Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, Moodle schema support (file indexing), full idempotency, multi-core support and user management
+Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, Moodle schema support (file indexing + Schema API), full idempotency, multi-core support and user management
 
 **Author**: Bernd Schreistetter
 **Organization**: Eledia GmbH
@@ -16,44 +16,37 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 
 ---
 
-## 🎉 What's New in v3.9.18
+## What's New in v4.0.0 (Major Simplification)
 
-<table>
-<tr>
-<td width="50%">
+### Breaking Changes
+- **REMOVED**: Apache/Nginx proxy configuration (use Caddy externally)
+- **REMOVED**: SSL/TLS configuration (handled by Caddy)
+- **CHANGED**: Schema factory to ManagedIndexSchemaFactory
 
-### ✨ New in v3.9.18
-- 🔧 **Apache Proxy Fix**: Added ProxyPass for SolrCloud API paths (Will not really work)
-- 🐛 **Admin UI Compatibility**: Rewrites `/api/cluster/security/*` to Standalone endpoints
-- 📊 **Production Tested**: Hetznercloud deployment
-- ✅ **Smoke Tests**: 10/10 tests PASSED
-- 🏢 **Multi-Core Validated**: 4 cores running on 16GB server
-- 🔒 **Username Conventions**: Auto-role assignment (*_admin → admin, *_moodle → moodle, *_readonly → support)
-- 🔐 **Security.json**: All users correctly assigned, permissions working
-- 🚀 **Ready for Real Data**: All known bugs fixed, idempotent re-runs working
+### New Features
+- **Moodle Schema API Support**: Moodle can now add fields via POST `/schema` (add-field)
+- **Empty Core Option**: `solr_empty_core: true` creates minimal schema for Moodle API registration
+- **Simplified Configuration**: No more proxy/SSL variables needed
+- **Multi-Core empty_core**: Per-core `empty_core: true/false` option
 
-**Known Issues:**
-- ⚠️ **Security Panel Browser Display**: Admin UI Security Panel may show 404 in browser (backend API works correctly)
-  - **What Works**: API endpoints, authentication, role assignment, core access ✅
-  - **What Doesn't**: Browser UI display of Security Panel (cosmetic issue only)
-  - **Workaround**: Use `/solr/admin/authorization` API directly via curl
-  - **Impact**: LOW - Core functionality unaffected, admin can access all cores
+### Why v4.0.0?
+- Caddy handles reverse proxy and SSL better than Apache/Nginx configuration
+- ManagedIndexSchemaFactory required for Moodle's Schema API
+- Simpler deployment: Focus on Solr, not proxy configuration
 
-### ✨ Task File Optimization (v3.9.15)
-- 🧹 **Code Cleanup**: 28 → 25 task files (-11%)
-- 📦 **Consolidated Files**:
-  - `core_creation.yml` + `core_reload.yml` → `core_management.yml`
-  - `credentials_display.yml` → `finalization.yml`
-  - `rundeck_output.yml` removed (unused)
-- 📝 **Better Maintainability**: Cleaner role structure, easier to navigate
+### Migration from v3.x
+1. Remove `solr_proxy_enabled`, `solr_ssl_enabled`, `solr_webserver` from host_vars
+2. Configure Caddy separately for reverse proxy and SSL
+3. If using Moodle Schema API: Set `solr_empty_core: true`
 
-</td>
-</tr>
-</table>
+### Previous Release (v3.9.18)
+- Multi-Core Validated: 4 cores running on 16GB server
+- Username Conventions: Auto-role assignment
+- Full idempotency support
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Features](#features)
 - [Requirements](#requirements)
@@ -62,10 +55,10 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 - [Configuration](#configuration)
   - [Single-Core Mode](#single-core-mode)
   - [Multi-Core Mode](#multi-core-mode)
+  - [Empty Core Mode](#empty-core-mode)
   - [Username Conventions](#username-conventions)
 - [Architecture](#architecture)
 - [Security](#security)
-- [Proxy Configuration](#proxy-configuration)
 - [Monitoring](#monitoring)
 - [Backup & Recovery](#backup--recovery)
 - [Troubleshooting](#troubleshooting)
@@ -88,17 +81,20 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 - ✅ **Task File Optimization** - 25 organized task files reduced from 28
 
 ### Security Features
-- 🔒 **BasicAuth Plugin** - Username/password authentication
-- 🔒 **RuleBasedAuthorizationPlugin** - Role-based access control
-- 🔒 **SHA256 Double-Hashing** - Secure password storage
-- 🔒 **SSL/TLS Support** - Let's Encrypt integration
-- 🔒 **IP-based Access Control** - Restrict admin access
-- 🔒 **Auto-Password Generation** - Secure 24-character passwords if not set
+- **BasicAuth Plugin** - Username/password authentication
+- **RuleBasedAuthorizationPlugin** - Role-based access control
+- **SHA256 Double-Hashing** - Secure password storage
+- **Auto-Password Generation** - Secure 24-character passwords if not set
+
+### Schema Features (NEW in v4.0.0)
+- **ManagedIndexSchemaFactory** - Allows dynamic schema modifications via API
+- **Moodle Schema API** - Moodle can add fields via POST `/schema` (add-field)
+- **Empty Core Mode** - Minimal schema for Moodle API registration
 
 ### Operational Features
-- 🔄 **PowerInit v1.7.0** - Init-container pattern with checksum verification
-- 🔄 **Apache** - Reverse proxy with SSL termination
-- 🔄 **Integration Tests** - Automated smoke tests after deployment
+- **PowerInit v1.7.0** - Init-container pattern with checksum verification
+- **Integration Tests** - Automated smoke tests after deployment
+- **External Proxy** - Use Caddy for reverse proxy and SSL (not managed by this role)
 
 ### Developer Features
 - 🛠️ **Host_vars Persistence** - Credentials auto-saved to inventory
@@ -122,14 +118,12 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 
 ### Software Requirements
 - **Ansible**: 2.10.12 or higher
-- **Apache**
-- **Letsencrypt**
 - **Docker**: 20.10 or higher (installed automatically if missing)
-- **Webserver**: Apache 2.4+ or Nginx 1.18+ (for proxy)
+- **Caddy** (optional): For reverse proxy and SSL termination (external to this role)
 
 ### Network Requirements
-- Port 8983 (Solr, localhost only)
-- Port 80/443 (Proxy, public)
+- Port 8983 (Solr, localhost only - not exposed publicly)
+- Port 80/443 (via Caddy or other reverse proxy)
 - Outbound HTTPS for Docker image pulls
 
 ---
@@ -167,11 +161,13 @@ solr_admin_password: "ChangeMeSecure123!"
 solr_support_password: "AlsoSecure456!"
 solr_moodle_password: "MoodlePassword789!"
 
-# Proxy (recommended)
-solr_proxy_enabled: true
-solr_ssl_enabled: true
-solr_ssl_cert_path: "/etc/letsencrypt/live/solr.example.com"
+# Empty Core Mode (optional - for Moodle Schema API)
+# Set to true if Moodle should create schema via API
+solr_empty_core: false
 ```
+
+> **Note**: SSL/TLS and reverse proxy are handled externally by Caddy.
+> Configure Caddy to proxy requests to `localhost:8983`.
 
 **Run playbook:**
 

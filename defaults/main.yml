@@ -1,15 +1,18 @@
 ---
 #######################################################################
-# Default variable definitions for Solr role enhancements.
-# Fixes/Improvements:
-# 1. Added ``solr_additional_users`` to allow provisioning of extra Solr users.
-# 2. Added ``solr_core_admin_role_prefix`` to configure per-core administrator role names.
-# 3. Provided documentation comments for each variable to aid understanding.
-# 4. Ensured sensible defaults (empty list and "core-admin") for backward compatibility.
-# 5. Maintains existing behaviour for pre-defined users while enabling extensibility.
+# Default variable definitions for Solr role
+# Version: 4.0.0 (Major simplification release)
 #######################################################################
-# Version: 1.6.0
+# Version: 4.0.0
 # Description: Default variables for Solr installation
+# Changelog v4.0.0:
+#   - REMOVED: Proxy configuration (Apache/Nginx) - now handled by Caddy
+#   - REMOVED: SSL configuration - now handled by Caddy
+#   - CHANGED: Schema factory to ManagedIndexSchemaFactory for Moodle API support
+#   - ADDED: empty_core option for Moodle dynamic schema registration
+#   - ADDED: solr_empty_core variable for single-core mode
+#   - IMPROVED: solradmin integration in multicore configuration
+#   - FIXED: Moodle Schema API now works (POST /schema add-field)
 # Changelog v1.6.0:
 #   - ADDED: Dynamic user management via solr_additional_users
 #   - ADDED: Per-core admin role prefix configuration
@@ -155,6 +158,12 @@ solr_core_name_base: "{{ solr_core_name_raw[:45] | regex_replace('[^a-zA-Z0-9_]'
 solr_core_name: "{{ solr_core_name_base }}_core"
 solr_core_config: "moodle_configs"
 
+# Empty Core Mode (for Moodle Schema API)
+# If true: Creates core with minimal schema, Moodle adds fields via API
+# If false: Uses predefined moodle_schema.xml
+# This is useful when Moodle manages its own schema dynamically
+solr_empty_core: false
+
 # ============================================================================
 # MULTI-CORE MODE (v3.9.0+)
 # ============================================================================
@@ -187,6 +196,7 @@ solr_core_config: "moodle_configs"
 # solr_cores:
 #   - name: "moodle_prod"
 #     domain: "moodle-prod.kunde.de"
+#     empty_core: false          # Use predefined moodle_schema.xml
 #     users:
 #       - username: "moodle_prod_rw"
 #         password: "{{ vault_prod_rw_password }}"  # Or "" for auto-generate
@@ -196,10 +206,23 @@ solr_core_config: "moodle_configs"
 #         roles: ["support"]  # Read-only
 #   - name: "moodle_test"
 #     domain: "moodle-test.kunde.de"
+#     empty_core: true           # Empty core - Moodle creates schema via API
 #     users:
 #       - username: "moodle_test"
 #         password: ""  # Auto-generate secure password
 #         roles: ["core-admin-moodle_test_core"]
+#
+# Core Options:
+#   - name: Core name (required, will be suffixed with "_core")
+#   - domain: Associated domain (optional)
+#   - empty_core: true/false - If true, creates minimal schema for Moodle API
+#                 Moodle registers fields via POST /schema (add-field)
+#                 Default: false (uses predefined moodle_schema.xml)
+#   - users: List of users with access to this core
+#
+# Admin Access (solradmin integration):
+#   Global admin users (solr_admin_user, solr_support_user, solr_moodle_user)
+#   have access to ALL cores. Per-core users have access only to their core.
 
 # Multi-Core Liste (leer = Single-Core Mode)
 solr_cores: []
@@ -320,24 +343,9 @@ solr_jvm_opts: >-
 solr_cpu_quota: 400000
 solr_cpu_period: 100000
 # ============================================================================
-# PROXY CONFIGURATION (v3.8.1+)
+# NOTE: Proxy/SSL configuration removed in v4.0.0
+# Caddy handles reverse proxy and SSL termination externally
 # ============================================================================
-solr_proxy_enabled: false
-solr_proxy_path: "/solr-admin"
-solr_webserver: "apache"  # Options: "apache" | "nginx"
-solr_proxy_auth_enabled: false  # Additional Basic Auth on proxy level
-solr_restrict_admin: true  # Restrict admin access to specific IPs
-solr_admin_allowed_ips: []  # List of allowed IPs for admin access
-# Config file naming: solr.{{ solr_app_domain }}.conf (e.g., solr.kunde.de.conf)
-# ============================================================================
-# SSL CONFIGURATION (Let's Encrypt)
-# ============================================================================
-solr_ssl_enabled: false
-solr_ssl_cert_path: "/etc/letsencrypt/live/{{ solr_app_domain | default('localhost') }}"
-# Install Let's Encrypt certificates with:
-#   Apache: sudo certbot --apache -d {{ solr_app_domain }}
-#   Nginx:  sudo certbot --nginx -d {{ solr_app_domain }}
-# HTTPS availability tested with up to 10 retries
 # ============================================================================
 # SOLR SETTINGS (v3.9.0 Optimized)
 # ============================================================================

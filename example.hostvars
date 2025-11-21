@@ -53,7 +53,7 @@ solr_moodle_password: ""  # TODO: SETZEN!
 solr_auth_realm: "Solr Eledia"  # Default
 
 # ============================================================================
-# MULTI-CORE MODE (v3.9.0+ Feature!) 🎉
+# MULTI-CORE MODE (v4.0.0 - vereinfacht!)
 # ============================================================================
 # Deploy multiple isolated Solr cores for multi-tenant Moodle setups
 # Each core has its own index and dedicated users
@@ -64,11 +64,17 @@ solr_auth_realm: "Solr Eledia"  # Default
 # - Absolutes Limit: 15 Cores (ca. 400MB Heap/Core)
 # - Über 15 Cores: RAM-Warning wird angezeigt!
 #
+# NEW in v4.0.0:
+# - empty_core: true  -> Leerer Core, Moodle registriert Schema via API
+# - empty_core: false -> Vordefiniertes moodle_schema.xml (Default)
+# - ManagedIndexSchemaFactory für dynamische Schema-Änderungen
+#
 # BEISPIEL: 10 Moodle-Instanzen auf einem Solr-Server
 solr_cores: []
 # solr_cores:
 #   - name: "moodle_prod"
 #     domain: "moodle-prod.kunde.de"
+#     empty_core: false          # Vordefiniertes Schema (Default)
 #     users:
 #       - username: "moodle_prod_rw"
 #         password: "{{ vault_moodle_prod_password }}"
@@ -79,6 +85,7 @@ solr_cores: []
 #
 #   - name: "moodle_test"
 #     domain: "moodle-test.kunde.de"
+#     empty_core: true           # Leerer Core - Moodle Schema via API
 #     users:
 #       - username: "moodle_test"
 #         password: "{{ vault_moodle_test_password }}"
@@ -86,36 +93,37 @@ solr_cores: []
 #
 #   - name: "moodle_dev"
 #     domain: "moodle-dev.kunde.de"
+#     empty_core: true           # Moodle registriert sein Schema selbst
 #     users:
 #       - username: "moodle_dev"
 #         password: "{{ vault_moodle_dev_password }}"
 #
-#   - name: "customer1"
-#     domain: "lms.customer1.com"
-#     users:
-#       - username: "customer1_moodle"
-#         password: "{{ vault_customer1_password }}"
-#
-#   - name: "customer2"
-#     domain: "learning.customer2.de"
-#     users:
-#       - username: "customer2_moodle"
-#         password: "{{ vault_customer2_password }}"
-#
 # Cores werden benannt als: <name>_core
 # Beispiel: "moodle_prod" → Core: "moodle_prod_core"
 #
+# ADMIN USER INTEGRATION:
+# - Globale Admin-User (admin, support, moodle) haben Zugriff auf ALLE Cores
+# - Per-Core User haben nur Zugriff auf ihren Core
+# - Kein separater solradmin Block mehr nötig!
+#
 # FEATURES:
-# - ✅ Vollständige Isolation zwischen Cores
-# - ✅ Dedizierte User pro Core (oder geteilt)
-# - ✅ Nachträglich erweiterbar (idempotent)
-# - ✅ RAM-Warning bei zu vielen Cores
-# - ✅ Automatische Role-Zuweisung
+# - Vollständige Isolation zwischen Cores
+# - Dedizierte User pro Core (oder geteilt)
+# - Nachträglich erweiterbar (idempotent)
+# - RAM-Warning bei zu vielen Cores
+# - Automatische Role-Zuweisung
+# - ManagedIndexSchemaFactory für Moodle Schema API
 
 # ============================================================================
-# SINGLE-CORE MODE (Legacy - v3.8 und früher)
+# SINGLE-CORE MODE (v4.0.0)
 # ============================================================================
 # Nur aktiv wenn solr_cores LEER ist!
+
+# Empty Core Mode (NEU in v4.0.0)
+# true:  Minimales Schema - Moodle registriert Felder via Schema API
+# false: Vordefiniertes moodle_schema.xml (Default)
+solr_empty_core: false
+
 # Zusätzliche User (Hot-Reload mit --tags=solr-auth-reload)
 solr_additional_users: []
 # Beispiel:
@@ -169,53 +177,9 @@ solr_moodle_test_docs: true
 solr_multi_version_cores: true
 
 # ============================================================================
-# WEBSERVER REVERSE PROXY (Apache + Nginx Support)
+# NOTE: Proxy/SSL configuration removed in v4.0.0
+# Caddy handles reverse proxy and SSL termination externally
 # ============================================================================
-# Proxy aktivieren (Default: false)
-solr_proxy_enabled: false
-
-# Proxy Path (Default: /solr-admin)
-solr_proxy_path: "/solr-admin"
-
-# Webserver (Default: apache)
-# Options: "apache" | "nginx"
-solr_webserver: "apache"
-
-# Additional Basic Auth auf Proxy-Level (Optional)
-solr_proxy_auth_enabled: false
-
-# Admin IP-Zugriffsbeschränkung (Default: true)
-solr_restrict_admin: true
-
-# Erlaubte IPs für Admin-Zugriff (zusätzlich zu 127.0.0.1)
-solr_admin_allowed_ips: []
-# Beispiel:
-# solr_admin_allowed_ips:
-#   - "192.168.1.100"
-#   - "10.0.0.0/24"
-
-# Config-Datei wird benannt als: solr.{{ solr_app_domain }}.conf
-# Beispiel: solr.kunde.de.conf
-
-# ============================================================================
-# SSL/TLS (Let's Encrypt Integration)
-# ============================================================================
-# SSL aktivieren (Default: false)
-solr_ssl_enabled: false
-
-# SSL Cert Path (Default: /etc/letsencrypt/live/<domain>)
-# solr_ssl_cert_path: "/etc/letsencrypt/live/{{ solr_app_domain }}"
-
-# Let's Encrypt Installation:
-# Apache: sudo certbot --apache -d {{ solr_app_domain }}
-# Nginx:  sudo certbot --nginx -d {{ solr_app_domain }}
-# Manual: sudo certbot certonly --webroot -w /var/www/html -d {{ solr_app_domain }}
-
-# HTTPS availability wird automatisch getestet (bis zu 10 Versuche)
-# Bei aktiviertem SSL wird Solr automatisch SSL-aware konfiguriert:
-#   - Keine HTTP-Warnung mehr in der WebUI
-#   - Korrekte HTTPS-Links in der Admin-Oberfläche
-#   - Umgebungsvariablen: SOLR_URL_SCHEME=https, SOLR_HOST={{ domain }}, SOLR_PORT=443
 
 # ============================================================================
 # DIRECTORIES

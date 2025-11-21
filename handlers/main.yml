@@ -79,24 +79,6 @@
   failed_when: emergency_backup_result.rc != 0
   notify: log handler execution
 
-- name: reload apache
-  systemd:
-    name: apache2
-    state: reloaded
-  when: solr_webserver == "apache"
-  register: apache_reload_result
-  failed_when: apache_reload_result.failed
-  notify: log handler execution
-
-- name: reload nginx
-  systemd:
-    name: nginx
-    state: reloaded
-  when: solr_webserver == "nginx"
-  register: nginx_reload_result
-  failed_when: nginx_reload_result.failed
-  notify: log handler execution
-
 - name: restart docker
   systemd:
     name: docker
