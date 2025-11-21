@@ -38,8 +38,11 @@
     - Allows Moodle to register its schema via POST /schema (add-field)
     - Compatible with both predefined and dynamic field management
 
-    Note: For empty cores, Moodle creates the schema automatically.
-    For predefined schemas, schema.xml is renamed to managed-schema on first load.
+    Solr 9.x Notes:
+    - Default schema filename changed from 'managed-schema' to 'managed-schema.xml'
+    - For empty cores, Moodle creates fields via Schema API automatically
+    - For predefined schemas, moodle_schema.xml is copied to managed-schema.xml
+    - Required field types for Moodle: string, text_general, pint, pdate, plong
   -->
   <schemaFactory class="ManagedIndexSchemaFactory">
     <bool name="mutable">true</bool>

@@ -96,16 +96,36 @@
 
 - name: install-solr - Handle schema deployment based on empty_core setting
   block:
-    # For empty cores (Moodle API mode): Only deploy minimal schema, Moodle creates fields via API
-    - name: install-solr - Create minimal managed-schema for empty/API cores
+    # For empty cores (Moodle API mode): Deploy minimal schema with required field types
+    # Moodle creates fields via Schema API (POST /schema with add-field)
+    # Required field types based on Moodle search/classes/document.php:
+    #   - text -> text_general (title, content, description1, description2)
+    #   - int -> pint (itemid, contextid, type, courseid, owneruserid, userid, groupid)
+    #   - tdate -> pdate (modified)
+    #   - string (id, areaid)
+    - name: install-solr - Create minimal managed-schema.xml for empty/API cores
       community.docker.docker_container_exec:
         container: "{{ solr_container_name }}"
         command: |
-          sh -lc 'cat > /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema << "SCHEMA"
+          sh -lc 'cat > /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema.xml << "SCHEMA"
           <?xml version="1.0" encoding="UTF-8" ?>
           <schema name="moodle-managed" version="1.6">
+            <!-- Field types required by Moodle search_solr plugin -->
             <fieldType name="string" class="solr.StrField" sortMissingLast="true" docValues="true"/>
             <fieldType name="plong" class="solr.LongPointField" docValues="true"/>
+            <fieldType name="pint" class="solr.IntPointField" docValues="true"/>
+            <fieldType name="pdate" class="solr.DatePointField" docValues="true"/>
+            <fieldType name="text_general" class="solr.TextField" positionIncrementGap="100" multiValued="true">
+              <analyzer type="index">
+                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
+              </analyzer>
+              <analyzer type="query">
+                <tokenizer class="solr.StandardTokenizerFactory"/>
+                <filter class="solr.LowerCaseFilterFactory"/>
+              </analyzer>
+            </fieldType>
+            <!-- Required fields - id is mandatory, _version_ for optimistic locking -->
             <field name="id" type="string" indexed="true" stored="true" required="true" multiValued="false"/>
             <field name="_version_" type="plong" indexed="false" stored="false"/>
             <uniqueKey>id</uniqueKey>
@@ -113,18 +133,18 @@
           SCHEMA'
       when: solr_empty_core | default(false)
 
-    # For predefined schema cores: Copy moodle_schema.xml as managed-schema
-    - name: install-solr - Create managed-schema from moodle_schema.xml for predefined cores
+    # For predefined schema cores: Copy moodle_schema.xml as managed-schema.xml
+    - name: install-solr - Create managed-schema.xml from moodle_schema.xml for predefined cores
       community.docker.docker_container_exec:
         container: "{{ solr_container_name }}"
         command: >
-          sh -lc 'if [ -f /var/solr/data/configsets/{{ solr_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema ]; then
-                    cp /var/solr/data/configsets/{{ solr_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema;
+          sh -lc 'if [ -f /var/solr/data/configsets/{{ solr_core_config }}/conf/moodle_schema.xml ] && [ ! -f /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema.xml ]; then
+                    cp /var/solr/data/configsets/{{ solr_core_config }}/conf/moodle_schema.xml /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema.xml;
                   fi'
       when: not (solr_empty_core | default(false))
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
-- name: install-solr - Remove classic schema.xml (use managed-schema only)
+- name: install-solr - Remove classic schema.xml (use managed-schema.xml only)
   community.docker.docker_container_exec:
     container: "{{ solr_container_name }}"
     command: "sh -lc 'rm -f /var/solr/data/configsets/{{ solr_core_config }}/conf/schema.xml || true'"
@@ -144,10 +164,10 @@
   changed_when: cfg_chown.rc == 0
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
-- name: install-solr - Check configSet files in container (must have solrconfig.xml + managed-schema)
+- name: install-solr - Check configSet files in container (must have solrconfig.xml + managed-schema.xml)
   community.docker.docker_container_exec:
     container: "{{ solr_container_name }}"
-    command: "sh -lc 'test -f /var/solr/data/configsets/{{ solr_core_config }}/conf/solrconfig.xml && test -f /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema'"
+    command: "sh -lc 'test -f /var/solr/data/configsets/{{ solr_core_config }}/conf/solrconfig.xml && test -f /var/solr/data/configsets/{{ solr_core_config }}/conf/managed-schema.xml'"
   register: configset_files_check
   failed_when: configset_files_check.rc != 0
   changed_when: false
