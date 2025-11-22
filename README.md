@@ -156,10 +156,17 @@ See [Configuration](#configuration) section for examples.
 customer_name: mycompany
 solr_app_domain: solr.example.com
 
-# Authentication (required)
-solr_admin_password: "ChangeMeSecure123!"
-solr_support_password: "AlsoSecure456!"
-solr_moodle_password: "MoodlePassword789!"
+# Authentication (v4.0.1 - consolidated solr_users)
+solr_users:
+  - username: "admin"
+    password: ""  # Empty = auto-generated (24 chars)
+    role: "admin"
+  - username: "support"
+    password: ""
+    role: "support"
+  - username: "moodle"
+    password: ""
+    role: "moodle"
 
 # Empty Core Mode (optional - for Moodle Schema API)
 # Set to true if Moodle should create schema via API
@@ -199,13 +206,17 @@ solr_version: "9.9.0"
 solr_core_name_override: "school1_core"
 solr_port: 8983
 
-# Authentication
-solr_admin_user: school1_admin
-solr_admin_password: "SecurePassword123"
-solr_support_user: school1_support
-solr_support_password: "SupportPassword456"
-solr_moodle_user: school1_moodle
-solr_moodle_password: "MoodlePassword789"
+# Authentication (v4.0.1 - consolidated solr_users)
+solr_users:
+  - username: "school1_admin"
+    password: "SecurePassword123"
+    role: "admin"
+  - username: "school1_support"
+    password: "SupportPassword456"
+    role: "support"
+  - username: "school1_moodle"
+    password: "MoodlePassword789"
+    role: "moodle"
 
 # Resource Limits (16GB Server)
 solr_heap_size: "8g"
@@ -233,13 +244,17 @@ Multi-Core mode allows multiple isolated Solr cores on one server, ideal for mul
 customer_name: school_district
 solr_app_domain: district-solr.example.com
 
-# Global Admin Users (access ALL cores)
-solr_admin_user: district_admin
-solr_admin_password: "GlobalAdminPass123"
-solr_support_user: district_support
-solr_support_password: "GlobalSupportPass456"
-solr_moodle_user: district_global
-solr_moodle_password: "GlobalMoodlePass789"
+# Global Admin Users (access ALL cores) - v4.0.1 consolidated
+solr_users:
+  - username: "district_admin"
+    password: "GlobalAdminPass123"
+    role: "admin"
+  - username: "district_support"
+    password: "GlobalSupportPass456"
+    role: "support"
+  - username: "district_moodle"
+    password: "GlobalMoodlePass789"
+    role: "moodle"
 
 # Multi-Core Configuration
 solr_cores:

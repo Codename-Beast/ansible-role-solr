@@ -209,10 +209,17 @@ ansible-galaxy install eledia.solr
         customer_name: "eledia-corp"
         moodle_app_domain: "moodle.eledia.de"
         solr_core_name: "eledia_core"
-        # ansible-vault verwenden für Passwörter!
-        solr_admin_password: "{{ vault_solr_admin_password }}"  # oder Plaintext
-        solr_support_password: "{{ vault_solr_support_password }}"  # oder Plaintext
-        solr_moodle_password: "{{ vault_solr_moodle_password }}"  # oder Plaintext
+        # v4.0.1: Konsolidierte solr_users Struktur
+        solr_users:
+          - username: "admin"
+            password: "{{ vault_solr_admin_password }}"
+            role: "admin"
+          - username: "support"
+            password: "{{ vault_solr_support_password }}"
+            role: "support"
+          - username: "moodle"
+            password: "{{ vault_solr_moodle_password }}"
+            role: "moodle"
 ```
 
 ### 3. Ausführen
@@ -230,16 +237,23 @@ customer_name: "eledia.de"              # Kunden-Identifikator
 moodle_app_domain: "moodle.eledia.de"   # Ihre Moodle-Domain
 ```
 
-### Authentifizierung (ansible-vault verwenden!)
+### Authentifizierung (v4.0.1 - konsolidierte solr_users)
 ```yaml
-solr_admin_password: "admin_secret"      # Admin-Benutzer-Passwort (min 12 Zeichen)
-solr_support_password: "support_secret"  # Support-Benutzer-Passwort
-solr_moodle_password: "moodle_secret"    # Moodle-Benutzer-Passwort
-
-# Optional: Benutzernamen überschreiben
-solr_admin_user: "admin"                 # Standard: admin
-solr_support_user: "support"             # Standard: support
-solr_moodle_user: "moodle"               # Standard: moodle
+# Alle Benutzer in einer Liste (ansible-vault für Passwörter empfohlen!)
+solr_users:
+  - username: "admin"
+    password: "admin_secret"    # Leer = auto-generiert (24 Zeichen)
+    role: "admin"               # Voller Zugriff
+  - username: "support"
+    password: "support_secret"
+    role: "support"             # Nur-Lese-Zugriff
+  - username: "moodle"
+    password: "moodle_secret"
+    role: "moodle"              # Lese/Schreib für Indexierung
+  # Zusätzliche Benutzer einfach hinzufügen:
+  # - username: "monitoring"
+  #   password: "monitor_pass"
+  #   role: "support"
 ```
 
 ### Container-Konfiguration
@@ -450,8 +464,12 @@ password: "My-P@ssw0rd!#2024"  # Anführungszeichen erforderlich für @ ! # : et
 
 ### Beispiel 2: Passwort-Update
 ```bash
-# 1. Passwort in host_vars/server.yml aktualisieren
-solr_admin_password: "new_secure_password_123"
+# 1. Passwort in host_vars/server.yml aktualisieren (v4.0.1 Struktur)
+solr_users:
+  - username: "admin"
+    password: "new_secure_password_123"  # Neues Passwort
+    role: "admin"
+  # ... andere Benutzer
 
 # 2. Playbook erneut ausführen - nur Passwort ändert sich via API, KEIN Container-Neustart!
 ansible-playbook -i inventory playbook.yml
@@ -707,13 +725,24 @@ Update Neustart
 
 #### 1. Ansible Vault für Passwörter verwenden
 ```bash
-# Verschlüsselte Variable erstellen
-ansible-vault encrypt_string 'SuperSecret123!' --name 'solr_admin_password'
+# Verschlüsselte Passwort-Variable erstellen
+ansible-vault encrypt_string 'SuperSecret123!' --name 'vault_admin_password'
 
-# In host_vars/server.yml
-solr_admin_password: !vault |
+# In host_vars/server.yml (v4.0.1 Struktur)
+vault_admin_password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           ...encrypted...
+
+solr_users:
+  - username: "admin"
+    password: "{{ vault_admin_password }}"
+    role: "admin"
+  - username: "support"
+    password: "{{ vault_support_password }}"
+    role: "support"
+  - username: "moodle"
+    password: "{{ vault_moodle_password }}"
+    role: "moodle"
 ```
 
 #### 2. Firewall-Konfiguration
@@ -768,11 +797,16 @@ $ ansible-playbook playbook.yml
 
 ### Szenario 2: Nur Passwort-Änderung
 ```bash
-# host_vars bearbeiten: solr_admin_password: "new_password"
+# host_vars bearbeiten (v4.0.1):
+# solr_users:
+#   - username: "admin"
+#     password: "new_password"  # Geändert
+#     role: "admin"
+
 $ ansible-playbook playbook.yml
 
-# ✅ Container-Neustart (15-30s Downtime)
-# ✅ Passwort nach Neustart aktiv
+# ✅ Zero Downtime (API Update)
+# ✅ Passwort sofort aktiv
 ```
 
 ### Szenario 3: Config-Datei-Änderung
