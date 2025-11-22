@@ -182,26 +182,14 @@
   changed_when: true
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
-- name: install-solr - Copy lang files from deployed location to configSet
-  community.docker.docker_container_exec:
-    container: "{{ solr_container_name }}"
-    command: >
-      sh -lc 'for f in /var/solr/data/lang/*; do
-                if [ -f "$f" ]; then
-                  cp "$f" /var/solr/data/configsets/{{ solr_core_config }}/conf/lang/;
-                fi;
-              done'
-  changed_when: true
-  when: not core_instance_present or solr_force_recreate_core | default(false)
-
-- name: install-solr - Place stopword files under lang/ as referenced by schema.xml
+- name: install-solr - Copy lang files from Init-Container deployed location to configSet
   community.docker.docker_container_exec:
     container: "{{ solr_container_name }}"
     command: >
       sh -lc '
-      for f in stopwords_en.txt stopwords_de.txt; do
-        if [ -f /var/solr/data/configsets/{{ solr_core_config }}/conf/$f ]; then
-          cp -f /var/solr/data/configsets/{{ solr_core_config }}/conf/$f /var/solr/data/configsets/{{ solr_core_config }}/conf/lang/;
+      for f in /var/solr/data/lang/*; do
+        if [ -f "$f" ]; then
+          cp "$f" /var/solr/data/configsets/{{ solr_core_config }}/conf/lang/;
         fi;
       done &&
       chown -R 8983:8983 /var/solr/data/configsets/{{ solr_core_config }}/conf/lang &&

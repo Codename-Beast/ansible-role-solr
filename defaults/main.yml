@@ -121,15 +121,15 @@ solr_config_files:
     validate_xml: true
   - name: "stopwords.txt"
     template: "stopwords.txt.j2"
-    dest_path: "/var/solr/data/configs"
+    dest_path: "/var/solr/data/lang"
     validate_json: false
   - name: "stopwords_de.txt"
     template: "stopwords_de.txt.j2"
-    dest_path: "/var/solr/data/configs"
+    dest_path: "/var/solr/data/lang"
     validate_json: false
   - name: "stopwords_en.txt"
     template: "stopwords_en.txt.j2"
-    dest_path: "/var/solr/data/configs"
+    dest_path: "/var/solr/data/lang"
     validate_json: false
   - name: "synonyms.txt"
     template: "synonyms.txt.j2"
