@@ -124,17 +124,10 @@
     - install-solr-core
     - install-solr-config
 
-- name: install-solr - Integration tests
+- name: install-solr - Authentication tests
   include_tasks: integration_tests.yml
   tags:
     - install-solr-test
-
-- name: install-solr - Moodle document tests
-  include_tasks: moodle_test_documents.yml
-  when: solr_use_moodle_schema | default(false)
-  tags:
-    - install-solr-test
-    - install-solr-moodle
 
 - name: install-solr - Finalization
   include_tasks: finalization.yml

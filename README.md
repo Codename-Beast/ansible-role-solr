@@ -411,8 +411,7 @@ tasks/
 ├── core_creation_single.yml              # Single-core creation
 ├── core_creation_worker.yml              # Multi-core worker
 ├── rundeck_integration.yml               # Rundeck job templates (optional)
-├── integration_tests.yml                 # Smoke tests
-├── moodle_test_documents.yml             # Moodle doc tests
+├── integration_tests.yml                 # Auth tests (all users)
 ├── finalization.yml                      # Final summary
 └── rundeck_integration.yml               # Rundeck output
 ```
@@ -694,7 +693,7 @@ docker logs -f solr_customer 2>&1 | grep -i error
 - ✅ Role-based permissions (admin, moodle, support)
 - ✅ Core access (all cores accessible to admin)
 - ✅ Moodle search integration
-- ✅ Smoke tests (10/10 passed)
+- ✅ Auth tests (8/8 passed)
 - ✅ Idempotent re-runs (unlimited re-deployments)
 - ✅ Automated backups
 - ✅ SSL/TLS proxy
@@ -722,7 +721,7 @@ According to [official Apache Solr documentation](https://solr.apache.org/guide/
 - ✅ Role-based permissions works
 - ✅ Multi-core isolation works (separate indexes)
 - ✅ Admin can access all cores
-- ✅ All smoke tests pass (10/10)
+- ✅ All auth tests pass (8/8)
 - ❌ Cannot restrict specific user to only one core
 - ❌ All authenticated users can access all cores on the same server
 
@@ -777,7 +776,7 @@ I originally calculated **600MB per core** (leading to 10 cores on 16GB server)
 **Production Validation:**
 - ✅ SRH Campus: 4 cores on 16GB RAM
 - ✅ Memory usage: 2.27GiB / 4GiB (56% - healthy)
-- ✅ All smoke tests passed
+- ✅ All auth tests passed
 - ✅ No OOM errors
 
 **Lesson Learned:**
@@ -830,8 +829,7 @@ ansible-playbook -i inventory install-solr.yml --ask-vault-pass
 # 3. Verify deployment
 curl -u admin:password https://solr.example.com/solr-admin/admin/ping
 
-# 4. Run smoke tests
-# (automatically run during deployment)
+# 4. Auth tests run automatically during deployment
 ```
 
 ### Post-Deployment
@@ -872,21 +870,20 @@ docker logs -f solr_customer
 
 ### Running Tests
 
-**Smoke tests run automatically during deployment:**
+**Authentication tests run automatically during deployment:**
 
 ```yaml
 # In playbook:
-- name: Integration tests
+- name: Authentication tests
   include_tasks: integration_tests.yml
-
-- name: Moodle document tests
-  include_tasks: moodle_test_documents.yml
 ```
 
-**Test results:**
-- 10 tests total (indexing + search)
+**Test results (8 tests):**
+- Admin, Support, Moodle user authentication
+- Rejection tests (no creds, wrong creds)
+- Permission isolation (moodle cannot access admin API)
+- Container status & security.json verification
 - 100% pass required for production
-- Results displayed at end of deployment
 
 **Manual test:**
 

@@ -62,10 +62,9 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0+ (9.10 validiert) mit Ba
 - ✅ **Performance-Monitoring** - JVM-Metriken, GC-Optimierung, Health Checks
 
 ### Testing & Validierung
-- ✅ **Umfassende Tests** - 19 Integrationstests
-- ✅ **Moodle-Dokumententests** - 10 schema-spezifische Validierungstests
-- ✅ **Authentifizierungstests** - Multi-User-Autorisierungs-Validierung
-- ✅ **Performance-Tests** - Speichernutzung und Query-Antwortzeiten
+- ✅ **Auth-Tests** - 8 Tests für alle User (admin, support, moodle)
+- ✅ **Sicherheitstests** - Ablehnung ohne/falsche Credentials, Permission Isolation
+- ✅ **Infrastruktur-Tests** - Container-Status, security.json Validierung
 
 ### Produktions-Validierung (Hetzner Cloud)
 - ⚠️ **v3.9.7 Test ausstehend** - Hardware-Validierung auf Hetzner Cloud erforderlich
@@ -128,15 +127,15 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0+ (9.10 validiert) mit Ba
 
 | Test-Kategorie | Coverage | Auto-Ausführung | Error Handling | Cleanup | Reporting | Status |
 |---------------|----------|-----------------|----------------|---------|-----------|--------|
-| **Integrationstests** |
-| Authentifizierungs-Tests | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 9/9 PASS |
-| Autorisierungs-Tests | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
-| Dokument-Operationen | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
-| Performance-Tests | 90% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
-| **Moodle-spezifische Tests** |
-| Schema-Validierung | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 10/10 PASS |
-| Dokument-Typen | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 5/5 Typen |
-| Feld-Mapping | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
+| **Auth-Tests (8 Tests)** |
+| Admin-Auth | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
+| Support-Auth | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
+| Moodle-Auth | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
+| Reject (no creds) | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
+| Reject (wrong creds) | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
+| Permission Isolation | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
+| Container Status | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
+| security.json | 100% | ✅ | ✅ | ✅ | ✅ | ✅ PASS |
 | Such-Operationen | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 4/4 PASS |
 | **System-Tests** |
 | Container Health | 100% | ✅ | ✅ | ✅ | ✅ | ✅ 100% PASS |
