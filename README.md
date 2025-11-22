@@ -207,15 +207,6 @@ solr_support_password: "SupportPassword456"
 solr_moodle_user: school1_moodle
 solr_moodle_password: "MoodlePassword789"
 
-# Proxy Configuration
-solr_proxy_enabled: true
-solr_proxy_path: /solr-admin
-solr_webserver: apache  # or "nginx"
-
-# SSL/TLS
-solr_ssl_enabled: true
-solr_ssl_cert_path: "/etc/letsencrypt/live/school1-solr.example.com"
-
 # Resource Limits (16GB Server)
 solr_heap_size: "8g"
 solr_memory_limit: "14g"
@@ -300,11 +291,6 @@ solr_cores:
 # Resource Limits (16GB Server, 4 Cores)
 solr_heap_size: "2g"        # 2GB per core
 solr_memory_limit: "4g"     # Total limit
-
-# Proxy & SSL
-solr_proxy_enabled: true
-solr_ssl_enabled: true
-solr_ssl_cert_path: "/etc/letsencrypt/live/district-solr.example.com"
 ```
 
 ### Username Conventions
@@ -356,10 +342,10 @@ Ansible Control Node
        ├── Create/reload cores
        └── Start Solr on port 8983
     ↓
-4. Apache/Nginx Proxy
-   ├── SSL Termination
-   ├── Reverse Proxy to Solr
-   └── Public access on port 443
+4. External Reverse Proxy (Caddy recommended)
+   ├── SSL Termination (handled externally)
+   ├── Reverse Proxy to localhost:8983
+   └── NOT managed by this role
 ```
 
 ### Directory Structure
@@ -409,7 +395,7 @@ tasks/
 ├── core_management.yml                   # Create & reload cores ⭐ NEW
 ├── core_creation_single.yml              # Single-core creation
 ├── core_creation_worker.yml              # Multi-core worker
-├── proxy_configuration.yml               # Apache/Nginx proxy
+├── rundeck_integration.yml               # Rundeck job templates (optional)
 ├── integration_tests.yml                 # Smoke tests
 ├── moodle_test_documents.yml             # Moodle doc tests
 ├── finalization.yml                      # Final summary
@@ -481,116 +467,27 @@ tasks/
 - Also saved to `/opt/solr/config/credentials.yml` (plaintext)
 - **⚠️ Delete this file in production!**
 
-### SSL/TLS
+### External Reverse Proxy (Caddy Recommended)
 
-**Recommended Setup:**
-- SSL termination at Apache/Nginx proxy
-- Let's Encrypt certificates
-- Solr on localhost:8983 (not public)
+**Note:** SSL/TLS and Apache/Nginx proxy configuration was removed in v4.0.0.
+Use an external reverse proxy like Caddy for:
+- SSL/TLS termination
+- Reverse proxy to localhost:8983
+- Public HTTPS access
 
-**Certificate Setup:**
+**Example Caddy configuration:**
 
-```bash
-# Install certbot
-apt-get install -y certbot python3-certbot-apache
-
-# Obtain certificate
-certbot certonly --apache -d solr.example.com
-
-# Auto-renewal
-systemctl enable certbot.timer
 ```
-
-**Host_vars:**
-
-```yaml
-solr_ssl_enabled: true
-solr_ssl_cert_path: "/etc/letsencrypt/live/solr.example.com"
-```
-
----
-
-## 🌐 Proxy Configuration
-
-### Apache Proxy (Recommended)
-
-**Auto-configured features:**
-- ✅ SSL termination
-- ✅ Reverse proxy to Solr
-- ✅ SolrCloud API rewrite for Admin UI compatibility
-- ✅ Security headers (HSTS, CSP, X-Frame-Options)
-- ✅ IP-based access control (optional)
-
-**Example configuration:**
-
-```yaml
-solr_proxy_enabled: true
-solr_proxy_path: /solr-admin
-solr_webserver: apache
-solr_ssl_enabled: true
-solr_restrict_admin: true
-solr_admin_allowed_ips:
-  - 192.168.1.0/24
-  - 10.0.0.0/8
-```
-
-**Generated Apache VHost:**
-
-```apache
-<VirtualHost *:443>
-    ServerName solr.example.com
-    SSLEngine on
-    SSLCertificateFile /etc/letsencrypt/live/solr.example.com/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/solr.example.com/privkey.pem
-
-    # Fix for Solr Admin UI bug - Rewrite SolrCloud API to Standalone
-    RewriteEngine On
-    RewriteRule ^/api/cluster/security/(.*)$ /solr/admin/$1 [PT,QSA]
-
-    # Proxy for rewritten security API
-    <LocationMatch "^/solr/admin/(authorization|authentication)">
-        ProxyPass http://127.0.0.1:8983/solr/admin nocanon
-        ProxyPassReverse http://127.0.0.1:8983/solr/admin
-    </LocationMatch>
-
-    # Main Solr proxy
-    <Location /solr-admin>
-        ProxyPass http://127.0.0.1:8983/solr nocanon
-        ProxyPassReverse http://127.0.0.1:8983/solr
-    </Location>
-</VirtualHost>
-```
-
-### Nginx Proxy (Alternative)
-
-**Example configuration:**
-
-```yaml
-solr_proxy_enabled: true
-solr_proxy_path: /solr-admin
-solr_webserver: nginx
-solr_ssl_enabled: true
-```
-
-**Generated Nginx config:**
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name solr.example.com;
-
-    ssl_certificate /etc/letsencrypt/live/solr.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/solr.example.com/privkey.pem;
-
-    location /solr-admin {
-        proxy_pass http://127.0.0.1:8983/solr;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+solr.example.com {
+    reverse_proxy localhost:8983
 }
 ```
+
+**Why Caddy?**
+- Automatic HTTPS with Let's Encrypt
+- Zero-config SSL certificate management
+- Simple configuration syntax
+- No Apache/Nginx module configuration needed
 
 ---
 
@@ -618,19 +515,15 @@ curl -u admin:password http://localhost:8983/solr/admin/cores?action=STATUS
 **Log locations:**
 - Solr logs: `/opt/solr/logs/` (Docker volume)
 - Docker logs: `docker logs solr_<customer>`
-- Apache logs: `/var/log/apache2/solr-*.log`
 
 **View logs:**
 
 ```bash
-# Solr logs
+# Solr container logs
 docker logs -f solr_customer
 
-# Apache access log
-tail -f /var/log/apache2/solr-customer-access.log
-
-# Apache error log
-tail -f /var/log/apache2/solr-customer-error.log
+# Follow Solr logs in real-time
+docker exec solr_customer tail -f /var/solr/logs/solr.log
 ```
 
 ### Metrics
@@ -1177,7 +1070,7 @@ SOFTWARE.
 **Documentation:** https://docs.eledia.de/solr
 ---
 
-**Version:** 3.9.18
-**Last Updated:** 2025-11-18 (22:25)
-**Status:** ✅ Rollout Ready
+**Version:** 4.0.0
+**Last Updated:** 2025-11-22
+**Status:** Rollout Ready
 **Tested On:** Hetzner Cloud Server (4 cores, 8GB RAM)

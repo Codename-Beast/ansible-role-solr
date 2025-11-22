@@ -1,43 +1,50 @@
 # Ansible Role: Solr
 
-![Version](https://img.shields.io/badge/version-3.9.8-blue)
+![Version](https://img.shields.io/badge/version-4.0.0-blue)
 ![Ansible](https://img.shields.io/badge/ansible-2.10.12+-green)
-![Solr](https://img.shields.io/badge/solr-9.9.0%20min-orange)
+![Solr](https://img.shields.io/badge/solr-9.9.0-orange)
 ![Moodle](https://img.shields.io/badge/moodle-4.1--5.0.3-purple)
-![Tests](https://img.shields.io/badge/tests-production%20getestet-green)
-![Status](https://img.shields.io/badge/status-security%20fix%20in%20dev-yellow)
+![Tests](https://img.shields.io/badge/tests-dev%20ready-brightgreen)
+![Status](https://img.shields.io/badge/status-Dev%20deployed-success)
 
-Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht getestet) mit BasicAuth, Moodle-Schema-Unterstützung (Datei-Indexierung), vollständiger Idempotenz, Benutzerverwaltung, automatisiertem Backup und umfassendem Monitoring.
+Ansible-Rolle für das Deployment von Apache Solr 9.9.0+ (9.10 validiert) mit BasicAuth, Moodle-Schema-Unterstützung (Datei-Indexierung + Schema API), vollständiger Idempotenz, Multi-Core-Support und Benutzerverwaltung.
 
 **Autor**: Bernd Schreistetter
 **Organisation**: Eledia GmbH
 **Projekt-Zeitraum**: 24.09.2025 - 18.11.2025 (56 Tage)
+**Produktionsstatus**: Deployed und getestet auf Hetzcloud Server (4 Cores, 8GB RAM, empfohlen 16 für 4 Cores)
 
-> 📖 **[English Version](README.md)** | **[Changelog](CHANGELOG.md)**
+> **[English Version](README.md)** | **[Changelog](CHANGELOG.md)**
 
 ---
 
-## 🔒 Version 3.9.8 - SECURITY FIX + Solr Standalone Limitation Dokumentiert
+## Neu in v4.0.0 (Vereinfachung)
 
-**KRITISCH:** Diese Version dokumentiert eine wichtige Solr-Architektur-Einschränkung und vereinfacht die security.json.
+### Breaking Changes
+- **ENTFERNT**: Apache/Nginx Proxy-Konfiguration (Caddy extern nutzen)
+- **ENTFERNT**: SSL/TLS-Konfiguration (wird von Caddy gehandhabt)
+- **GEÄNDERT**: Schema-Factory zu ManagedIndexSchemaFactory
 
-**Was wurde geändert:**
-- 📖 **Solr Standalone Limitation dokumentiert**: Laut offizieller Apache Solr Doku funktionieren per-core Permissions NICHT im Standalone-Modus
-- 🔒 **Security.json vereinfacht**: Entfernung aller collection-spezifischen Permissions (funktionieren nicht ohne SolrCloud)
-- ⚠️ **Globale Permissions**: Alle authentifizierten User haben jetzt Zugriff auf ALLE Cores (Solr Standalone Limitation)
-- 📊 **Production getestet**: Main-Branch Deployment validiert (ok=500, changed=61, failed=0)
-- 🧹 **Log-Warnungen eliminiert**:
-  - Deprecated `enableRemoteStreaming` aus solrconfig.xml entfernt (Solr 9.x nutzt sys-prop)
-  - Obsolete `numVersionBuckets` aus solrconfig.xml entfernt (fest auf 65536 in Solr 9.x)
-  - SSL-Warnung ist erwartet (SSL auf Proxy-Ebene, nicht Solr-Ebene - korrekte Architektur)
-- 🔄 **PowerInit v1.7.0**:
-  - Deployed solrconfig.xml automatisch in ALLE configSets
-  - Deployed solrconfig.xml automatisch in ALLE existierenden Cores
-  - Neuer core_reload.yml Task lädt Cores nach Config-Änderungen neu
-  - EFFEKT: Config-Updates werden jetzt automatisch auf existierende Cores angewendet
-- ❌ **jmespath Dependency entfernt**: Core-Reload nutzt jetzt native Jinja2 Filter
+### Neue Features
+- **Moodle Schema API Support**: Moodle kann jetzt Felder via POST `/schema` (add-field) hinzufügen
+- **Empty Core Option**: `solr_empty_core: true` erstellt minimales Schema für Moodle API-Registrierung
+- **Vereinfachte Konfiguration**: Keine Proxy/SSL-Variablen mehr nötig
+- **Multi-Core empty_core**: Per-Core `empty_core: true/false` Option
 
-**Wichtig:** Für per-core Zugriffskontrolle wird SolrCloud mit ZooKeeper benötigt. Siehe "Bekannte Einschränkungen" Abschnitt.
+### Warum v4.0.0?
+- Caddy handhabt Reverse Proxy und SSL besser als Apache/Nginx-Konfiguration
+- ManagedIndexSchemaFactory wird für Moodles Schema API benötigt
+- Einfacheres Deployment: Fokus auf Solr, nicht Proxy-Konfiguration
+
+### Migration von v3.x
+1. Entferne `solr_proxy_enabled`, `solr_ssl_enabled`, `solr_webserver` aus host_vars
+2. Konfiguriere Caddy separat für Reverse Proxy und SSL
+3. Bei Nutzung der Moodle Schema API: Setze `solr_empty_core: true`
+
+### Vorherige Version (v3.9.18)
+- Multi-Core validiert: 4 Cores auf 16GB Server
+- Username-Konventionen: Auto-Rollenzuweisung
+- Vollständige Idempotenz-Unterstützung
 
 ---
 
@@ -109,8 +116,7 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
 | Security Templates | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ Bereit |
 | Sprachdateien | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ Bereit |
 | **System-Integration** |
-| Apache Proxy | ✅ | ✅ | ⚠️ | ❌ | ❌ | ⚠️ Teilweise |
-| Nginx Proxy | ✅ | ✅ | ⚠️ | ❌ | ❌ | ⚠️ Teilweise |
+| Externer Reverse Proxy (Caddy) | ❌ | ❌ | ⚠️ | ❌ | ❌ | Extern verwaltet |
 | Systemd Services | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ Bereit |
 | **Backup & Recovery** |
 | Automatisierte Backups | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ v3.4 |
@@ -156,34 +162,26 @@ Ansible-Rolle für das Deployment von Apache Solr 9.9.0 (9.10 validiert, nicht g
 
 ---
 
-## 📋 Anforderungen
+## Anforderungen
 
 ### System-Anforderungen
 - **OS**: Debian 11/12
+- **RAM**:
+  - Single-Core: 2.5GB minimum
+  - Multi-Core (4 Cores): 16GB empfohlen
+  - Multi-Core (8 Cores): 32GB empfohlen
+- **Festplatte**: 20GB minimum (50GB+ für Produktion)
+- **CPU**: 2+ Cores empfohlen
+
+### Software-Anforderungen
 - **Ansible**: 2.10.12 oder höher
-- **Docker**: 20.10+ mit Compose v2
-- **Apache**
-- **Let's Encrypt**
+- **Docker**: 20.10 oder höher (wird automatisch installiert falls fehlend)
+- **Caddy** (optional): Für Reverse Proxy und SSL-Terminierung (extern zu dieser Rolle)
 
-### Webserver & SSL-Anforderungen (Muss vorkonfiguriert sein)
-- **Apache Webserver** mit erforderlichen Modulen:
-  - `mod_proxy`
-  - `mod_proxy_http`
-  - `mod_ssl`
-  - `mod_headers`
-  - `mod_rewrite`
-- **Certbot** - Für Let's Encrypt SSL-Zertifikat-Management
-- **Domain & DNS** - Vollständig konfigurierte Domain mit DNS-Einträgen zum Server
-  - A/AAAA-Einträge für die Solr-Domain (z.B. `solr.example.com`)
-  - DNS-Propagierung vor Deployment abgeschlossen
-
-### System-Pakete (werden automatisch installiert)
-- curl
-- ca-certificates
-- gnupg
-- lsb-release
-- jq (für JSON-Validierung)
-- libxml2-utils (für XML-Validierung)
+### Netzwerk-Anforderungen
+- Port 8983 (Solr, nur localhost - nicht öffentlich exponiert)
+- Port 80/443 (via Caddy oder anderer Reverse Proxy)
+- Ausgehend HTTPS für Docker-Image-Downloads
 
 ---
 
@@ -269,20 +267,17 @@ solr_force_reconfigure_auth: false       # Auth-Rekonfiguration erzwingen
 
 # Features
 solr_auth_enabled: true                  # BasicAuth aktivieren
-solr_proxy_enabled: true                 # Reverse Proxy aktivieren
 solr_backup_enabled: true                # Backups aktivieren
 solr_use_moodle_schema: true             # Moodle-Schema verwenden
+
+# Schema API (NEU in v4.0.0)
+solr_empty_core: false                   # true = minimales Schema für Moodle Schema API
 
 # Moodle-Konfiguration
 solr_moodle_version: "5.0.x"             # Moodle-Version (4.1, 4.2, 4.3, 4.4, 5.0.x)
 solr_max_boolean_clauses: 2048
 solr_auto_commit_time: 15000             # ms
 solr_auto_soft_commit_time: 1000         # ms
-
-# Webserver
-solr_webserver: "nginx"                  # oder "apache"
-solr_proxy_path: "/solr"
-solr_ssl_enabled: true
 
 # Solr Interne Health Checks (v1.3.2)
 solr_health_check_enabled: true          # Solr's eingebauten Health Check Handler aktivieren
@@ -622,15 +617,15 @@ ansible-playbook -i inventory playbook.yml
 └──────────┬───────────┘
            │
 ┌──────────▼───────────┐
-│ 11. Proxy Config     │ → Konfiguriert Nginx/Apache Reverse Proxy
+│ 11. Integration Test │ → Vollständige Stack-Validierung + Cleanup
 └──────────┬───────────┘
            │
 ┌──────────▼───────────┐
-│ 12. Integration Test │ → Vollständige Stack-Validierung + Cleanup
+│ 12. Finalization     │ → Dokumentation, Zusammenfassung, optionale Benachrichtigungen
 └──────────┬───────────┘
            │
 ┌──────────▼───────────┐
-│ 13. Finalization     │ → Dokumentation, Zusammenfassung, optionale Benachrichtigungen
+│ Externer Proxy       │ → Caddy für SSL/HTTPS (nicht in dieser Rolle)
 └──────────────────────┘
 ```
 
@@ -728,15 +723,27 @@ ufw allow from 127.0.0.1 to any port 8983
 ufw allow from <proxy_ip> to any port 8983
 ```
 
-#### 3. SSL/TLS (via Reverse Proxy)
-```yaml
-# Im Playbook konfigurieren
-solr_ssl_enabled: true
-solr_webserver: "nginx"
+#### 3. Externer Reverse Proxy (Caddy empfohlen)
 
-# Sicherstellen dass Let's Encrypt Zertifikate installiert sind
-# Rolle wird Proxy mit SSL konfigurieren
+**Hinweis:** SSL/TLS und Proxy-Konfiguration wurden in v4.0.0 entfernt.
+Verwende einen externen Reverse Proxy wie Caddy für:
+- SSL/TLS-Terminierung
+- Reverse Proxy zu localhost:8983
+- Öffentlichen HTTPS-Zugang
+
+**Beispiel Caddy-Konfiguration:**
+
 ```
+solr.example.com {
+    reverse_proxy localhost:8983
+}
+```
+
+**Warum Caddy?**
+- Automatisches HTTPS mit Let's Encrypt
+- Zero-Config SSL-Zertifikatsverwaltung
+- Einfache Konfigurationssyntax
+- Keine Apache/Nginx Modul-Konfiguration nötig
 
 #### 4. Regelmäßige Updates
 ```yaml
@@ -869,7 +876,7 @@ solr_port: 8984
 - ⚠️ **Autorisierung ist global**: Im Standalone-Modus (Docker ohne ZooKeeper) funktionieren collection-spezifische Permissions in `security.json` **NICHT**
 - ⚠️ **Alle authentifizierten Benutzer können auf ALLE Cores zugreifen**: Feinkörnige Per-Core-Zugriffskontrolle benötigt SolrCloud mit ZooKeeper
 
-**Aktuelle Implementierung (v3.9.8):**
+**Aktuelle Implementierung (v4.0.0):**
 - Nur globale Rollen: `admin`, `support`, `moodle`
 - Alle authentifizierten Benutzer haben Lese-/Schreibzugriff auf alle Cores
 - Admin-Benutzer haben vollen Zugriff auf Security-, Schema- und Config-APIs
@@ -903,4 +910,14 @@ MIT License
 
 ---
 
-**Made with ❤️ for Eledia & Moodle Community**
+## Support
+
+**Email:** support@eledia.de
+**Dokumentation:** https://docs.eledia.de/solr
+
+---
+
+**Version:** 4.0.0
+**Zuletzt aktualisiert:** 2025-11-22
+**Status:** Rollout Ready
+**Getestet auf:** Hetzner Cloud Server (4 Cores, 8GB RAM)
