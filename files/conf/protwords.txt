@@ -1,2 +1,0 @@
-# Protected words (no stemming)
-# -> Currently empty

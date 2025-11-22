@@ -59,24 +59,8 @@
 # NOTE: Skip if core exists unless force_recreate_core is set
 # This prevents unnecessary changes to running configSets
 
-- name: install-solr - Prepare remote temp dir for configSet staging
-  file:
-    path: "/tmp/solr_conf_{{ solr_core_config }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0700"
-  when: not core_instance_present or solr_force_recreate_core | default(false)
-
-- name: install-solr - Stage configSet files to remote tmp
-  copy:
-    src: "files/conf/"
-    dest: "/tmp/solr_conf_{{ solr_core_config }}/"
-    owner: root
-    group: root
-    mode: "0644"
-  changed_when: false
-  when: not core_instance_present or solr_force_recreate_core | default(false)
+# NOTE: Config files are already deployed by Init-Container to /var/solr/data/configs/
+# We copy from there to the new configSet instead of using external files/conf/
 
 - name: install-solr - Ensure configSet dir exists in container
   community.docker.docker_container_exec:
@@ -86,10 +70,28 @@
   changed_when: mk_cfg_dir.rc == 0
   when: not core_instance_present or solr_force_recreate_core | default(false)
 
-- name: install-solr - Push configSet into container via docker cp
-  command: >
-    docker cp /tmp/solr_conf_{{ solr_core_config }}/.
-    {{ solr_container_name }}:/var/solr/data/configsets/{{ solr_core_config }}/conf/
+- name: install-solr - Copy configs from Init-Container deployed location
+  community.docker.docker_container_exec:
+    container: "{{ solr_container_name }}"
+    command: |
+      sh -lc '
+      # Copy solrconfig.xml from Init-Container deployed location
+      if [ -f /var/solr/data/configs/solrconfig.xml ]; then
+        cp /var/solr/data/configs/solrconfig.xml /var/solr/data/configsets/{{ solr_core_config }}/conf/solrconfig.xml
+      fi
+      # Copy moodle_schema.xml if exists
+      if [ -f /var/solr/data/configs/moodle_schema.xml ]; then
+        cp /var/solr/data/configs/moodle_schema.xml /var/solr/data/configsets/{{ solr_core_config }}/conf/moodle_schema.xml
+      fi
+      # Copy synonyms.txt if exists
+      if [ -f /var/solr/data/configs/synonyms.txt ]; then
+        cp /var/solr/data/configs/synonyms.txt /var/solr/data/configsets/{{ solr_core_config }}/conf/synonyms.txt
+      fi
+      # Copy protwords.txt if exists
+      if [ -f /var/solr/data/configs/protwords.txt ]; then
+        cp /var/solr/data/configs/protwords.txt /var/solr/data/configsets/{{ solr_core_config }}/conf/protwords.txt
+      fi
+      '
   register: cfg_copy
   changed_when: cfg_copy.rc == 0
   when: not core_instance_present or solr_force_recreate_core | default(false)
