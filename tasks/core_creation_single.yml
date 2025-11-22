@@ -346,7 +346,7 @@
     status_code: 200
   when: core_exists
 
-- name: install-solr - Smoke test with Admin-Authorization role
+- name: install-solr - Auth test with Admin-Authorization role
   uri:
     url: "http://localhost:{{ solr_port }}/solr/{{ solr_core_name }}/select?q=*:*"
     method: GET

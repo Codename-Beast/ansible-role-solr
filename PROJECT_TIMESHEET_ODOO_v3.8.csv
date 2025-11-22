@@ -39,3 +39,8 @@ date,employee_id,project_id,task_id,name,unit_amount
 2025-11-14,Bernd Schreistetter,ansible-role-solr,Bugfixing,Container-Info Bug Fix (docker_container_info),4.5
 2025-11-15,Bernd Schreistetter,ansible-role-solr,Development,Zero-Downtime User Management Implementation,5.5
 2025-11-16,Bernd Schreistetter,ansible-role-solr,QA,Final Validation und Production Release (v3.8.0),5.0
+2025-11-18,Bernd Schreistetter,ansible-role-solr,Refactoring,solr_users Array Konsolidierung und Backward-Compatibility,4.5
+2025-11-19,Bernd Schreistetter,ansible-role-solr,Documentation,README und example.hostvars Vereinfachung,5.0
+2025-11-20,Bernd Schreistetter,ansible-role-solr,Bugfix,Security Panel 404 Dokumentation entfernt (Caddy Fix),3.5
+2025-11-21,Bernd Schreistetter,ansible-role-solr,Refactoring,Integration Tests zu Auth-only vereinfacht,4.5
+2025-11-22,Bernd Schreistetter,ansible-role-solr,QA,Code Review und Redundanz-Prüfung v4.0.1,4.0

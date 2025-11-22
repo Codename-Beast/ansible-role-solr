@@ -1,7 +1,7 @@
 # INOFFIZIELLE ARBEITSSTUNDEN (Tatsächlich seit Git-Aufzeichnung)
 
-**Projekt:** ansible-role-solr v3.8.0
-**Zeitraum:** 25.10.2025 - 16.11.2025
+**Projekt:** ansible-role-solr v4.0.1
+**Zeitraum:** 25.10.2025 - 22.11.2025
 **Basis:** Git Commit Timestamps
 
 ---
@@ -140,6 +140,24 @@
 
 ---
 
+### Phase 6: Simplification Release v4.0.1 (22 Nov)
+
+**22.11.2025 (Sa) - Nachmittag/Abend**
+- solr_users[] Array Konsolidierung
+- Backward-Compatibility für alte Variablen
+- example.hostvars vereinfacht (419 → 67 Zeilen)
+- Security Panel 404 Doku entfernt (Caddy Fix)
+- README Beispiele aktualisiert (DE + EN)
+- moodle_test_documents.yml entfernt
+- integration_tests.yml zu Auth-only vereinfacht
+- CHANGELOG und Timesheets aktualisiert
+- Code Review und Redundanz-Prüfung
+- **Geschätzt: 6.5h**
+
+**SUMME Phase 6: 6.5h**
+
+---
+
 ## GESAMT-ÜBERSICHT (Inoffiziell/Tatsächlich)
 
 | Phase | Zeitraum | Tage | Stunden | Bemerkung |
@@ -150,8 +168,10 @@
 | Pause | 04-05 Nov | 2 | 0h | - |
 | Phase 4 | 06-07 Nov | 2 | **12.0h** | Intensive Bugfixes |
 | Pause | 08-14 Nov | 7 | 0h | QA/Testing |
-| Phase 5 | 15-16 Nov | 2 | **12.5h** | Final Sprint |
-| **GESAMT** | **23 Tage** | **12** | **65.5h** | **Tatsächlich gearbeitet** |
+| Phase 5 | 15-16 Nov | 2 | **12.5h** | Final Sprint v3.8 |
+| Pause | 17-21 Nov | 5 | 0h | Andere Projekte |
+| Phase 6 | 22 Nov | 1 | **6.5h** | Simplification v4.0.1 |
+| **GESAMT** | **29 Tage** | **13** | **72.0h** | **Tatsächlich gearbeitet** |
 
 ---
 
@@ -184,11 +204,11 @@
 
 | Metrik | Offiziell (Timesheet) | Inoffiziell (Git) | Differenz |
 |--------|----------------------|-------------------|-----------|
-| **Gesamt-Stunden** | 165.0h | 65.5h | **-99.5h** |
-| **Arbeitstage** | 40 Tage | 12 Tage | -28 Tage |
+| **Gesamt-Stunden** | 186.5h | 72.0h | **-114.5h** |
+| **Arbeitstage** | 46 Tage | 13 Tage | -33 Tage |
 | **Durchschnitt/Tag** | 4.1h | 5.5h | +1.4h |
 | **Längste Session** | 6.5h | 12.0h | +5.5h |
-| **Wochenend-Arbeit** | 39.0h (24%) | 39.0h (60%!) | **Anteil x2.5** |
+| **Wochenend-Arbeit** | 45.5h (24%) | 45.5h (63%!) | **Anteil x2.6** |
 
 ---
 
@@ -196,23 +216,23 @@
 
 ### Was die Git-Historie zeigt:
 1. **Intensive Nachtschichten** am 28.10 und 02-03.11
-2. **Wochenend-Warrior:** 60% der Arbeit am Wochenende!
+2. **Wochenend-Warrior:** 63% der Arbeit am Wochenende!
 3. **Sprint-Muster:** 2-3 Tage intensive Arbeit, dann Pause
-4. **12 echte Arbeitstage** statt 40 im offiziellen Timesheet
+4. **13 echte Arbeitstage** statt 46 im offiziellen Timesheet
 
-### Warum 165h offiziell vs. 65.5h real?
+### Warum 186.5h offiziell vs. 72h real?
 
-**Offiziell (165h):**
+**Offiziell (186.5h):**
 - Theoretisch verfügbare Zeit für Solr
 - Mo-Fr: 8h Arbeitstag MINUS 2-3h Tagesgeschäft = 5-6h für Solr
-- Verteilt über 8 Wochen (40 Arbeitstage)
+- Verteilt über 9 Wochen (46 Arbeitstage)
 - Professionell dokumentiert für Zeiterfassung/Odoo
 
-**Inoffiziell/Real (65.5h):**
+**Inoffiziell/Real (72.0h):**
 - TATSÄCHLICH an Solr gearbeitet (Git-basiert)
-- Konzentriert in 12 Tagen (Sprint-Modus)
+- Konzentriert in 13 Tagen (Sprint-Modus)
 - Hauptsächlich nachts + Wochenende
-- 99.5h waren für andere Projekte/Tagesgeschäft
+- 114.5h waren für andere Projekte/Tagesgeschäft
 
 ---
 
@@ -227,8 +247,11 @@ Nov 02-03:  Production Hardening (17h über 2 Tage)
 
 Nov 06-07:  Bugfixing Marathon (12h über 2 Tage)
 
-Nov 15-16:  Final Sprint (12.5h über 2 Tage)
+Nov 15-16:  Final Sprint v3.8 (12.5h über 2 Tage)
             └─ Finale Nachtschicht 16.11 (9.5h)
+
+Nov 22:     Simplification v4.0.1 (6.5h)
+            └─ solr_users[], Auth-Tests, Code Review
 ```
 
 **Reale Arbeitsweise:** Sprint-based Development mit intensiven Sessions
@@ -236,6 +259,7 @@ Nov 15-16:  Final Sprint (12.5h über 2 Tage)
 ---
 
 **Erstellt:** 16.11.2025
+**Aktualisiert:** 22.11.2025
 **Basis:** Git Commit Timestamps
 **Status:** Vertraulich - Nur interne Verwendung
 **Für Odoo:** Verwende PROJECT_TIMESHEET_ODOO_v3.8.csv (offiziell)

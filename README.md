@@ -93,7 +93,7 @@ Ansible role for deploying Apache Solr 9.9.0+ (9.10 validated) with BasicAuth, M
 
 ### Operational Features
 - **PowerInit v1.7.0** - Init-container pattern with checksum verification
-- **Integration Tests** - Automated smoke tests after deployment
+- **Integration Tests** - Automated authentication tests after deployment
 - **External Proxy** - Use Caddy for reverse proxy and SSL (not managed by this role)
 
 ### Developer Features

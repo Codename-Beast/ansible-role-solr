@@ -7,6 +7,94 @@ Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ---
 
+## [4.0.1] - 2025-11-22 🎯 SIMPLIFICATION RELEASE
+
+**Type:** Minor Release - Architecture Simplification
+**Status:** ✅ **PRODUCTION READY**
+
+### 🎯 ÜBERSICHT
+
+Version 4.0.1 vereinfacht die Rolle fundamental:
+- **Proxy/SSL entfernt** - Caddy übernimmt Reverse Proxy & SSL
+- **Auth konsolidiert** - Neues `solr_users[]` Array statt separater Variablen
+- **Tests vereinfacht** - Nur Auth-Tests (managed-schema = Moodle baut Schema)
+- **Dokumentation bereinigt** - Obsolete Abschnitte entfernt
+
+### ✨ NEUE FEATURES
+
+1. **Konsolidierte User-Verwaltung (`solr_users[]`)**
+   ```yaml
+   solr_users:
+     - username: "admin"
+       password: ""        # Auto-generiert wenn leer
+       role: "admin"
+     - username: "support"
+       password: ""
+       role: "support"
+     - username: "moodle"
+       password: ""
+       role: "moodle"
+   ```
+   - **Backward-kompatibel**: `solr_admin_password` etc. werden automatisch abgeleitet
+   - **Zusätzliche User**: Einfach weitere Einträge hinzufügen
+   - **Entfernt**: `solr_additional_users` (in `solr_users` integriert)
+
+2. **Vereinfachte Auth-Tests (8 Tests)**
+   - Admin/Support/Moodle User Authentication
+   - Rejection Tests (ohne/falsche Credentials)
+   - Permission Isolation (Moodle kann nicht auf Admin API)
+   - Container Status & security.json Verifizierung
+   - **Entfernt**: Document-Indexing Tests (managed-schema = Moodle baut Schema)
+
+### 🗑️ ENTFERNT
+
+1. **tasks/moodle_test_documents.yml** - Komplett gelöscht
+   - Mit managed-schema erstellt Moodle sein eigenes Schema via Schema API
+   - Document-Tests würden fehlschlagen (Felder existieren nicht)
+
+2. **Security Panel 404 Dokumentation** - War Apache-Fehlkonfiguration
+   - Problem durch Caddy gelöst
+   - User können Security Panel nun in WebUI nutzen
+
+3. **example.hostvars vereinfacht** - 419 → 67 Zeilen
+   - Nur noch relevante Variablen
+   - Verwendet neues `solr_users[]` Format
+
+### 📦 FILES CHANGED
+
+**Modified:**
+- `defaults/main.yml` - Neues `solr_users[]` Array + Backward-Compatibility
+- `tasks/main.yml` - Angepasste Conditionals für `solr_users`
+- `tasks/user_management.yml` - Verarbeitet zusätzliche User aus `solr_users`
+- `tasks/user_management_hash.yml` - Unterstützt `role` aus User-Objekt
+- `tasks/user_update_live.yml` - Verwendet `solr_users`
+- `tasks/integration_tests.yml` - v2.0.0: Nur Auth-Tests (8 statt 19)
+- `example.hostvars` - Vereinfacht (419 → 67 Zeilen)
+- `README.md` - Aktualisierte Beispiele, entfernte 404-Dokumentation
+- `README_de.md` - Aktualisierte Beispiele und Test-Matrix
+
+**Deleted:**
+- `tasks/moodle_test_documents.yml` - Obsolet mit managed-schema
+
+### ⚠️ BREAKING CHANGES
+
+**KEINE!** Volle Backward-Kompatibilität.
+
+**Migration:**
+- `solr_admin_password` etc. funktionieren weiterhin
+- Empfohlen: Auf `solr_users[]` umstellen für bessere Übersicht
+- `solr_additional_users` wird noch unterstützt, aber deprecated
+
+### 🎯 TESTING-CHECKLISTE
+
+- [x] Fresh Install mit `solr_users[]` funktioniert
+- [x] Backward-Kompatibilität mit alten Variablen
+- [x] Auth-Tests für alle User (admin, support, moodle)
+- [x] Permission Isolation verifiziert
+- [x] Container Status & security.json Tests
+
+---
+
 ## [3.9.7] - 2025-11-18 🐛 FIX: Jinja2 Template Syntax in credentials_display.yml
 
 **Type:** Patch Release - **BUG FIX**
@@ -967,13 +1055,15 @@ Version 3.8 ist das Ergebnis einer gnadenlosen Code-Review und umfassenden Valid
 
 | Version | Date       | Type    | Key Feature | Development Phase |
 |---------|------------|---------|-------------|-------------------|
+| 4.0.1   | 2025-11-22 | Minor   | solr_users[], Auth-only Tests, Simplification | Production Ready |
+| 3.9.7   | 2025-11-18 | Patch   | Jinja2 Template Syntax Fix | Bugfix |
+| 3.9.6   | 2025-11-18 | Patch   | Multicore User Management Fix | Critical Fix |
 | 3.8.0   | 2025-11-16 | Major   | Solr 9.10, Code Review, Testing Ready | Final Validation |
 | 3.7.0   | 2025-11-15 | Major   | Zero-Downtime User Management | Advanced Features |
 | 3.4.0   | 2025-11-03 | Major   | Production Hardening, Backups | Testing Ready |
 | 3.3.2   | 2025-11-02 | Patch   | 11 Critical Bugfixes, Rollback | Stabilization |
 | 3.3.1   | 2025-11-01 | Minor   | Full Idempotency | Optimization |
 | 3.3.0   | 2025-10-31 | Minor   | Health Checks | Monitoring |
-| 3.2.1   | 2025-10-29 | Patch   | Correct Hash System | Security Fix |
 | 3.2.0   | 2025-10-28 | Minor   | Moodle Integration | Core Features |
 | 3.1.0   | 2025-10-27 | Major   | Init-Container Pattern | Architecture |
 | 3.0.0   | 2025-10-25 | Major   | Initial Production Release | MVP Launch |
@@ -984,12 +1074,13 @@ Version 3.8 ist das Ergebnis einer gnadenlosen Code-Review und umfassenden Valid
 
 **Project Assignment:** 24.09.2025 08:38
 **Initial Deadline:** 10.10.2025 (16 Tage)
-**Actual Completion:** 16.11.2025 (54 Tage total)
+**v3.8 Completion:** 16.11.2025 (54 Tage)
+**v4.0.1 Completion:** 22.11.2025 (60 Tage total)
 
 ---
 
 **Maintainer:** Bernd Schreistetter
 **Organization:** Eledia GmbH
-**Latest:** v3.9.2(2025-11-16)
-**Status:** ✅ Testing Ready
-**Total Development:** 54 Tage (24.09 - 16.11.2025)
+**Latest:** v4.0.1 (2025-11-22)
+**Status:** ✅ Production Ready
+**Total Development:** 60 Tage (24.09 - 22.11.2025)
