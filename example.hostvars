@@ -1,6 +1,6 @@
 ---
 ################################################################################
-# SOLR HOST VARIABLES - v4.0.0 Minimal Reference
+# SOLR HOST VARIABLES - v4.0.1 Minimal Reference
 # Kopieren nach: host_vars/<hostname>.yml
 ################################################################################
 
@@ -11,12 +11,37 @@ solr_app_domain: "solr.example.com"
 solr_core_name: "example_core"  # Optional, auto-generiert aus Domain
 
 # ============================================================================
-# PFLICHT - Authentifizierung
+# PFLICHT - Benutzer (NEU in v4.0.1: Konsolidierte solr_users Liste)
 # ============================================================================
-# Global Admin/Support/Moodle User (Zugriff auf ALLE Cores)
-solr_admin_password: ""    # Leer = Auto-generiert (24 Zeichen)
-solr_support_password: ""  # Leer = Auto-generiert
-solr_moodle_password: ""   # Leer = Auto-generiert
+# Alle Benutzer in einer Liste: admin, support, moodle + zusätzliche
+# Leeres Passwort = Auto-generiert (24 Zeichen)
+solr_users:
+  - username: "admin"
+    password: ""        # Auto-generiert
+    role: "admin"       # Voller Zugriff
+  - username: "support"
+    password: ""
+    role: "support"     # Nur-Lese-Zugriff
+  - username: "moodle"
+    password: ""
+    role: "moodle"      # Lese/Schreib-Zugriff für Indexierung
+
+# ============================================================================
+# OPTIONAL - Zusätzliche Benutzer (einfach zur Liste hinzufügen)
+# ============================================================================
+# solr_users:
+#   - username: "admin"
+#     password: ""
+#     role: "admin"
+#   - username: "support"
+#     password: ""
+#     role: "support"
+#   - username: "moodle"
+#     password: ""
+#     role: "moodle"
+#   - username: "monitoring"     # Zusätzlicher Benutzer
+#     password: "MonitorPass!"
+#     role: "support"            # Support-Rolle = Nur-Lese
 
 # ============================================================================
 # OPTIONAL - Single-Core Mode (Default)
@@ -48,14 +73,6 @@ solr_empty_core: false  # true = Moodle registriert Schema via API
 # ============================================================================
 # solr_heap_size: "6g"       # JVM Heap
 # solr_memory_limit: "12g"   # Docker Container Limit
-
-# ============================================================================
-# OPTIONAL - Zusätzliche User (Hot-Reload möglich)
-# ============================================================================
-# solr_additional_users:
-#   - username: "monitoring"
-#     password: "MonitorPass!"
-#     roles: ["support"]
 
 ################################################################################
 # HINWEIS: Proxy/SSL wird extern via Caddy konfiguriert (nicht in dieser Rolle)

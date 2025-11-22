@@ -23,14 +23,20 @@
     generated_credentials: "{{ generated_credentials | default([]) }}"
 
 # ============================================================================
-# LEGACY SINGLE-CORE MODE: solr_additional_users
+# SINGLE-CORE MODE: Process additional users from solr_users
 # ============================================================================
+# Users beyond the base 3 (admin, support, moodle) are treated as additional users
+# This replaces the old solr_additional_users variable
 
-- name: user-management - Process additional users (legacy)
+- name: user-management - Extract additional users from solr_users
+  set_fact:
+    additional_users_list: "{{ solr_users | default([]) | rejectattr('role', 'in', ['admin', 'support', 'moodle']) | list }}"
+
+- name: user-management - Process additional users from solr_users
   block:
     - name: user-management - Generate secure credentials for additional users
       include_tasks: user_management_hash.yml
-      loop: "{{ solr_additional_users }}"
+      loop: "{{ additional_users_list }}"
       loop_control:
         loop_var: additional_user
       when:
@@ -40,9 +46,9 @@
     - name: user-management - Warn about incomplete user definitions
       debug:
         msg: "WARNING: User entry missing username or password - skipping: {{ item }}"
-      loop: "{{ solr_additional_users }}"
+      loop: "{{ additional_users_list }}"
       when: item.username is not defined or item.password is not defined
-  when: solr_additional_users is defined and solr_additional_users | length > 0
+  when: additional_users_list | length > 0
 
 # ============================================================================
 # MULTI-CORE MODE: Process users from solr_cores

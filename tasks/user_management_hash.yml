@@ -32,7 +32,7 @@
 
 - name: user-management - Determine roles for {{ additional_user.username }}
   set_fact:
-    user_roles: "{{ additional_user.roles | default([solr_core_admin_role_prefix ~ '-' ~ solr_core_name]) }}"
+    user_roles: "{{ additional_user.roles | default([additional_user.role | default(solr_core_admin_role_prefix ~ '-' ~ solr_core_name)]) }}"
 
 - name: user-management - Add user hash to dictionary
   set_fact:

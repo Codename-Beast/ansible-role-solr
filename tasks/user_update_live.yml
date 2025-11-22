@@ -1,15 +1,19 @@
 ---
-# Version: 1.0.1
+# Version: 2.0.0
 # Description: Add/update Solr users WITHOUT container restart (on-the-fly)
 # Usage: ansible-playbook install-solr.yml --tags=solr-auth-reload
 # This task ONLY updates users via API - NO DOWNTIME
 # Requirements:
 #   - Solr container must be running
 #   - security.json already deployed
-#   - New users defined in solr_additional_users
+#   - Additional users defined in solr_users (beyond admin/support/moodle)
+
+- name: user-live - Extract additional users from solr_users
+  set_fact:
+    live_additional_users: "{{ solr_users | default([]) | rejectattr('role', 'in', ['admin', 'support', 'moodle']) | list }}"
 
 - name: user-live - Verify Solr is running
-  command: docker inspect --format='{{.State.Status}}' {{ solr_container_name }}
+  command: docker inspect --format='{% raw %}{{.State.Status}}{% endraw %}' {{ solr_container_name }}
   register: container_status
   failed_when: container_status.stdout | trim != 'running'
   changed_when: false
@@ -23,11 +27,11 @@
       - "Mode: API-only updates"
       - "Container: {{ solr_container_name }}"
       - "Status: {{ container_status.stdout | trim }}"
-      - "New users: {{ solr_additional_users | length }}"
+      - "New users: {{ live_additional_users | length }}"
 
 - name: user-live - Process additional users (generate hashes)
   include_tasks: user_management.yml
-  when: solr_additional_users is defined and solr_additional_users | length > 0
+  when: live_additional_users | length > 0
 
 - name: user-live - Generate updated security.json
   template:
@@ -54,11 +58,11 @@
       set-user:
         "{{ item.username }}": "{{ solr_additional_user_hashes[item.username] }}"
     status_code: [200, 201]
-  loop: "{{ solr_additional_users }}"
+  loop: "{{ live_additional_users }}"
   loop_control:
     label: "{{ item.username }}"
   when:
-    - solr_additional_users is defined
+    - live_additional_users | length > 0
     - solr_additional_user_hashes is defined
     - item.username in solr_additional_user_hashes
   register: api_update_result
@@ -71,7 +75,7 @@
     password: "{{ item.password }}"
     force_basic_auth: yes
     status_code: [200, 401]  # 401 if user has no permissions yet (expected)
-  loop: "{{ solr_additional_users }}"
+  loop: "{{ live_additional_users }}"
   loop_control:
     label: "{{ item.username }}"
   register: auth_verify
@@ -84,8 +88,8 @@
       - "========================================="
       - "LIVE USER UPDATE COMPLETED"
       - "========================================="
-      - "Users updated: {{ solr_additional_users | length }}"
-      - "API updates: {{ api_update_result.results | selectattr('changed', 'equalto', true) | list | length }}"
-      - "Auth verified: {{ auth_verify.results | selectattr('status', 'in', [200, 401]) | list | length }}"
+      - "Users updated: {{ live_additional_users | length }}"
+      - "API updates: {{ api_update_result.results | selectattr('changed', 'equalto', true) | list | length if api_update_result.results is defined else 0 }}"
+      - "Auth verified: {{ auth_verify.results | selectattr('status', 'in', [200, 401]) | list | length if auth_verify.results is defined else 0 }}"
       - ""
       - "NOTE: Changes are live - NO container restart required!"

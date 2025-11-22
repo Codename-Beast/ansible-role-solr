@@ -13,8 +13,11 @@
 #   - ADDED: solr_empty_core variable for single-core mode
 #   - IMPROVED: solradmin integration in multicore configuration
 #   - FIXED: Moodle Schema API now works (POST /schema add-field)
+# Changelog v4.0.1:
+#   - CHANGED: Consolidated all auth to solr_users array
+#   - REMOVED: solr_additional_users (merged into solr_users)
+#   - ADDED: Backward compatibility for solr_admin_password etc.
 # Changelog v1.6.0:
-#   - ADDED: Dynamic user management via solr_additional_users
 #   - ADDED: Per-core admin role prefix configuration
 #   - ADDED: Support for multi-tenant user provisioning
 # Changelog v1.5.0:
@@ -30,19 +33,43 @@
 # ============================================================================
 # AUTHENTICATION CONFIGURATION
 # ============================================================================
-# IMPORTANT: Use these names in host_vars:
-#   solr_admin_password: "your_password"
-#   solr_support_password: "your_password"
-#   solr_moodle_password: "your_password"
+# NEW in v4.0.1: Consolidated solr_users structure
+# All users (admin, support, moodle + additional) in one list
+#
+# USAGE in host_vars:
+#   solr_users:
+#     - username: "admin"
+#       password: "SecurePassword123"  # Empty = auto-generated
+#       role: "admin"
+#     - username: "support"
+#       password: ""
+#       role: "support"
+#     - username: "moodle"
+#       password: ""
+#       role: "moodle"
+#     - username: "monitoring"
+#       password: "MonitorPass!"
+#       role: "support"  # Additional support user
 
-solr_admin_user: "admin"
-solr_admin_password: ""  # Auto-generated if empty
+solr_users:
+  - username: "admin"
+    password: ""  # Auto-generated if empty or < 12 chars
+    role: "admin"
+  - username: "support"
+    password: ""
+    role: "support"
+  - username: "moodle"
+    password: ""
+    role: "moodle"
 
-solr_support_user: "support"
-solr_support_password: ""  # Auto-generated if empty
-
-solr_moodle_user: "moodle"
-solr_moodle_password: ""  # Auto-generated if empty
+# Backward compatibility - derived from solr_users (DO NOT SET THESE MANUALLY!)
+# These are computed automatically from solr_users array
+solr_admin_user: "{{ (solr_users | selectattr('role', 'equalto', 'admin') | list | first).username | default('admin') }}"
+solr_admin_password: "{{ (solr_users | selectattr('role', 'equalto', 'admin') | list | first).password | default('') }}"
+solr_support_user: "{{ (solr_users | selectattr('role', 'equalto', 'support') | list | first).username | default('support') }}"
+solr_support_password: "{{ (solr_users | selectattr('role', 'equalto', 'support') | list | first).password | default('') }}"
+solr_moodle_user: "{{ (solr_users | selectattr('role', 'equalto', 'moodle') | list | first).username | default('moodle') }}"
+solr_moodle_password: "{{ (solr_users | selectattr('role', 'equalto', 'moodle') | list | first).password | default('') }}"
 
 solr_auth_enabled: true
 solr_auth_type: "basic"
@@ -437,18 +464,9 @@ admin_email: ""
 # ============================================================================
 # USER MANAGEMENT
 # ============================================================================
-# Additional Solr users beyond the built-in admin/support/moodle
-# Each user should have: username, password, and optionally roles
-# If roles are not specified, user will receive the per-core admin role
-solr_additional_users: []
-# Example:
-# solr_additional_users:
-#   - username: "tenant1_admin"
-#     password: "secure_password"
-#     roles: ["core-admin-tenant1"]
-#   - username: "tenant2_admin"
-#     password: "secure_password"
-#     # roles will default to ["core-admin-<core_name>"]
+# NOTE: solr_additional_users removed in v4.0.1
+# Use solr_users array instead (see AUTHENTICATION CONFIGURATION above)
+# All users are now managed in one place via solr_users
 
 # Prefix for automatically generated per-core administrator roles
 solr_core_admin_role_prefix: "core-admin"
