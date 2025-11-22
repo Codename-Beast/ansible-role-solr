@@ -596,21 +596,7 @@ curl -u admin:password http://localhost:8983/solr/admin/authorization
 # Should return security.json
 ```
 
-#### 2. Security Panel 404 in Browser
-
-**Symptom:** Security panel shows 404 error (cosmetic issue only)
-
-**Important:** This is a **browser UI display issue** - the backend API works
-
-**Quick Fix:**
-```bash
-# Use API directly - works perfectly
-curl -u admin:password https://solr.example.com/solr/admin/authorization
-```
-
-**For detailed explanation**, see [Known Limitations & Hurdles → Admin UI Security Panel 404](#2-admin-ui-security-panel-404-browser-display-issue) which documents the full journey and 3 fix attempts.
-
-#### 3. Container Won't Start
+#### 2. Container Won't Start
 
 **Check logs:**
 ```bash
@@ -634,7 +620,7 @@ free -h
 docker exec solr_customer cat /var/solr/data/security.json | python3 -m json.tool
 ```
 
-#### 4. Core Not Found
+#### 3. Core Not Found
 
 **Symptom:** 404 when accessing core
 
@@ -649,7 +635,7 @@ curl -u admin:password \
   "http://localhost:8983/solr/admin/cores?action=RELOAD&core=core_name"
 ```
 
-#### 5. Out of Memory
+#### 4. Out of Memory
 
 **Symptom:** Java heap space errors, slow performance
 
@@ -701,11 +687,10 @@ docker logs -f solr_customer 2>&1 | grep -i error
 
 **⚠️ Known Limitations:**
 - ⚠️ Per-core access control requires SolrCloud (Solr Standalone limitation)
-- ⚠️ Security Panel browser UI shows 404 (API works, cosmetic issue only)
 - ⚠️ Resource planning critical (2GB RAM per core minimum)
 
 **Bottom Line:**
-> 🎉 **The server is ready to deploy!** All core functionality works. The limitations are either Solr architectural constraints (per-core permissions) or cosmetic issues (Security Panel UI) that don't affect operations.
+> 🎉 **The server is ready to deploy!** All core functionality works. The only limitation is a Solr architectural constraint (per-core permissions require SolrCloud).
 
 ---
 
@@ -754,121 +739,7 @@ According to [official Apache Solr documentation](https://solr.apache.org/guide/
 
 ---
 
-### 2. Admin UI Security Panel 404 (Browser Display Issue)
-
-**The Hurdle:**
-
-During production deployment, we discovered the Solr Admin UI makes **SolrCloud API calls** even when running in **Standalone mode**:
-
-```
-Browser Request:  GET /api/cluster/security/authorization
-Solr Standalone:  Expects /solr/admin/authorization
-Result:           404 Not Found in browser UI
-```
-
-**What Actually Works:**
-- ✅ **Backend API** - All endpoints respond correctly
-- ✅ **Authentication** - Login works, credentials validated
-- ✅ **Core Access** - All 4 cores accessible and working
-- ✅ **Role Assignment** - Users have correct permissions
-- ✅ **Smoke Tests** - 10/10 tests PASSED
-- ✅ **Moodle Integration** - Search indexing works
-- ✅ **Deployment** 
-
-**What Doesn't Work:**
-- ❌ **Security Panel Browser UI** - Shows 404 error in Admin UI
-  - **Impact**: Cosmetic only - cannot view security config in browser
-  - **Workaround**: Use API directly
-
-**The Journey to Fix It:**
-
-We went through 3 iterations to solve this:
-
-<details>
-<summary><strong>v3.9.17 - Attempt #1: RewriteRule Only (FAILED)</strong></summary>
-
-```apache
-# Added URL rewriting
-RewriteEngine On
-RewriteRule ^/api/cluster/security/(.*)$ /solr/admin/$1 [PT,QSA]
-```
-
-**Problem:** RewriteRule changes the URL but doesn't proxy the request to Solr backend.
-
-**Result:** Still 404 ❌
-</details>
-
-<details>
-<summary><strong>v3.9.17 HOTFIX - Attempt #2: ProxyPass Wrong Path (FAILED)</strong></summary>
-
-```apache
-# Added ProxyPass for cluster API
-<Location /api/cluster>
-    ProxyPass http://127.0.0.1:8983/solr/admin nocanon
-    ProxyPassReverse http://127.0.0.1:8983/solr/admin
-</Location>
-```
-
-**Problem:** Proxied `/api/cluster/security/authorization` → `/solr/admin/security/authorization`, but Solr doesn't have `/security/` segment in Standalone mode.
-
-**Result:** "Searching for Solr? You must type the correct path." ❌
-</details>
-
-<details>
-<summary><strong>v3.9.18 - Final Solution: RewriteRule + LocationMatch (PARTIAL SUCCESS)</strong></summary>
-
-```apache
-# Step 1: Strip /cluster/security/ from the URL
-RewriteEngine On
-RewriteRule ^/api/cluster/security/(.*)$ /solr/admin/$1 [PT,QSA]
-
-# Step 2: Proxy the rewritten path to Solr
-<LocationMatch "^/solr/admin/(authorization|authentication)">
-    ProxyPass http://127.0.0.1:8983/solr/admin nocanon
-    ProxyPassReverse http://127.0.0.1:8983/solr/admin
-
-    # Forward auth headers
-    RequestHeader set X-Forwarded-Proto "https"
-    RequestHeader set X-Forwarded-Host "solr.example.com"
-</LocationMatch>
-```
-
-**How It Works:**
-1. Browser requests: `/api/cluster/security/authorization`
-2. RewriteRule changes to: `/solr/admin/authorization` (strips `/cluster/security`)
-3. LocationMatch proxies to: `http://localhost:8983/solr/admin/authorization`
-4. Solr responds with correct JSON
-
-**Result:** API works, browser may need hard-refresh (browser caching issue)
-</details>
-
-**Current Status:**
-- **Backend**:  WORKING
-- **Browser UI**: May show 404 due to browser cache (LOW PRIORITY)
-- **Production Impact**: NONE - use API directly
-
-**Workaround:**
-
-```bash
-# View security config directly
-curl -u admin:password https://solr.example.com/solr/admin/authorization
-
-# Returns full security.json:
-{
-  "authorization": {
-    "class": "solr.RuleBasedAuthorizationPlugin",
-    "permissions": [...],
-    "user-role": {...}
-  }
-}
-```
-
-**Bottom Line:**
-> ✅ **The server works perfectly!** Admin can access cores, smoke tests pass, Moodle can index and search. The Security Panel browser display is a cosmetic issue that doesn't affect functionality.
-
----
-
-### 3. Resource Requirements - Careful Planning Needed
+### 2. Resource Requirements - Careful Planning Needed
 
 **This Was a Major Hurdle:**
 
