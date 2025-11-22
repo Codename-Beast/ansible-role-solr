@@ -1,5 +1,5 @@
 date,employee_id,project_id,task_id,name,unit_amount
-2025-09-24,Bernd Schreistetter,ansible-role-solr,Projekt-Initialisierung,Projekt-Kick-off und Anforderungsanalyse,3.5
+2025-09-24,Bernd Schreistetter,ansible-role-solr,Projekt-Init,Projekt-Kick-off und Anforderungsanalyse,3.5
 2025-09-25,Bernd Schreistetter,ansible-role-solr,Requirements,Technische Anforderungen mit Stakeholdern definieren,4.0
 2025-09-26,Bernd Schreistetter,ansible-role-solr,Requirements,Solr 9.9.0 Spezifikationen analysieren,3.5
 2025-09-27,Bernd Schreistetter,ansible-role-solr,Research,Moodle Search API Dokumentation studieren,4.0
